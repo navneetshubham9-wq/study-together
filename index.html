@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>STUDY TOGETHER</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body><h1>Study Together</h1>
+
+<input type="text" id="username" placeholder="Enter Your Name">
+
+<input type="text" id="room" placeholder="Enter Room ID">
+
+<button id="joinBtn">Join Room</button>
+<br><br>
+
+<button id="muteBtn">Mute</button>
+
+<button id="cameraBtn">Camera Off</button>
+
+<button id="leaveBtn">Leave Room</button>
+
+<div id="videos"></div>
+<div id="chat-container">
+
+    <div id="messages"></div>
+
+    <input type="text" id="messageInput" placeholder="Type message">
+
+    <button id="sendBtn">Send</button>
+
+</div>
+
+<script src="https://download.agora.io/sdk/release/AgoraRTC_N.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
