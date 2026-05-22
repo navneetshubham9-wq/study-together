@@ -4,8 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>STUDY NEST</title>
-
-   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>
@@ -42,18 +41,46 @@
         <button id="sendBtn">Send</button>
         <button id="sendFileBtn">Share Document</button>
       </div>
+      <!-- Download link area -->
+      <div id="downloadLink"></div>
     </section>
   </main>
 
   <footer>
     <p>Made with ❤️ for collaborative learning</p>
-    <P>© 2026 STUDY NEST. All rights reserved.</P>
-    <P>Contact:navneetshubham9@gmail.com</P>
+    <p>© 2026 STUDY NEST. All rights reserved.</p>
+    <p>Contact: navneetshubham9@gmail.com</p>
   </footer>
 
   <!-- Agora SDK -->
   <script src="https://download.agora.io/sdk/release/AgoraRTC_N.js"></script>
   <!-- Main Script -->
-  <script type="module" src="script.js"></script>
+  <script type="module">
+    // File upload handling
+    document.getElementById('sendFileBtn').addEventListener('click', async () => {
+      const fileInput = document.getElementById('fileInput');
+      if (!fileInput.files.length) {
+        alert('Please select a file first!');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', fileInput.files[0]);
+
+      try {
+        const res = await fetch('/upload', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+
+        // Show download link
+        document.getElementById('downloadLink').innerHTML =
+          `<a href="${data.downloadLink}" target="_blank">Download File</a>`;
+      } catch (err) {
+        document.getElementById('downloadLink').innerText = 'Upload failed!';
+      }
+    });
+  </script>
 </body>
 </html>
