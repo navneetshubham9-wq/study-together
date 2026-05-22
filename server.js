@@ -26,6 +26,19 @@ app.post("/upload", upload.single("file"), (req, res) => {
   }
 
   const fileUrl = `/files/${req.file.filename}`;
+app.post('/upload', upload.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: "No file uploaded" });
+  }
+
+  // Dynamic URL बनाओ ताकि दूसरे user को सही link मिले
+  const fileUrl = `${req.protocol}://${req.get('host')}/files/${req.file.filename}`;
+
+  res.json({
+    message: "File uploaded successfully",
+    url: fileUrl
+  });
+});
 
   // ✅ सिर्फ JSON भेजो
   res.json({
