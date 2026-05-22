@@ -1,0 +1,141 @@
+/* General Layout */
+body {
+  font-family: Arial, sans-serif;
+  background-color: #121212;
+  color: #f1f1f1;
+  margin: 0;
+  padding: 0;
+  text-align: center;
+}
+
+header {
+  padding: 15px;
+  background: #1e1e1e;
+}
+
+h1 {
+  margin: 0;
+  font-size: 24px;
+}
+
+/* Controls Section */
+#controls {
+  margin: 15px 0;
+}
+
+#controls button {
+  margin: 5px;
+  padding: 8px 12px;
+  background: #333;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+#controls button:hover {
+  background: #555;
+}
+
+/* Video Area */
+#videos {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: 15px;
+}
+
+.video-box {
+  display: flex;
+  flex-direction: column;   /* Elements stack vertically */
+  align-items: center;
+  background: #1e1e1e;
+  border-radius: 6px;
+  padding: 10px;
+  margin: 10px;
+}
+
+.video-box p {
+  margin: 5px 0;
+  font-weight: bold;
+}
+
+.video-box video {
+  width: 300px;
+  height: 200px;
+  background: #000;
+  margin-bottom: 8px;
+  border-radius: 4px;
+}
+
+.video-box button {
+  margin: 4px 0;   /* Vertical spacing between buttons */
+  padding: 6px 10px;
+  background: #444;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.video-box button:hover {
+  background: #666;
+}
+
+/* Chat Section */
+#chat-container {
+  margin: 20px auto;
+  width: 80%;
+  max-width: 600px;
+  background: #1e1e1e;
+  padding: 10px;
+  border-radius: 6px;
+}
+
+#messages {
+  height: 200px;
+  overflow-y: auto;
+  background: #222;
+  padding: 8px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  text-align: left;
+}
+
+.message {
+  margin: 5px 0;
+}
+
+#chat-input {
+  display: flex;
+  justify-content: space-between;
+}
+
+#chat-input input {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  border-radius: 4px;
+  margin-right: 5px;
+}
+
+#chat-input button {
+  padding: 8px 12px;
+  background: #333;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+#chat-input button:hover {
+  background: #555;
+}
+
+/* Footer */
+footer {
+  margin-top: 20px;
+  padding: 10px;
+  background: #1e1e1e;
+  font-size: 14px;
+}
