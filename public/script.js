@@ -464,38 +464,46 @@ shareBtn.onclick = async () => {
   }
 };
 // ----existing Agora / chat code----
-document.getElementById("sendFileBtn").addEventListener("click", async () => {
-  const fileInput = document.getElementById("fileInput");
-  const file = fileInput.files[0];
-  if (!file) return alert("Please select a file");
+// Chat message send
+document.getElementById('sendBtn').addEventListener('click', () => {
+  const msgInput = document.getElementById('messageInput');
+  const messages = document.getElementById('messages');
 
-  const formData = new FormData();
-  formData.append("file", file);
-
-  try {
-    const res = await fetch("/upload", {
-      method: "POST",
-      body: formData
-    });
-
-    if (!res.ok) throw new Error("Upload failed");
-
-    // सिर्फ एक बार JSON पढ़ो
-    const data = await res.json();
-
-    // Chat में download link दिखाओ
-    const messages = document.getElementById("messages");
-    const link = document.createElement("a");
-    link.href = data.url;
-    link.textContent = "📂 Download " + file.name;
-    link.target = "_blank";
-
-    const msgDiv = document.createElement("div");
-    msgDiv.appendChild(link);
-    messages.appendChild(msgDiv);
-
-  } catch (err) {
-    console.error("Error:", err);
-    alert("Upload failed: " + err.message);
+  if (msgInput.value.trim() !== "") {
+    const msg = document.createElement('p');
+    msg.textContent = msgInput.value;
+    messages.appendChild(msg);
+    msgInput.value = "";
   }
+});
+
+// File upload & share
+document.getElementById('sendFileBtn').addEventListener('click', () => {
+  const fileInput = document.getElementById('fileInput');
+  const formData = new FormData();
+  formData.append('file', fileInput.files[0]);
+
+  fetch('/upload', {
+    method: 'POST',
+    body: formData
+  })
+  .then(response => response.json())
+  .then(data => {
+    const messages = document.getElementById('messages');
+
+    // Show message
+    const msg = document.createElement('p');
+    msg.textContent = data.message;
+    messages.appendChild(msg);
+
+    // Show clickable download link
+    const fileLink = document.createElement('a');
+    fileLink.href = data.url;
+    fileLink.textContent = "📂 Download File";
+    fileLink.target = "_blank";
+    messages.appendChild(fileLink);
+  })
+  .catch(error => {
+    console.error('Error:', error);
+  });
 });
