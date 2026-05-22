@@ -28,6 +28,9 @@ const upload = multer({ storage });
 // Serve uploaded files statically
 app.use('/uploads', express.static(uploadDir));
 
+// Serve HTML + CSS + JS files
+app.use(express.static(__dirname));
+
 // Upload route
 app.post('/upload', upload.single('file'), (req, res) => {
   if (!req.file) {
@@ -39,11 +42,7 @@ app.post('/upload', upload.single('file'), (req, res) => {
   res.json({ downloadLink: fileUrl });
 });
 
-// Default route
-app.get('/', (req, res) => {
-  res.send('Server is running. Go to your HTML page to upload files.');
-});
-
+// Start server
 app.listen(PORT, () => {
   console.log(`✅ Server running at http://localhost:${PORT}`);
 });

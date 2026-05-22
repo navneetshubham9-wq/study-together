@@ -1,141 +1,162 @@
-/* General Layout */
-body {
-  font-family: Arial, sans-serif;
-  background-color: #121212;
-  color: #f1f1f1;
+/* General Reset */
+* {
   margin: 0;
   padding: 0;
-  text-align: center;
+  box-sizing: border-box;
+  font-family: "Segoe UI", Arial, sans-serif;
 }
 
+/* Body Background */
+body {
+  background: radial-gradient(circle at top left, #0f0f0f, #1a1a1a, #000);
+  color: #e0e0e0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
 header {
-  padding: 15px;
-  background: #1e1e1e;
+  text-align: center;
+  padding: 20px;
+  background: rgba(255,255,255,0.05);
+  border-bottom: 2px solid #00ffff;
+}
+header h1 {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+  color: #00ffff;
+  text-shadow: 0 0 10px #00ffff;
+}
+header h2 {
+  font-size: 1.2rem;
+  font-weight: 300;
+  color: #ff00ff;
+  text-shadow: 0 0 8px #ff00ff;
 }
 
-h1 {
-  margin: 0;
-  font-size: 24px;
+/* Main Sections */
+main {
+  flex: 1;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
-/* Controls Section */
-#controls {
-  margin: 15px 0;
+/* Inputs */
+#join-section input {
+  padding: 10px;
+  margin: 5px;
+  border-radius: 5px;
+  border: 1px solid #00ffff;
+  background: #111;
+  color: #fff;
+}
+#join-section button {
+  padding: 10px 20px;
+  border: none;
+  background: #ff00ff;
+  color: #fff;
+  border-radius: 5px;
+  cursor: pointer;
+  box-shadow: 0 0 10px #ff00ff;
+}
+#join-section button:hover {
+  background: #d400d4;
 }
 
+/* Controls */
 #controls button {
   margin: 5px;
-  padding: 8px 12px;
-  background: #333;
-  color: #fff;
+  padding: 10px 15px;
   border: none;
-  border-radius: 4px;
+  border-radius: 5px;
+  background: #00ffff;
+  color: #000;
   cursor: pointer;
+  box-shadow: 0 0 10px #00ffff;
 }
-
 #controls button:hover {
-  background: #555;
+  background: #00cccc;
 }
 
 /* Video Area */
 #videos {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
-  margin: 15px;
-}
-
-.video-box {
-  display: flex;
-  flex-direction: column;   /* Elements stack vertically */
-  align-items: center;
-  background: #1e1e1e;
-  border-radius: 6px;
+  gap: 10px;
+  background: rgba(255,255,255,0.05);
   padding: 10px;
-  margin: 10px;
+  border-radius: 10px;
+  border: 1px solid #ff00ff;
 }
 
-.video-box p {
-  margin: 5px 0;
-  font-weight: bold;
-}
-
-.video-box video {
-  width: 300px;
-  height: 200px;
-  background: #000;
-  margin-bottom: 8px;
-  border-radius: 4px;
-}
-
-.video-box button {
-  margin: 4px 0;   /* Vertical spacing between buttons */
-  padding: 6px 10px;
-  background: #444;
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.video-box button:hover {
-  background: #666;
-}
-
-/* Chat Section */
+/* Chat Area */
 #chat-container {
-  margin: 20px auto;
-  width: 80%;
-  max-width: 600px;
-  background: #1e1e1e;
-  padding: 10px;
-  border-radius: 6px;
+  background: rgba(255,255,255,0.05);
+  padding: 15px;
+  border-radius: 10px;
+  border: 1px solid #00ffff;
 }
-
 #messages {
-  height: 200px;
+  max-height: 200px;
   overflow-y: auto;
-  background: #222;
-  padding: 8px;
-  border-radius: 4px;
   margin-bottom: 10px;
-  text-align: left;
+  background: rgba(0,0,0,0.6);
+  padding: 10px;
+  border-radius: 5px;
+  color: #00ffff;
 }
-
-.message {
-  margin: 5px 0;
-}
-
 #chat-input {
   display: flex;
-  justify-content: space-between;
+  gap: 10px;
 }
-
-#chat-input input {
+#chat-input input[type="text"] {
   flex: 1;
-  padding: 8px;
-  border: none;
-  border-radius: 4px;
-  margin-right: 5px;
-}
-
-#chat-input button {
-  padding: 8px 12px;
-  background: #333;
+  padding: 10px;
+  border-radius: 5px;
+  border: 1px solid #ff00ff;
+  background: #111;
   color: #fff;
+}
+#chat-input input[type="file"] {
+  flex: 1;
+  color: #fff;
+}
+#chat-input button {
+  padding: 10px 15px;
   border: none;
-  border-radius: 4px;
+  border-radius: 5px;
+  background: #ff00ff;
+  color: #fff;
   cursor: pointer;
+  box-shadow: 0 0 10px #ff00ff;
+}
+#chat-input button:hover {
+  background: #d400d4;
 }
 
-#chat-input button:hover {
-  background: #555;
+/* Download Link */
+#downloadLink {
+  margin-top: 10px;
+}
+#downloadLink a {
+  color: #00ffff;
+  font-weight: bold;
+  text-decoration: none;
+  text-shadow: 0 0 8px #00ffff;
+}
+#downloadLink a:hover {
+  text-decoration: underline;
 }
 
 /* Footer */
 footer {
-  margin-top: 20px;
-  padding: 10px;
-  background: #1e1e1e;
-  font-size: 14px;
+  text-align: center;
+  padding: 15px;
+  background: rgba(255,255,255,0.05);
+  border-top: 2px solid #ff00ff;
+  font-size: 0.9rem;
+  color: #ccc;
 }
