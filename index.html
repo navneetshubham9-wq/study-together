@@ -3,12 +3,68 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Study Nest</title>
+  <title>📚 STUDY NEST</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+      color: #333;
+      text-align: center;
+    }
+    header {
+      padding: 20px;
+      background: rgba(255,255,255,0.8);
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    h1 {
+      margin: 0;
+      font-size: 2.5rem;
+    }
+    h2 {
+      margin: 5px 0 0;
+      font-weight: normal;
+      font-size: 1.2rem;
+    }
+    #join-section, #controls {
+      margin: 30px auto;
+      padding: 20px;
+      background: rgba(255,255,255,0.9);
+      border-radius: 10px;
+      width: 300px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    input, button {
+      display: block;
+      width: 100%;
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      font-size: 1rem;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    footer {
+      margin-top: 40px;
+      padding: 10px;
+      font-size: 0.9rem;
+      background: rgba(255,255,255,0.7);
+    }
+  </style>
 </head>
 <body>
   <header>
-    <h1>📚 Study Nest</h1>
+    <h1>📚 STUDY NEST</h1>
+    <h2>Collaborate, Learn, and Grow Together</h2>
   </header>
 
   <main>
@@ -22,26 +78,12 @@
     <!-- Controls -->
     <section id="controls">
       <button id="muteBtn">Mute</button>
-      <button id="cameraBtn">Camera Off</button>
-      <button id="shareBtn">Share Screen</button>
-      <button id="leaveBtn">Leave Room</button>
-    </section>
-
-    <!-- Video Area -->
-    <section id="videos"></section>
-
-    <!-- Chat Area -->
-    <section id="chat-container">
-      <div id="messages" aria-live="polite"></div>
-      <div id="chat-input">
-        <input type="text" id="messageInput" placeholder="Type message" aria-label="Chat message">
-        <button id="sendBtn">Send</button>
-      </div>
+      <button id="c">Camera</button>
     </section>
   </main>
 
   <footer>
-    <p>Made with ❤️ from NSK for collaborative learning</p>
+    <p>Contact: navneetshubham9@gmail.com</p>
   </footer>
 
   <!-- Agora SDK -->
