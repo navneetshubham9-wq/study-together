@@ -1,65 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>📚 STUDY NEST</title>
-  <link rel="stylesheet" href="style.css">
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
-      color: #333;
-      text-align: center;
-    }
-    header {
-      padding: 20px;
-      background: rgba(255,255,255,0.8);
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    }
-    h1 {
-      margin: 0;
-      font-size: 2.5rem;
-    }
-    h2 {
-      margin: 5px 0 0;
-      font-weight: normal;
-      font-size: 1.2rem;
-    }
-    #join-section, #controls {
-      margin: 30px auto;
-      padding: 20px;
-      background: rgba(255,255,255,0.9);
-      border-radius: 10px;
-      width: 300px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    }
-    input, button {
-      display: block;
-      width: 100%;
-      margin: 10px 0;
-      padding: 10px;
-      border-radius: 5px;
-      border: 1px solid #ccc;
-      font-size: 1rem;
-    }
-    button {
-      background: #4CAF50;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #45a049;
-    }
-    footer {
-      margin-top: 40px;
-      padding: 10px;
-      font-size: 0.9rem;
-      background: rgba(255,255,255,0.7);
-    }
-  </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>📚 Study Nest</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header>
@@ -68,17 +13,39 @@
   </header>
 
   <main>
-    <!-- User & Room Inputs -->
-    <section id="join-section">
-      <input type="text" id="username" placeholder="Enter Your Name" aria-label="Username">
-      <input type="text" id="room" placeholder="Enter Room ID" aria-label="Room ID">
+    <!-- Join -->
+    <section id="join-section" class="card">
+      <input id="username" placeholder="Enter Your Name" />
+      <input id="room" placeholder="Enter Room ID" />
       <button id="joinBtn">Join Room</button>
     </section>
 
     <!-- Controls -->
-    <section id="controls">
-      <button id="muteBtn">Mute</button>
-      <button id="c">Camera</button>
+    <section id="controls" class="card hidden">
+      <div class="control-row">
+        <button id="cameraBtn">Camera On/Off</button>
+        <button id="muteBtn">Mute/Unmute</button>
+        <button id="shareBtn">Screen Share</button>
+      </div>
+    </section>
+
+    <!-- Video area -->
+    <section id="video-area" class="video-grid"></section>
+
+    <!-- Chat -->
+    <section id="chat-box" class="card">
+      <div id="messages" class="messages"></div>
+      <div class="chat-input">
+        <input id="chatInput" placeholder="Type a message..." />
+        <button id="sendMsg">Send</button>
+      </div>
+    </section>
+
+    <!-- File upload -->
+    <section id="file-box" class="card">
+      <input type="file" id="fileUpload" accept=".jpg,.jpeg,.pdf" />
+      <button id="uploadBtn">Upload to Shared Folder</button>
+      <div id="fileList" class="file-list"></div>
     </section>
   </main>
 
@@ -86,9 +53,11 @@
     <p>Contact: navneetshubham9@gmail.com</p>
   </footer>
 
-  <!-- Agora SDK -->
+  <!-- Agora Web SDK (global AgoraRTC) -->
   <script src="https://download.agora.io/sdk/release/AgoraRTC_N.js"></script>
-  <!-- Main Script -->
+  <!-- Socket.io client -->
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- Main script -->
   <script type="module" src="script.js"></script>
 </body>
 </html>
