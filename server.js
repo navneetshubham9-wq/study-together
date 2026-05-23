@@ -13,10 +13,8 @@ const io = new Server(server);
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, "uploads");
 const PORT = process.env.PORT || 3000;
 
-// Ensure uploads folder exists
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
-// Multer setup
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename: (req, file, cb) => {
@@ -26,20 +24,18 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Serve static files
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(UPLOAD_DIR));
-
-// Health
 app.get("/health", (req, res) => res.send("OK"));
 
-// Upload endpoint
 app.post("/upload", upload.single("file"), (req, res) => {
   try {
     const room = req.body.room || "";
     const filename = req.file.filename;
     const url = `/uploads/${filename}`;
-    if (room) io.to(room).emit("file-uploaded", { filename, url, uploader: req.body.uploader || "Someone" });
+    if (room) {
+      io.to(room).emit("file-uploaded", { filename, url, uploader: req.body.uploader || "Someone" });
+    }
     return res.json({ filename, url });
   } catch (err) {
     console.error("Upload error:", err);
@@ -47,20 +43,82 @@ app.post("/upload", upload.single("file"), (req, res) => {
   }
 });
 
-// Map of agoraUid -> socketId for direct control messages
 const uidToSocket = new Map();
+const roomHosts = new Map();
+const socketUsers = new Map(); // Track users for accurate notifications
+
+function sendControl(data) {
+  try {
+    if (!data) return;
+    const { room, targetUid, action } = data;
+    
+    if (action === "mute-all" || action === "unmute-all") {
+      io.to(room).emit("control", data);
+      return;
+    }
+
+    if (targetUid && uidToSocket.has(targetUid.toString())) {
+      const targetSocketId = uidToSocket.get(targetUid.toString());
+      io.to(targetSocketId).emit("control", data);
+    } else if (room) {
+      io.to(room).emit("control", data);
+    }
+  } catch (e) {
+    console.error("sendControl error:", e);
+  }
+}
+
+// Ye function user ke jaane par sab clean karega aur chat message bhejega
+function handleUserLeave(socketId) {
+  const user = socketUsers.get(socketId);
+  if (user) {
+    // 1. UI se video gayab karne ke liye
+    io.to(user.room).emit("user-left", { uid: user.uid, name: user.name });
+    
+    // 2. Chatbox me left notification bhejne ke liye
+    io.to(user.room).emit("chat-message", { 
+      name: "System", 
+      text: `${user.name} left the room` 
+    });
+
+    uidToSocket.delete(user.uid);
+    socketUsers.delete(socketId);
+
+    if (roomHosts.get(user.room) === socketId) {
+      roomHosts.set(user.room, null);
+    }
+
+    const currentRoomData = io.sockets.adapter.rooms.get(user.room);
+    const roomSize = currentRoomData ? currentRoomData.size - 1 : 0;
+    // Host buttons ko manage karne ke liye room size update
+    io.to(user.room).emit("room-update", { size: Math.max(0, roomSize) });
+  }
+}
 
 io.on("connection", socket => {
   socket.on("join-room", info => {
     try {
-      const room = info.room;
-      const uid = info.uid ? info.uid.toString() : null;
-      const name = info.name || "Anonymous";
-      if (room) {
-        socket.join(room);
-        if (uid) uidToSocket.set(uid, socket.id);
-        socket.to(room).emit("user-joined", { uid, name });
+      const room = info && info.room;
+      const uid = info && info.uid ? info.uid.toString() : null;
+      const name = info && info.name ? info.name : "Anonymous";
+      if (!room) return;
+      
+      socket.join(room);
+      if (uid) uidToSocket.set(uid, socket.id);
+      socketUsers.set(socket.id, { uid, name, room });
+
+      if (!roomHosts.has(room) || roomHosts.get(room) === null) {
+        roomHosts.set(room, socket.id);
+        socket.emit("host-assignment", { isHost: true });
+      } else {
+        socket.emit("host-assignment", { isHost: false });
       }
+      
+      socket.to(room).emit("user-joined", { uid, name });
+
+      const roomSize = io.sockets.adapter.rooms.get(room).size;
+      io.to(room).emit("room-update", { size: roomSize });
+
     } catch (e) {
       console.error("join-room error:", e);
     }
@@ -69,13 +127,7 @@ io.on("connection", socket => {
   socket.on("control", data => {
     try {
       if (!data) return;
-      const { room, targetUid } = data;
-      if (targetUid && uidToSocket.has(targetUid.toString())) {
-        const targetSocketId = uidToSocket.get(targetUid.toString());
-        io.to(targetSocketId).emit("control", data);
-      } else if (room) {
-        io.to(room).emit("control", data);
-      }
+      sendControl(data);
     } catch (e) {
       console.error("control error:", e);
     }
@@ -90,20 +142,17 @@ io.on("connection", socket => {
     }
   });
 
+  // Explicit leave event before reload
+  socket.on("leave-room", () => {
+    handleUserLeave(socket.id);
+  });
+
+  // Fallback if tab is closed directly
   socket.on("disconnecting", () => {
-    try {
-      for (const [uid, sId] of uidToSocket.entries()) {
-        if (sId === socket.id) uidToSocket.delete(uid);
-      }
-      const rooms = Array.from(socket.rooms).filter(r => r !== socket.id);
-      rooms.forEach(r => socket.to(r).emit("user-left", { socketId: socket.id }));
-    } catch (e) {
-      console.error("disconnecting error:", e);
-    }
+    handleUserLeave(socket.id);
   });
 });
 
 server.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
-  console.log(`Uploads directory: ${UPLOAD_DIR}`);
 });

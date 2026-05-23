@@ -7,57 +7,61 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  
+  <div id="notification-container"></div>
+
   <header>
     <h1>📚 STUDY NEST</h1>
     <h2>Collaborate, Learn, and Grow Together</h2>
   </header>
 
   <main>
-    <!-- Join -->
     <section id="join-section" class="card">
       <input id="username" placeholder="Enter Your Name" />
       <input id="room" placeholder="Enter Room ID" />
       <button id="joinBtn">Join Room</button>
     </section>
 
-    <!-- Controls -->
-    <section id="controls" class="card hidden">
-      <div class="control-row">
-        <button id="cameraBtn">Camera On/Off</button>
-        <button id="muteBtn">Mute/Unmute</button>
-        <button id="shareBtn">Screen Share</button>
-      </div>
-    </section>
+    <div id="workspace" class="hidden">
+      
+      <section id="controls" class="card entry-animation delay-controls">
+        <div class="control-row">
+          <button id="cameraBtn">Camera Off</button>
+          <button id="muteBtn">Mute</button>
+          <button id="shareBtn">Screen Share</button>
+          <button id="leaveBtn" style="background-color: #e74c3c; color: white;">Leave Room</button>
+          
+          <button id="muteAllBtn" style="background-color: #e74c3c; color: white; display: none;">Mute All (Host)</button>
+          <button id="unmuteAllBtn" style="background-color: #4CAF50; color: white; display: none;">Unmute All (Host)</button>
+        </div>
+      </section>
 
-    <!-- Video area -->
-    <section id="video-area" class="video-grid"></section>
+      <section id="video-area" class="card video-grid entry-animation delay-video"></section>
 
-    <!-- Chat -->
-    <section id="chat-box" class="card">
-      <div id="messages" class="messages"></div>
-      <div class="chat-input">
-        <input id="chatInput" placeholder="Type a message..." />
-        <button id="sendMsg">Send</button>
-      </div>
-    </section>
+      <section id="chat-box" class="card entry-animation delay-chat">
+        <div id="messages" class="messages"></div>
+        <div class="chat-input">
+          <input id="chatInput" placeholder="Type a message..." />
+          <button id="sendMsg">Send</button>
+        </div>
+      </section>
 
-    <!-- File upload -->
-    <section id="file-box" class="card">
-      <input type="file" id="fileUpload" accept=".jpg,.jpeg,.pdf" />
-      <button id="uploadBtn">Upload to Shared Folder</button>
-      <div id="fileList" class="file-list"></div>
-    </section>
-  </main>
+      <section id="file-box" class="card entry-animation delay-files">
+        <input type="file" id="fileUpload" accept=".jpg,.jpeg,.pdf" />
+        <button id="uploadBtn">Upload to Shared Folder</button>
+        <div id="fileList" class="file-list"></div>
+      </section>
+
+    </div> </main>
 
   <footer>
-    <p>Contact: navneetshubham9@gmail.com</p>
+    <p>Made with ❤️ for collaborative learning</p>
+    <p> 2026 Study Nest. All rights reserved.</p>
+    <p>Feedback/Contact: navneetshubham9@gmail.com,call/whatsapp on +918839339013</p>
   </footer>
 
-  <!-- Agora Web SDK (global AgoraRTC) -->
-  <script src="https://download.agora.io/sdk/release/AgoraRTC_N.js"></script>
-  <!-- Socket.io client -->
+  <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.0.js"></script>
   <script src="/socket.io/socket.io.js"></script>
-  <!-- Main script -->
   <script src="script.js"></script>
 </body>
 </html>
