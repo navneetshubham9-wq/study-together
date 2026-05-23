@@ -468,7 +468,8 @@ shareBtn.onclick = async () => {
 // Agora client setup
 const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
 
-let joined = false; // flag to prevent double join
+let joined = false;
+let localAudioTrack, localVideoTrack;
 
 // Join Room
 document.getElementById('joinBtn').addEventListener('click', async () => {
@@ -486,21 +487,26 @@ document.getElementById('joinBtn').addEventListener('click', async () => {
   }
 
   try {
-    const appId = "3fd771b87f804bc59f50e485662afaa7"; // ✅ तुम्हारा App ID
+    const appId = "3fd771b87f804bc59f50e485662afaa7";
     const token = null; // अगर certificate enable नहीं है
     const uid = userName;
 
     await client.join(appId, roomId, token, uid);
 
-    joined = true; // ✅ अब दोबारा join नहीं होगा
+    // ✅ Mic और Camera track बनाओ
+    localAudioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+    localVideoTrack = await AgoraRTC.createCameraVideoTrack();
 
-    // Room join होने पर ही controls + chat दिखाओ
+    // ✅ Publish करो
+    await client.publish([localAudioTrack, localVideoTrack]);
+
+    joined = true;
+
+    // UI दिखाओ
     const controls = document.getElementById('controls');
     const chat = document.getElementById('chat-container');
-
     controls.classList.remove('hidden');
     chat.classList.remove('hidden');
-
     controls.classList.add('fade-in');
     chat.classList.add('fade-in');
 
@@ -512,10 +518,13 @@ document.getElementById('joinBtn').addEventListener('click', async () => {
 // Leave Room
 document.getElementById('leaveBtn').addEventListener('click', async () => {
   try {
-    await client.leave();
-    joined = false; // ✅ अब दोबारा join कर सकते हो
+    // ✅ Tracks बंद करो
+    if (localAudioTrack) localAudioTrack.close();
+    if (localVideoTrack) localVideoTrack.close();
 
-    // UI वापस hide कर दो
+    await client.leave();
+    joined = false;
+
     document.getElementById('controls').classList.add('hidden');
     document.getElementById('chat-container').classList.add('hidden');
 
