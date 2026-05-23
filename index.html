@@ -22,7 +22,7 @@
     </section>
 
     <!-- Controls (hidden initially) -->
-    <section id="controls">
+    <section id="controls" class="hidden">
       <button id="muteBtn">Mute</button>
       <button id="cameraBtn">Camera Off</button>
       <button id="shareBtn">Share Screen</button>
@@ -34,7 +34,7 @@
     <section id="videos"></section>
 
     <!-- Chat (hidden initially) -->
-    <section id="chat-container">
+    <section id="chat-container" class="hidden">
       <div id="messages" aria-live="polite"></div>
       <div id="chat-input">
         <input type="text" id="messageInput" placeholder="Type message" aria-label="Chat message">
@@ -82,10 +82,16 @@
       }
     });
 
-    // Show controls + chat after joining room
+    // Show controls + chat after joining room with fade-in
     document.getElementById('joinBtn').addEventListener('click', () => {
-      document.getElementById('controls').style.display = 'flex';
-      document.getElementById('chat-container').style.display = 'block';
+      const controls = document.getElementById('controls');
+      const chat = document.getElementById('chat-container');
+
+      controls.classList.remove('hidden');
+      chat.classList.remove('hidden');
+
+      controls.classList.add('fade-in');
+      chat.classList.add('fade-in');
     });
   </script>
 </body>

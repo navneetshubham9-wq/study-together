@@ -1,4 +1,4 @@
-/* General Reset */
+/* Reset */
 * {
   margin: 0;
   padding: 0;
@@ -6,7 +6,7 @@
   font-family: "Segoe UI", sans-serif;
 }
 
-/* Body Background - Study Oriented (Notebook Lines) */
+/* Study oriented notebook background */
 body {
   background: repeating-linear-gradient(
     180deg,
@@ -27,23 +27,22 @@ header {
   border-bottom: 4px solid #6a11cb;
 }
 
-header h1 {
-  font-size: 2rem;
-  margin-bottom: 5px;
-}
-
-header h2 {
-  font-size: 1.2rem;
-  font-weight: 400;
-}
-
-/* Hide controls and chat by default */
-#controls,
-#chat-container {
+/* Hidden class */
+.hidden {
   display: none;
 }
 
-/* Controls Section */
+/* Fade-in animation */
+.fade-in {
+  animation: fadeIn 0.8s ease forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Controls */
 #controls {
   display: flex;
   justify-content: center;
@@ -66,7 +65,7 @@ header h2 {
   background: linear-gradient(135deg, #8e2de2, #00b4db);
 }
 
-/* Chat Section */
+/* Chat */
 #chat-container {
   display: flex;
   flex-direction: column;
@@ -85,10 +84,9 @@ header h2 {
   background: #fff;
 }
 
-/* Message Input + Send Button + File Upload */
+/* Chat input row */
 #chat-input {
   display: flex;
-  flex-wrap: wrap;
   gap: 10px;
   width: 100%;
   max-width: 600px;
