@@ -465,45 +465,62 @@ shareBtn.onclick = async () => {
 };
 // ----existing Agora / chat code----
 // Chat message send
-document.getElementById('sendBtn').addEventListener('click', () => {
-  const msgInput = document.getElementById('messageInput');
-  const messages = document.getElementById('messages');
+// Agora client setup
+const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
 
-  if (msgInput.value.trim() !== "") {
-    const msg = document.createElement('p');
-    msg.textContent = msgInput.value;
-    messages.appendChild(msg);
-    msgInput.value = "";
+let joined = false; // flag to prevent double join
+
+// Join Room
+document.getElementById('joinBtn').addEventListener('click', async () => {
+  if (joined) {
+    alert("Already joined the room!");
+    return;
+  }
+
+  const roomId = document.getElementById('room').value.trim();
+  const userName = document.getElementById('username').value.trim();
+
+  if (!roomId || !userName) {
+    alert("Please enter both Name and Room ID!");
+    return;
+  }
+
+  try {
+    const appId = "3fd771b87f804bc59f50e485662afaa7"; // ✅ तुम्हारा App ID
+    const token = null; // अगर certificate enable नहीं है
+    const uid = userName;
+
+    await client.join(appId, roomId, token, uid);
+
+    joined = true; // ✅ अब दोबारा join नहीं होगा
+
+    // Room join होने पर ही controls + chat दिखाओ
+    const controls = document.getElementById('controls');
+    const chat = document.getElementById('chat-container');
+
+    controls.classList.remove('hidden');
+    chat.classList.remove('hidden');
+
+    controls.classList.add('fade-in');
+    chat.classList.add('fade-in');
+
+  } catch (err) {
+    alert("Failed to join room: " + err);
   }
 });
 
-// File upload & share
-document.getElementById('sendFileBtn').addEventListener('click', () => {
-  const fileInput = document.getElementById('fileInput');
-  const formData = new FormData();
-  formData.append('file', fileInput.files[0]);
+// Leave Room
+document.getElementById('leaveBtn').addEventListener('click', async () => {
+  try {
+    await client.leave();
+    joined = false; // ✅ अब दोबारा join कर सकते हो
 
-  fetch('/upload', {
-    method: 'POST',
-    body: formData
-  })
-  .then(response => response.json())
-  .then(data => {
-    const messages = document.getElementById('messages');
+    // UI वापस hide कर दो
+    document.getElementById('controls').classList.add('hidden');
+    document.getElementById('chat-container').classList.add('hidden');
 
-    // Show message
-    const msg = document.createElement('p');
-    msg.textContent = data.message;
-    messages.appendChild(msg);
-
-    // Show clickable download link
-    const fileLink = document.createElement('a');
-    fileLink.href = data.url;
-    fileLink.textContent = "📂 Download File";
-    fileLink.target = "_blank";
-    messages.appendChild(fileLink);
-  })
-  .catch(error => {
-    console.error('Error:', error);
-  });
+    alert("You have left the room.");
+  } catch (err) {
+    alert("Error leaving room: " + err);
+  }
 });
