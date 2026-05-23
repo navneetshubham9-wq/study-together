@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- Header -->
   <header>
     <h1>📚 STUDY NEST</h1>
     <h2>Collaborate, Learn, and Grow Together</h2>
@@ -35,17 +36,21 @@
     <!-- Chat + File Upload Area -->
     <section id="chat-container">
       <div id="messages" aria-live="polite"></div>
+      
+      <!-- Chat Input Row -->
       <div id="chat-input">
         <input type="text" id="messageInput" placeholder="Type message" aria-label="Chat message">
-        <input type="file" id="fileInput" accept=".pdf,image/*">
         <button id="sendBtn">Send</button>
+        <input type="file" id="fileInput" accept=".pdf,image/*">
         <button id="sendFileBtn">Share Document</button>
       </div>
+
       <!-- Download link area -->
       <div id="downloadLink"></div>
     </section>
   </main>
 
+  <!-- Footer -->
   <footer>
     <p>Made with ❤️ for collaborative learning</p>
     <p>© 2026 STUDY NEST. All rights reserved.</p>
