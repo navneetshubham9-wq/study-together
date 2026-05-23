@@ -21,7 +21,7 @@
       <button id="joinBtn">Join Room</button>
     </section>
 
-    <!-- Controls -->
+    <!-- Controls (hidden initially) -->
     <section id="controls">
       <button id="muteBtn">Mute</button>
       <button id="cameraBtn">Camera Off</button>
@@ -33,18 +33,15 @@
     <!-- Video Area -->
     <section id="videos"></section>
 
-    <!-- Chat + File Upload Area -->
+    <!-- Chat + File Upload Area (hidden initially) -->
     <section id="chat-container">
       <div id="messages" aria-live="polite"></div>
-      
-      <!-- Chat Input Row -->
       <div id="chat-input">
         <input type="text" id="messageInput" placeholder="Type message" aria-label="Chat message">
         <button id="sendBtn">Send</button>
         <input type="file" id="fileInput" accept=".pdf,image/*">
         <button id="sendFileBtn">Share Document</button>
       </div>
-
       <!-- Download link area -->
       <div id="downloadLink"></div>
     </section>
@@ -85,6 +82,12 @@
       } catch (err) {
         document.getElementById('downloadLink').innerText = 'Upload failed!';
       }
+    });
+
+    // Show controls + chat after joining room
+    document.getElementById('joinBtn').addEventListener('click', () => {
+      document.getElementById('controls').style.display = 'flex';
+      document.getElementById('chat-container').style.display = 'block';
     });
   </script>
 </body>

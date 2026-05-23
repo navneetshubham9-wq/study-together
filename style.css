@@ -38,43 +38,84 @@ header h2 {
   font-weight: 400;
 }
 
+/* Hide controls and chat by default */
+#controls,
+#chat-container {
+  display: none;
+}
+
+/* Controls Section */
+#controls {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 20px;
+}
+
+#controls button {
+  padding: 10px 15px;
+  border: none;
+  background: linear-gradient(135deg, #00b4db, #8e2de2);
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: 0.3s;
+}
+
+#controls button:hover {
+  background: linear-gradient(135deg, #8e2de2, #00b4db);
+}
+
 /* Chat Section */
-#chat-section {
+#chat-container {
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 30px;
 }
 
-/* Message Input + Send Button */
-.message-box {
-  display: flex;
+#messages {
   width: 100%;
   max-width: 600px;
-  margin-top: 20px;
+  min-height: 150px;
+  border: 2px solid #6a11cb;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 15px;
+  background: #fff;
 }
 
-.message-box input {
+/* Message Input + Send Button + File Upload */
+#chat-input {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  width: 100%;
+  max-width: 600px;
+}
+
+#chat-input input[type="text"] {
   flex: 1;
   padding: 12px;
   border: 2px solid #6a11cb;
-  border-radius: 8px 0 0 8px;
+  border-radius: 8px;
   outline: none;
   font-size: 1rem;
 }
 
-.message-box button {
+#chat-input button {
   padding: 12px 20px;
   border: none;
   background: linear-gradient(135deg, #00b4db, #8e2de2);
   color: white;
   font-weight: bold;
   cursor: pointer;
-  border-radius: 0 8px 8px 0;
+  border-radius: 8px;
   transition: 0.3s;
 }
 
-.message-box button:hover {
+#chat-input button:hover {
   background: linear-gradient(135deg, #8e2de2, #00b4db);
 }
 
