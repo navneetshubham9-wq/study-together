@@ -6,14 +6,13 @@
   font-family: "Segoe UI", sans-serif;
 }
 
-/* Body Background with Pattern */
+/* Body Background - Study Oriented (Notebook Grid) */
 body {
   background: repeating-linear-gradient(
-    45deg,
-    #f0f0f0,
-    #f0f0f0 20px,
-    #e0e0e0 20px,
-    #e0e0e0 40px
+    0deg,
+    #fdfdfd,
+    #fdfdfd 29px,
+    #e6e6e6 30px
   );
   color: #333;
   min-height: 100vh;
@@ -93,6 +92,7 @@ header h2 {
   gap: 10px;
   width: 100%;
   max-width: 600px;
+  align-items: center;
 }
 
 #chat-input input[type="text"] {
@@ -102,6 +102,10 @@ header h2 {
   border-radius: 8px;
   outline: none;
   font-size: 1rem;
+}
+
+#chat-input input[type="file"] {
+  flex: 1;
 }
 
 #chat-input button {
