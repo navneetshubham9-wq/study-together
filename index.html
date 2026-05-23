@@ -14,7 +14,7 @@
   </header>
 
   <main>
-    <!-- User & Room Inputs -->
+    <!-- Join Section -->
     <section id="join-section">
       <input type="text" id="username" placeholder="Enter Your Name" aria-label="Username">
       <input type="text" id="room" placeholder="Enter Room ID" aria-label="Room ID">
@@ -33,7 +33,7 @@
     <!-- Video Area -->
     <section id="videos"></section>
 
-    <!-- Chat + File Upload Area (hidden initially) -->
+    <!-- Chat (hidden initially) -->
     <section id="chat-container">
       <div id="messages" aria-live="polite"></div>
       <div id="chat-input">
@@ -42,7 +42,6 @@
         <input type="file" id="fileInput" accept=".pdf,image/*">
         <button id="sendFileBtn">Share Document</button>
       </div>
-      <!-- Download link area -->
       <div id="downloadLink"></div>
     </section>
   </main>
@@ -76,7 +75,6 @@
         });
         const data = await res.json();
 
-        // Show download link
         document.getElementById('downloadLink').innerHTML =
           `<a href="${data.downloadLink}" target="_blank">Download File</a>`;
       } catch (err) {

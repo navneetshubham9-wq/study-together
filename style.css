@@ -6,13 +6,13 @@
   font-family: "Segoe UI", sans-serif;
 }
 
-/* Body Background - Study Oriented (Notebook Grid) */
+/* Body Background - Study Oriented (Notebook Lines) */
 body {
   background: repeating-linear-gradient(
-    0deg,
+    180deg,
     #fdfdfd,
-    #fdfdfd 29px,
-    #e6e6e6 30px
+    #fdfdfd 28px,
+    #dfe9f3 29px
   );
   color: #333;
   min-height: 100vh;
