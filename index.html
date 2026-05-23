@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- Header -->
   <header>
     <h1>📚 STUDY NEST</h1>
     <h2>Collaborate, Learn, and Grow Together</h2>
@@ -30,7 +31,9 @@
     </section>
 
     <!-- Video Area -->
-    <section id="videos"></section>
+    <section id="videos" style="width:600px; height:400px; background:#000; margin:auto; border:2px solid #6a11cb; border-radius:8px;">
+      <!-- Local video will appear here -->
+    </section>
 
     <!-- Chat (hidden initially) -->
     <section id="chat-container" class="hidden">
@@ -45,6 +48,7 @@
     </section>
   </main>
 
+  <!-- Footer -->
   <footer>
     <p>Made with ❤️ for collaborative learning</p>
     <p>© 2026 STUDY NEST. All rights reserved.</p>
@@ -53,13 +57,22 @@
 
   <!-- Agora SDK -->
   <script src="https://download.agora.io/sdk/release/AgoraRTC_N.js"></script>
+  <!-- Main Script -->
   <script type="module">
-    // Agora client setup
     const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
 
+    let joined = false;
+    let localAudioTrack, localVideoTrack;
+
+    // Join Room
     document.getElementById('joinBtn').addEventListener('click', async () => {
-      const roomId = document.getElementById('room').value;
-      const userName = document.getElementById('username').value;
+      if (joined) {
+        alert("Already joined the room!");
+        return;
+      }
+
+      const roomId = document.getElementById('room').value.trim();
+      const userName = document.getElementById('username').value.trim();
 
       if (!roomId || !userName) {
         alert("Please enter both Name and Room ID!");
@@ -67,25 +80,53 @@
       }
 
       try {
-        // Replace with your Agora App ID and Token logic
-        const appId = "3fd771b87f804bc59f50e485662afaa7";
-        const token = null; // or fetch from server
+        const appId = "3fd771b87f804bc59f50e485662afaa7"; // ✅ तुम्हारा App ID
+        const token = null; // अगर certificate enable नहीं है
         const uid = userName;
 
         await client.join(appId, roomId, token, uid);
 
-        // ✅ Only after successful join, show controls + chat
-        const controls = document.getElementById('controls');
-        const chat = document.getElementById('chat-container');
+        // ✅ Mic और Camera track बनाओ
+        localAudioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+        localVideoTrack = await AgoraRTC.createCameraVideoTrack();
 
-        controls.classList.remove('hidden');
-        chat.classList.remove('hidden');
+        // ✅ Publish करो
+        await client.publish([localAudioTrack, localVideoTrack]);
 
-        controls.classList.add('fade-in');
-        chat.classList.add('fade-in');
+        // ✅ Video को UI में दिखाओ
+        const videoContainer = document.getElementById('videos');
+        videoContainer.innerHTML = ""; 
+        localVideoTrack.play(videoContainer);
+
+        joined = true;
+
+        // UI दिखाओ
+        document.getElementById('controls').classList.remove('hidden');
+        document.getElementById('chat-container').classList.remove('hidden');
+        document.getElementById('controls').classList.add('fade-in');
+        document.getElementById('chat-container').classList.add('fade-in');
 
       } catch (err) {
         alert("Failed to join room: " + err);
+      }
+    });
+
+    // Leave Room
+    document.getElementById('leaveBtn').addEventListener('click', async () => {
+      try {
+        if (localAudioTrack) localAudioTrack.close();
+        if (localVideoTrack) localVideoTrack.close();
+
+        await client.leave();
+        joined = false;
+
+        document.getElementById('controls').classList.add('hidden');
+        document.getElementById('chat-container').classList.add('hidden');
+        document.getElementById('videos').innerHTML = "";
+
+        alert("You have left the room.");
+      } catch (err) {
+        alert("Error leaving room: " + err);
       }
     });
   </script>

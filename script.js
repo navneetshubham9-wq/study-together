@@ -500,15 +500,18 @@ document.getElementById('joinBtn').addEventListener('click', async () => {
     // ✅ Publish करो
     await client.publish([localAudioTrack, localVideoTrack]);
 
+    // ✅ Video को UI में दिखाओ
+    const videoContainer = document.getElementById('videos');
+    videoContainer.innerHTML = ""; // पहले साफ़ कर दो
+    localVideoTrack.play(videoContainer); // अब video दिखाई देगा
+
     joined = true;
 
     // UI दिखाओ
-    const controls = document.getElementById('controls');
-    const chat = document.getElementById('chat-container');
-    controls.classList.remove('hidden');
-    chat.classList.remove('hidden');
-    controls.classList.add('fade-in');
-    chat.classList.add('fade-in');
+    document.getElementById('controls').classList.remove('hidden');
+    document.getElementById('chat-container').classList.remove('hidden');
+    document.getElementById('controls').classList.add('fade-in');
+    document.getElementById('chat-container').classList.add('fade-in');
 
   } catch (err) {
     alert("Failed to join room: " + err);
@@ -518,7 +521,6 @@ document.getElementById('joinBtn').addEventListener('click', async () => {
 // Leave Room
 document.getElementById('leaveBtn').addEventListener('click', async () => {
   try {
-    // ✅ Tracks बंद करो
     if (localAudioTrack) localAudioTrack.close();
     if (localVideoTrack) localVideoTrack.close();
 
@@ -527,9 +529,11 @@ document.getElementById('leaveBtn').addEventListener('click', async () => {
 
     document.getElementById('controls').classList.add('hidden');
     document.getElementById('chat-container').classList.add('hidden');
+    document.getElementById('videos').innerHTML = ""; // video हटाओ
 
     alert("You have left the room.");
   } catch (err) {
     alert("Error leaving room: " + err);
   }
 });
+
