@@ -96,7 +96,7 @@ header h2 {
 }
 
 #chat-input input[type="text"] {
-  flex: 1;
+  flex: 2;
   padding: 12px;
   border: 2px solid #6a11cb;
   border-radius: 8px;
@@ -105,7 +105,7 @@ header h2 {
 }
 
 #chat-input input[type="file"] {
-  flex: 1;
+  flex: 2;
 }
 
 #chat-input button {
