@@ -3,191 +3,50 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>STUDY NEST</title>
+  <title>Study Nest</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>
-    <h1>📚 STUDY NEST</h1>
-    <h2>Collaborate, Learn, and Grow Together</h2>
+    <h1>📚 Study Nest</h1>
   </header>
 
   <main>
-    <!-- Join Section -->
+    <!-- User & Room Inputs -->
     <section id="join-section">
-      <input type="text" id="username" placeholder="Enter Your Name">
-      <input type="text" id="room" placeholder="Enter Room ID">
+      <input type="text" id="username" placeholder="Enter Your Name" aria-label="Username">
+      <input type="text" id="room" placeholder="Enter Room ID" aria-label="Room ID">
       <button id="joinBtn">Join Room</button>
     </section>
 
-    <!-- Controls (hidden initially) -->
-    <section id="controls" class="hidden">
+    <!-- Controls -->
+    <section id="controls">
       <button id="muteBtn">Mute</button>
       <button id="cameraBtn">Camera Off</button>
       <button id="shareBtn">Share Screen</button>
       <button id="leaveBtn">Leave Room</button>
-      <button id="muteAllBtn">Mute All Users</button>
     </section>
 
     <!-- Video Area -->
-    <section id="videos" style="width:600px; height:400px; background:#000; margin:auto; border:2px solid #6a11cb; border-radius:8px;">
-      <!-- Local + Remote video will appear here -->
-    </section>
+    <section id="videos"></section>
 
-    <!-- Chat (hidden initially) -->
-    <section id="chat-container" class="hidden">
-      <div id="messages"></div>
+    <!-- Chat Area -->
+    <section id="chat-container">
+      <div id="messages" aria-live="polite"></div>
       <div id="chat-input">
-        <input type="text" id="messageInput" placeholder="Type message">
+        <input type="text" id="messageInput" placeholder="Type message" aria-label="Chat message">
         <button id="sendBtn">Send</button>
-        <input type="file" id="fileInput" accept=".pdf,image/*">
-        <button id="sendFileBtn">Share Document</button>
       </div>
-      <div id="downloadLink"></div>
     </section>
   </main>
 
   <footer>
-    <p>Made with ❤️ for collaborative learning</p>
-    <p>© 2026 STUDY NEST. All rights reserved.</p>
-    <p>Contact: navneetshubham9@gmail.com, 8839339013</p>
+    <p>Made with ❤️ from NSK for collaborative learning</p>
   </footer>
 
-  <!-- Agora SDKs -->
+  <!-- Agora SDK -->
   <script src="https://download.agora.io/sdk/release/AgoraRTC_N.js"></script>
-  <script src="https://download.agora.io/sdk/release/AgoraRTM.min.js"></script>
-
   <!-- Main Script -->
-  <script type="module">
-    const appId = "3fd771b87f804bc59f50e485662afaa7"; // ✅ तुम्हारा App ID
-    const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
-    const rtmClient = AgoraRTM.createInstance(appId);
-
-    let joined = false;
-    let localAudioTrack, localVideoTrack;
-    let channel;
-
-    // Join Room
-    document.getElementById('joinBtn').addEventListener('click', async () => {
-      if (joined) {
-        alert("Already joined the room!");
-        return;
-      }
-
-      const roomId = document.getElementById('room').value.trim();
-      const userName = document.getElementById('username').value.trim();
-
-      if (!roomId || !userName) {
-        alert("Please enter both Name and Room ID!");
-        return;
-      }
-
-      try {
-        const token = null; // अगर certificate enable नहीं है
-        const uid = userName;
-
-        // RTC join
-        await client.join(appId, roomId, token, uid);
-        localAudioTrack = await AgoraRTC.createMicrophoneAudioTrack();
-        localVideoTrack = await AgoraRTC.createCameraVideoTrack();
-        await client.publish([localAudioTrack, localVideoTrack]);
-
-        // Local video play
-        const videoContainer = document.getElementById('videos');
-        videoContainer.innerHTML = "";
-        localVideoTrack.play(videoContainer);
-
-        // RTM join
-        await rtmClient.login({ uid: userName });
-        channel = rtmClient.createChannel(roomId);
-        await channel.join();
-
-        // RTM message receive
-        channel.on('ChannelMessage', ({ text }, senderId) => {
-          const messages = document.getElementById('messages');
-          messages.innerHTML += `<p><b>${senderId}:</b> ${text}</p>`;
-        });
-
-        // RTC remote users
-        client.on("user-published", async (user, mediaType) => {
-          await client.subscribe(user, mediaType);
-          if (mediaType === "video") {
-            const remoteContainer = document.createElement("div");
-            remoteContainer.id = `remote-${user.uid}`;
-            document.getElementById("videos").appendChild(remoteContainer);
-            user.videoTrack.play(remoteContainer);
-          }
-          if (mediaType === "audio") {
-            user.audioTrack.play();
-          }
-        });
-
-        client.on("user-unpublished", (user) => {
-          const remoteContainer = document.getElementById(`remote-${user.uid}`);
-          if (remoteContainer) remoteContainer.remove();
-        });
-
-        joined = true;
-
-        // UI दिखाओ
-        document.getElementById('controls').classList.remove('hidden');
-        document.getElementById('chat-container').classList.remove('hidden');
-        document.getElementById('controls').classList.add('fade-in');
-        document.getElementById('chat-container').classList.add('fade-in');
-
-      } catch (err) {
-        alert("Failed to join room: " + err);
-      }
-    });
-
-    // Chat send
-    document.getElementById('sendBtn').addEventListener('click', async () => {
-      const msg = document.getElementById('messageInput').value;
-      if (msg && channel) {
-        await channel.sendMessage({ text: msg });
-        document.getElementById('messages').innerHTML += `<p><b>You:</b> ${msg}</p>`;
-        document.getElementById('messageInput').value = "";
-      }
-    });
-
-    // File share
-    document.getElementById('sendFileBtn').addEventListener('click', async () => {
-      const fileInput = document.getElementById('fileInput');
-      if (!fileInput.files.length) return;
-
-      const formData = new FormData();
-      formData.append('file', fileInput.files[0]);
-
-      const res = await fetch('/upload', { method: 'POST', body: formData });
-      const data = await res.json();
-
-      const link = `File shared: ${data.downloadLink}`;
-      await channel.sendMessage({ text: link });
-      document.getElementById('messages').innerHTML += `<p><b>You:</b> ${link}</p>`;
-    });
-
-    // Leave Room
-    document.getElementById('leaveBtn').addEventListener('click', async () => {
-      try {
-        if (localAudioTrack) localAudioTrack.close();
-        if (localVideoTrack) localVideoTrack.close();
-
-        await client.leave();
-        if (channel) await channel.leave();
-        await rtmClient.logout();
-
-        joined = false;
-
-        document.getElementById('controls').classList.add('hidden');
-        document.getElementById('chat-container').classList.add('hidden');
-        document.getElementById('videos').innerHTML = "";
-        document.getElementById('messages').innerHTML = "";
-
-        alert("You have left the room.");
-      } catch (err) {
-        alert("Error leaving room: " + err);
-      }
-    });
-  </script>
+  <script type="module" src="script.js"></script>
 </body>
 </html>
