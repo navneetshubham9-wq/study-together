@@ -2,86 +2,108 @@
 const express = require("express");
 const http = require("http");
 const path = require("path");
-const fs = require("fs");
 const multer = require("multer");
 const { Server } = require("socket.io");
+const fs = require("fs");
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, "uploads");
 const PORT = process.env.PORT || 3000;
 
-// Determine Desktop path and ensure uploads folder exists
-const userHome = process.env.USERPROFILE || process.env.HOME || __dirname;
-const uploadsDir = path.join(userHome, "Desktop", "Study Together", "uploads");
-fs.mkdirSync(uploadsDir, { recursive: true });
+// Ensure uploads folder exists
+if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
-// Multer storage to Desktop/Study Together/uploads
+// Multer setup
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadsDir),
-  filename: (req, file, cb) => cb(null, file.originalname)
+  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+  filename: (req, file, cb) => {
+    const safe = Date.now() + "-" + file.originalname.replace(/\s+/g, "_");
+    cb(null, safe);
+  }
 });
 const upload = multer({ storage });
 
-// Serve public files
+// Serve static files
 app.use(express.static(path.join(__dirname, "public")));
+app.use("/uploads", express.static(UPLOAD_DIR));
 
-// Serve uploads folder statically at /uploads
-app.use("/uploads", express.static(uploadsDir));
+// Health
+app.get("/health", (req, res) => res.send("OK"));
 
 // Upload endpoint
 app.post("/upload", upload.single("file"), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: "No file" });
-  const filename = req.file.originalname;
-  const url = `/uploads/${encodeURIComponent(filename)}`;
-  // Broadcast to room if provided
-  const room = req.body.room;
-  const uploader = req.body.uploader || "Someone";
-  if (room) io.to(room).emit("file-uploaded", { filename, url, uploader });
-  else io.emit("file-uploaded", { filename, url, uploader });
-  res.json({ filename, url });
+  try {
+    const room = req.body.room || "";
+    const filename = req.file.filename;
+    const url = `/uploads/${filename}`;
+    if (room) io.to(room).emit("file-uploaded", { filename, url, uploader: req.body.uploader || "Someone" });
+    return res.json({ filename, url });
+  } catch (err) {
+    console.error("Upload error:", err);
+    return res.status(500).json({ error: "Upload failed" });
+  }
 });
 
-// Socket.io for chat, room join and remote control
+// Map of agoraUid -> socketId for direct control messages
+const uidToSocket = new Map();
+
 io.on("connection", socket => {
   socket.on("join-room", info => {
-    const { room, uid, name } = info || {};
-    if (room) {
-      socket.join(room);
-      socket.data.name = name || `User-${uid}`;
-      socket.data.uid = uid;
-      io.to(room).emit("user-joined", { uid, name: socket.data.name });
+    try {
+      const room = info.room;
+      const uid = info.uid ? info.uid.toString() : null;
+      const name = info.name || "Anonymous";
+      if (room) {
+        socket.join(room);
+        if (uid) uidToSocket.set(uid, socket.id);
+        socket.to(room).emit("user-joined", { uid, name });
+      }
+    } catch (e) {
+      console.error("join-room error:", e);
+    }
+  });
+
+  socket.on("control", data => {
+    try {
+      if (!data) return;
+      const { room, targetUid } = data;
+      if (targetUid && uidToSocket.has(targetUid.toString())) {
+        const targetSocketId = uidToSocket.get(targetUid.toString());
+        io.to(targetSocketId).emit("control", data);
+      } else if (room) {
+        io.to(room).emit("control", data);
+      }
+    } catch (e) {
+      console.error("control error:", e);
     }
   });
 
   socket.on("chat-message", data => {
-    const { room, text } = data || {};
-    const name = socket.data.name || "Anonymous";
-    if (room) io.to(room).emit("chat-message", { name, text });
-    else io.emit("chat-message", { name, text });
-  });
-
-  socket.on("control", data => {
-    // data: { room, targetUid, action }
-    const { room, targetUid, action } = data || {};
-    const fromName = socket.data.name || "Someone";
-    if (room) {
-      // send to all in room (clients will ignore if not target)
-      io.to(room).emit("control", { targetUid, action, from: socket.id, fromName });
-    } else {
-      io.emit("control", { targetUid, action, from: socket.id, fromName });
+    try {
+      if (!data || !data.room) return;
+      io.to(data.room).emit("chat-message", { name: data.name || "Someone", text: data.text });
+    } catch (e) {
+      console.error("chat-message error:", e);
     }
   });
 
   socket.on("disconnecting", () => {
-    const rooms = Array.from(socket.rooms).filter(r => r !== socket.id);
-    rooms.forEach(r => io.to(r).emit("user-left", { name: socket.data.name || "Someone" }));
+    try {
+      for (const [uid, sId] of uidToSocket.entries()) {
+        if (sId === socket.id) uidToSocket.delete(uid);
+      }
+      const rooms = Array.from(socket.rooms).filter(r => r !== socket.id);
+      rooms.forEach(r => socket.to(r).emit("user-left", { socketId: socket.id }));
+    } catch (e) {
+      console.error("disconnecting error:", e);
+    }
   });
 });
 
-// Start server
 server.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
-  console.log(`Uploads folder: ${uploadsDir}`);
+  console.log(`Server listening on port ${PORT}`);
+  console.log(`Uploads directory: ${UPLOAD_DIR}`);
 });

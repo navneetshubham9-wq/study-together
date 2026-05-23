@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>📚 Study Nest</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>📚 STUDY NEST</h1>
+    <h2>Collaborate, Learn, and Grow Together</h2>
+  </header>
+
+  <main>
+    <!-- Join -->
+    <section id="join-section" class="card">
+      <input id="username" placeholder="Enter Your Name" />
+      <input id="room" placeholder="Enter Room ID" />
+      <button id="joinBtn">Join Room</button>
+    </section>
+
+    <!-- Controls -->
+    <section id="controls" class="card hidden">
+      <div class="control-row">
+        <button id="cameraBtn">Camera On/Off</button>
+        <button id="muteBtn">Mute/Unmute</button>
+        <button id="shareBtn">Screen Share</button>
+      </div>
+    </section>
+
+    <!-- Video area -->
+    <section id="video-area" class="video-grid"></section>
+
+    <!-- Chat -->
+    <section id="chat-box" class="card">
+      <div id="messages" class="messages"></div>
+      <div class="chat-input">
+        <input id="chatInput" placeholder="Type a message..." />
+        <button id="sendMsg">Send</button>
+      </div>
+    </section>
+
+    <!-- File upload -->
+    <section id="file-box" class="card">
+      <input type="file" id="fileUpload" accept=".jpg,.jpeg,.pdf" />
+      <button id="uploadBtn">Upload to Shared Folder</button>
+      <div id="fileList" class="file-list"></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Contact: navneetshubham9@gmail.com</p>
+  </footer>
+
+  <!-- Agora Web SDK (global AgoraRTC) -->
+  <script src="https://download.agora.io/sdk/release/AgoraRTC_N.js"></script>
+  <!-- Socket.io client -->
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- Main script -->
+  <script src="script.js"></script>
+</body>
+</html>
