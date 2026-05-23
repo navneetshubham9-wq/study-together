@@ -7,7 +7,6 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- Header -->
   <header>
     <h1>📚 STUDY NEST</h1>
     <h2>Collaborate, Learn, and Grow Together</h2>
@@ -16,8 +15,8 @@
   <main>
     <!-- Join Section -->
     <section id="join-section">
-      <input type="text" id="username" placeholder="Enter Your Name" aria-label="Username">
-      <input type="text" id="room" placeholder="Enter Room ID" aria-label="Room ID">
+      <input type="text" id="username" placeholder="Enter Your Name">
+      <input type="text" id="room" placeholder="Enter Room ID">
       <button id="joinBtn">Join Room</button>
     </section>
 
@@ -35,9 +34,9 @@
 
     <!-- Chat (hidden initially) -->
     <section id="chat-container" class="hidden">
-      <div id="messages" aria-live="polite"></div>
+      <div id="messages"></div>
       <div id="chat-input">
-        <input type="text" id="messageInput" placeholder="Type message" aria-label="Chat message">
+        <input type="text" id="messageInput" placeholder="Type message">
         <button id="sendBtn">Send</button>
         <input type="file" id="fileInput" accept=".pdf,image/*">
         <button id="sendFileBtn">Share Document</button>
@@ -46,7 +45,6 @@
     </section>
   </main>
 
-  <!-- Footer -->
   <footer>
     <p>Made with ❤️ for collaborative learning</p>
     <p>© 2026 STUDY NEST. All rights reserved.</p>
@@ -55,43 +53,40 @@
 
   <!-- Agora SDK -->
   <script src="https://download.agora.io/sdk/release/AgoraRTC_N.js"></script>
-  <!-- Main Script -->
   <script type="module">
-    // File upload handling
-    document.getElementById('sendFileBtn').addEventListener('click', async () => {
-      const fileInput = document.getElementById('fileInput');
-      if (!fileInput.files.length) {
-        alert('Please select a file first!');
+    // Agora client setup
+    const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+
+    document.getElementById('joinBtn').addEventListener('click', async () => {
+      const roomId = document.getElementById('room').value;
+      const userName = document.getElementById('username').value;
+
+      if (!roomId || !userName) {
+        alert("Please enter both Name and Room ID!");
         return;
       }
 
-      const formData = new FormData();
-      formData.append('file', fileInput.files[0]);
-
       try {
-        const res = await fetch('/upload', {
-          method: 'POST',
-          body: formData
-        });
-        const data = await res.json();
+        // Replace with your Agora App ID and Token logic
+        const appId = "3fd771b87f804bc59f50e485662afaa7";
+        const token = null; // or fetch from server
+        const uid = userName;
 
-        document.getElementById('downloadLink').innerHTML =
-          `<a href="${data.downloadLink}" target="_blank">Download File</a>`;
+        await client.join(appId, roomId, token, uid);
+
+        // ✅ Only after successful join, show controls + chat
+        const controls = document.getElementById('controls');
+        const chat = document.getElementById('chat-container');
+
+        controls.classList.remove('hidden');
+        chat.classList.remove('hidden');
+
+        controls.classList.add('fade-in');
+        chat.classList.add('fade-in');
+
       } catch (err) {
-        document.getElementById('downloadLink').innerText = 'Upload failed!';
+        alert("Failed to join room: " + err);
       }
-    });
-
-    // Show controls + chat after joining room with fade-in
-    document.getElementById('joinBtn').addEventListener('click', () => {
-      const controls = document.getElementById('controls');
-      const chat = document.getElementById('chat-container');
-
-      controls.classList.remove('hidden');
-      chat.classList.remove('hidden');
-
-      controls.classList.add('fade-in');
-      chat.classList.add('fade-in');
     });
   </script>
 </body>
