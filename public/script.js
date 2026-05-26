@@ -45,7 +45,6 @@ function showNotification(message, type = 'info') {
   
   container.appendChild(toast);
   
-  // 4 seconds ke baad popup gayab ho jayega
   setTimeout(() => {
     toast.classList.add('toast-exit');
     setTimeout(() => toast.remove(), 500);
@@ -58,6 +57,52 @@ function appendMessage(text) {
   d.textContent = text;
   messages.appendChild(d);
   messages.scrollTop = messages.scrollHeight;
+}
+
+// ---------- NEW: DYNAMIC SIZE CONTROLS (Chhota/Bada/Maximize) ----------
+function addSizeControls(targetWrapper, videoCard) {
+  const controlsDiv = document.createElement("div");
+  controlsDiv.className = "local-controls";
+
+  // Enlarge Button
+  const enlargeBtn = document.createElement("button");
+  enlargeBtn.className = "icon-btn";
+  enlargeBtn.innerHTML = "➕";
+  enlargeBtn.title = "Bada Karein";
+  enlargeBtn.onclick = () => {
+    targetWrapper.classList.remove("video-wrapper-small");
+    targetWrapper.classList.toggle("video-wrapper-large");
+  };
+
+  // Shrink Button
+  const shrinkBtn = document.createElement("button");
+  shrinkBtn.className = "icon-btn";
+  shrinkBtn.innerHTML = "➖";
+  shrinkBtn.title = "Chhota Karein";
+  shrinkBtn.onclick = () => {
+    targetWrapper.classList.remove("video-wrapper-large");
+    targetWrapper.classList.toggle("video-wrapper-small");
+  };
+
+  // Maximize (Fullscreen) Button
+  const maxBtn = document.createElement("button");
+  maxBtn.className = "icon-btn";
+  maxBtn.innerHTML = "🖥️";
+  maxBtn.title = "Fullscreen";
+  maxBtn.onclick = () => {
+    if (!document.fullscreenElement) {
+      videoCard.requestFullscreen().catch(err => {
+        showNotification("Fullscreen not supported by browser", "danger");
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
+  controlsDiv.appendChild(enlargeBtn);
+  controlsDiv.appendChild(shrinkBtn);
+  controlsDiv.appendChild(maxBtn);
+  videoCard.appendChild(controlsDiv);
 }
 
 function createLocalCard(name) {
@@ -80,6 +125,10 @@ function createLocalCard(name) {
   label.textContent = `${name} (You)`;
   
   localContainer.appendChild(label);
+  
+  // Size Controls added here
+  addSizeControls(localContainer, localContainer);
+  
   videoArea.prepend(localContainer);
   return localContainer;
 }
@@ -95,7 +144,7 @@ function createRemoteWrapper(uid, labelText) {
   wrapper.style.flexDirection = "column";
   wrapper.style.alignItems = "center";
   wrapper.style.gap = "6px";
-  wrapper.style.width = "320px";
+  wrapper.style.width = "100%"; // Fixed to expand properly
 
   const card = document.createElement("div");
   card.className = "video-card";
@@ -132,6 +181,7 @@ function createRemoteWrapper(uid, labelText) {
   placeholder.textContent = "Camera Off";
   card.appendChild(placeholder);
 
+  // Mute & Disable Controls
   const controlsDiv = document.createElement("div");
   controlsDiv.style.display = "flex";
   controlsDiv.style.gap = "8px";
@@ -159,6 +209,10 @@ function createRemoteWrapper(uid, labelText) {
 
   wrapper.appendChild(card);
   wrapper.appendChild(controlsDiv);
+  
+  // Size Controls added to remote card
+  addSizeControls(wrapper, card);
+  
   videoArea.appendChild(wrapper);
 
   return wrapper;
@@ -172,8 +226,8 @@ function createScreenShareCard(uid) {
   card = document.createElement("div");
   card.id = cardId;
   card.className = "video-card screen-share-card";
-  card.style.width = "480px"; 
-  card.style.height = "300px";
+  card.style.width = "100%"; 
+  card.style.height = "320px";
   card.style.position = "relative";
   card.style.border = "3px solid #4CAF50";
 
@@ -189,6 +243,9 @@ function createScreenShareCard(uid) {
   label.style.zIndex = "10";
   label.textContent = `User ${uid}'s Presentation Screen`;
   card.appendChild(label);
+
+  // Size Controls added to screen share
+  addSizeControls(card, card);
 
   videoArea.appendChild(card);
   return card;
@@ -235,12 +292,11 @@ joinBtn.addEventListener("click", async () => {
 
     socket.emit("join-room", { room: roomId, uid: localUid, name: userName });
     
-    // Popup System Join Notification
     showNotification(`You joined room ${roomId}`, "join");
     appendMessage(`System: You joined room ${roomId}`);
     
   } catch (err) {
-    showNotification("Join failed!", "leave");
+    showNotification("Join failed!", "danger");
   }
 });
 
@@ -293,7 +349,6 @@ leaveBtn.addEventListener("click", async () => {
   }
 });
 
-
 // ---------- Remote Subscriptions ----------
 client.on("user-published", async (user, mediaType) => {
   try {
@@ -335,26 +390,23 @@ client.on("user-unpublished", (user, mediaType) => {
   }
 });
 
-// ---------- 3D REMOVE USER HELPER (For Fly-out & Notifications) ----------
 function removeRemoteUser3D(uid, name = null) {
   const wrapper = document.getElementById(`remote-wrapper-${uid}`);
   const screenCard = document.getElementById(`screen-card-${uid}`);
   
-  // Apply 3D exit animation class
   if (wrapper) {
     wrapper.classList.add("fly-out-3d");
-    setTimeout(() => wrapper.remove(), 700); // 700ms CSS animation match
+    setTimeout(() => wrapper.remove(), 700); 
   }
   if (screenCard) {
     screenCard.classList.add("fly-out-3d");
     setTimeout(() => screenCard.remove(), 700);
   }
   
-  // Show Toast Notification
   if (name) {
-    showNotification(`${name} left the room`, "leave");
+    showNotification(`${name} left the room`, "danger");
   } else {
-    showNotification(`User left the room`, "leave");
+    showNotification(`User left the room`, "danger");
   }
 
   delete remoteUsers[uid];
@@ -402,11 +454,10 @@ muteBtn.addEventListener("click", async () => {
   socket.emit("control", { room: currentRoom, targetUid: localUid, action: enabled ? "mute-audio" : "enable-audio" });
 });
 
-// ---------- Screen Share (FIXED) ----------
+// ---------- Screen Share (FIXED AUTO PARAMETER) ----------
 shareBtn.addEventListener("click", async () => {
   if (!joined) return;
   try {
-    // Agar pehle se screen share chal raha hai, toh use band karo
     if (screenTrack) {
       if (screenAudioTrack) {
         await client.unpublish(screenAudioTrack);
@@ -420,7 +471,6 @@ shareBtn.addEventListener("click", async () => {
       const el = document.getElementById("screen-share-container");
       if (el) el.remove();
       
-      // Camera wapas on karo
       if (localTracks.videoTrack) {
         await client.publish(localTracks.videoTrack);
         const localContainer = document.getElementById("local-player");
@@ -430,12 +480,10 @@ shareBtn.addEventListener("click", async () => {
       return;
     }
 
-    // Naya Screen Share chalu karne ke liye camera off karo
     if (localTracks.videoTrack) {
       await client.unpublish(localTracks.videoTrack);
     }
 
-    // YAHAN FIX KIYA HAI: "with" ki jagah "auto" use kiya gaya hai
     const screenStreams = await AgoraRTC.createScreenVideoTrack({ encoderConfig: "1080p_1" }, "auto");
     
     if (Array.isArray(screenStreams)) {
@@ -452,8 +500,23 @@ shareBtn.addEventListener("click", async () => {
     screenCard.id = "screen-share-container";
     screenCard.style.width = "100%";
     screenCard.style.height = "320px";
-    screenCard.style.gridColumn = "1 / -1"; // Ye line screen share ko bada dikhayegi
+    screenCard.style.gridColumn = "1 / -1"; 
     screenCard.style.border = "2px solid var(--accent)";
+    
+    const label = document.createElement("div");
+    label.style.position = "absolute";
+    label.style.top = "6px";
+    label.style.left = "6px";
+    label.style.padding = "4px 8px";
+    label.style.background = "rgba(0,0,0,0.6)";
+    label.style.color = "#fff";
+    label.style.borderRadius = "6px";
+    label.style.fontSize = "13px";
+    label.style.zIndex = "10";
+    label.textContent = `Your Presentation Screen`;
+    screenCard.appendChild(label);
+
+    addSizeControls(screenCard, screenCard);
     
     videoArea.appendChild(screenCard);
     screenTrack.play(screenCard);
@@ -463,14 +526,12 @@ shareBtn.addEventListener("click", async () => {
       await client.publish(screenAudioTrack);
     }
 
-    // Jab user browser ke "Stop sharing" popup se band kare
     screenTrack.on("track-ended", () => {
       if (screenTrack) shareBtn.click();
     });
 
   } catch (err) {
     console.error("Screen share failed or cancelled:", err);
-    // Agar user popup me 'Cancel' daba de, toh camera wapas normal on ho jaye
     if (localTracks.videoTrack) {
       await client.publish(localTracks.videoTrack);
       const localContainer = document.getElementById("local-player");
@@ -478,6 +539,48 @@ shareBtn.addEventListener("click", async () => {
     }
   }
 });
+
+// ---------- Live Commands Receiver ----------
+socket.on("control", async (data) => {
+  if (!joined || !data) return;
+
+  if (data.action === "mute-all" && localTracks.audioTrack) {
+    await localTracks.audioTrack.setEnabled(false);
+    muteBtn.textContent = "Unmute";
+    showNotification("Muted by Host", "danger");
+    return;
+  }
+  if (data.action === "unmute-all" && localTracks.audioTrack) {
+    await localTracks.audioTrack.setEnabled(true);
+    muteBtn.textContent = "Mute";
+    showNotification("Unmuted by Host", "info");
+    return;
+  }
+
+  if (data.targetUid === localUid) {
+    if (data.action === "mute-audio" && localTracks.audioTrack) {
+      await localTracks.audioTrack.setEnabled(false);
+      muteBtn.textContent = "Unmute";
+      showNotification("Your mic was muted by host", "danger");
+    }
+    if (data.action === "disable-video" && localTracks.videoTrack) {
+      await localTracks.videoTrack.setEnabled(false);
+      cameraBtn.textContent = "Camera On";
+      showNotification("Your camera was disabled by host", "danger");
+    }
+    if (data.action === "enable-audio" && localTracks.audioTrack) {
+      await localTracks.audioTrack.setEnabled(true);
+      muteBtn.textContent = "Mute";
+      showNotification("Your mic is now active", "info");
+    }
+    if (data.action === "enable-video" && localTracks.videoTrack) {
+      await localTracks.videoTrack.setEnabled(true);
+      cameraBtn.textContent = "Camera Off";
+      showNotification("Your camera is now active", "info");
+    }
+  }
+});
+
 // ---------- Messaging & File Actions ----------
 sendMsgBtn.addEventListener("click", () => {
   const text = chatInput.value.trim();
@@ -486,8 +589,8 @@ sendMsgBtn.addEventListener("click", () => {
   appendMessage(`Me: ${text}`);
   chatInput.value = "";
 });
+
 socket.on("chat-message", data => {
-  // Check if it's a system leave message from server, ignore it in chat since we show popup now
   if(data.name === "System" && data.text.includes("left the room")) return;
   appendMessage(`${data.name}: ${data.text}`);
 });
@@ -504,7 +607,7 @@ uploadBtn.addEventListener("click", async () => {
     const json = await res.json();
     addFileLink(json.filename, json.url);
   } catch (err) {
-    showNotification("Upload failed", "leave");
+    showNotification("Upload failed", "danger");
   }
 });
 
@@ -516,7 +619,7 @@ function addFileLink(name, url) {
 
 socket.on("file-uploaded", data => { 
   addFileLink(data.filename, data.url); 
-  showNotification(`${data.uploader} uploaded ${data.filename}`, "info"); 
+  showNotification(`${data.uploader} uploaded a file`, "info"); 
 });
 
 socket.on("user-joined", info => {
