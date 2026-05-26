@@ -402,10 +402,11 @@ muteBtn.addEventListener("click", async () => {
   socket.emit("control", { room: currentRoom, targetUid: localUid, action: enabled ? "mute-audio" : "enable-audio" });
 });
 
-// ---------- Screen Share ----------
+// ---------- Screen Share (FIXED) ----------
 shareBtn.addEventListener("click", async () => {
   if (!joined) return;
   try {
+    // Agar pehle se screen share chal raha hai, toh use band karo
     if (screenTrack) {
       if (screenAudioTrack) {
         await client.unpublish(screenAudioTrack);
@@ -419,6 +420,7 @@ shareBtn.addEventListener("click", async () => {
       const el = document.getElementById("screen-share-container");
       if (el) el.remove();
       
+      // Camera wapas on karo
       if (localTracks.videoTrack) {
         await client.publish(localTracks.videoTrack);
         const localContainer = document.getElementById("local-player");
@@ -428,11 +430,13 @@ shareBtn.addEventListener("click", async () => {
       return;
     }
 
+    // Naya Screen Share chalu karne ke liye camera off karo
     if (localTracks.videoTrack) {
       await client.unpublish(localTracks.videoTrack);
     }
 
-    const screenStreams = await AgoraRTC.createScreenVideoTrack({ encoderConfig: "1080p_1" }, "with");
+    // YAHAN FIX KIYA HAI: "with" ki jagah "auto" use kiya gaya hai
+    const screenStreams = await AgoraRTC.createScreenVideoTrack({ encoderConfig: "1080p_1" }, "auto");
     
     if (Array.isArray(screenStreams)) {
       screenTrack = screenStreams[0];
@@ -444,11 +448,12 @@ shareBtn.addEventListener("click", async () => {
     shareBtn.textContent = "Stop Share";
 
     const screenCard = document.createElement("div");
-    screenCard.className = "video-card";
+    screenCard.className = "video-card screen-share-card";
     screenCard.id = "screen-share-container";
-    screenCard.style.width = "320px";
-    screenCard.style.height = "200px";
-    screenCard.style.border = "2px solid #4CAF50";
+    screenCard.style.width = "100%";
+    screenCard.style.height = "320px";
+    screenCard.style.gridColumn = "1 / -1"; // Ye line screen share ko bada dikhayegi
+    screenCard.style.border = "2px solid var(--accent)";
     
     videoArea.appendChild(screenCard);
     screenTrack.play(screenCard);
@@ -458,57 +463,21 @@ shareBtn.addEventListener("click", async () => {
       await client.publish(screenAudioTrack);
     }
 
+    // Jab user browser ke "Stop sharing" popup se band kare
     screenTrack.on("track-ended", () => {
       if (screenTrack) shareBtn.click();
     });
 
   } catch (err) {
-    console.error("Screen share failed:", err);
-    if (localTracks.videoTrack) await client.publish(localTracks.videoTrack);
-  }
-});
-
-// ---------- Live Commands Receiver ----------
-socket.on("control", async (data) => {
-  if (!joined || !data) return;
-
-  if (data.action === "mute-all" && localTracks.audioTrack) {
-    await localTracks.audioTrack.setEnabled(false);
-    muteBtn.textContent = "Unmute";
-    showNotification("Muted by Host", "leave");
-    return;
-  }
-  if (data.action === "unmute-all" && localTracks.audioTrack) {
-    await localTracks.audioTrack.setEnabled(true);
-    muteBtn.textContent = "Mute";
-    showNotification("Unmuted by Host", "join");
-    return;
-  }
-
-  if (data.targetUid === localUid) {
-    if (data.action === "mute-audio" && localTracks.audioTrack) {
-      await localTracks.audioTrack.setEnabled(false);
-      muteBtn.textContent = "Unmute";
-      showNotification("Your mic was muted by host", "leave");
-    }
-    if (data.action === "disable-video" && localTracks.videoTrack) {
-      await localTracks.videoTrack.setEnabled(false);
-      cameraBtn.textContent = "Camera On";
-      showNotification("Your camera was disabled by host", "leave");
-    }
-    if (data.action === "enable-audio" && localTracks.audioTrack) {
-      await localTracks.audioTrack.setEnabled(true);
-      muteBtn.textContent = "Mute";
-      showNotification("Your mic is now active", "join");
-    }
-    if (data.action === "enable-video" && localTracks.videoTrack) {
-      await localTracks.videoTrack.setEnabled(true);
-      cameraBtn.textContent = "Camera Off";
-      showNotification("Your camera is now active", "join");
+    console.error("Screen share failed or cancelled:", err);
+    // Agar user popup me 'Cancel' daba de, toh camera wapas normal on ho jaye
+    if (localTracks.videoTrack) {
+      await client.publish(localTracks.videoTrack);
+      const localContainer = document.getElementById("local-player");
+      localTracks.videoTrack.play(localContainer);
     }
   }
 });
-
 // ---------- Messaging & File Actions ----------
 sendMsgBtn.addEventListener("click", () => {
   const text = chatInput.value.trim();
