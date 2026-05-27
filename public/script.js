@@ -247,18 +247,18 @@ function createScreenShareCard(uid) {
   return card;
 }
 
-// ---------- JOIN ROOM ----------
+/// ---------- JOIN LOGIC ----------
 joinBtn.addEventListener("click", async () => {
   if (joined) return;
   
-  // 1. AUTOPLAY UNLOCK HACK: Join dabate hi browser ko lagna chahiye ki user ne audio allow kiya hai.
+  // Audio Autoplay Hack for Browsers
   try {
-    remoteMusicPlayer.volume = 0; // Silent
+    remoteMusicPlayer.volume = 0; 
     let playPromise = remoteMusicPlayer.play();
     if (playPromise !== undefined) {
       playPromise.then(() => {
         remoteMusicPlayer.pause();
-        remoteMusicPlayer.volume = 1; // Wapas volume theek kardo
+        remoteMusicPlayer.volume = 1; 
       }).catch(e => console.log("Audio unlock pending..."));
     }
   } catch(e) {}
@@ -271,36 +271,36 @@ joinBtn.addEventListener("click", async () => {
     const uid = await client.join(APP_ID, roomId, null, userName);
     localUid = uid.toString();
 
+    let microphoneTrack, cameraTrack;
     try {
-      const [microphoneTrack, cameraTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
+      [microphoneTrack, cameraTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
       localTracks.audioTrack = microphoneTrack;
       localTracks.videoTrack = cameraTrack;
-
-      const localContainer = createLocalCard(userName);
-      localTracks.videoTrack.play(localContainer);
-
       await client.publish([microphoneTrack, cameraTrack]);
     } catch (mediaErr) {
       showNotification("Camera/Mic busy. Joined as viewer.", "info");
-      createLocalCard(userName); 
     }
 
     joined = true;
     currentRoom = roomId;
-
-    muteBtn.textContent = "Mute";
-    cameraBtn.textContent = "Camera Off";
     
     joinSection.classList.add("form-out");
     
+    // ✨ THE FIX: Animation khatam hone ke baad camera play karna ✨
     setTimeout(() => {
       joinSection.style.display = "none";
       workspace.classList.remove("hidden");
       workspace.classList.add("workspace-active"); 
+      resizeCanvas(); 
+      
+      // Ab box screen par aa chuka hai, yahan apna camera lagao
+      const localContainer = createLocalCard(userName);
+      if (localTracks.videoTrack) {
+        localTracks.videoTrack.play(localContainer);
+      }
     }, 500);
 
     socket.emit("join-room", { room: roomId, uid: localUid, name: userName });
-    
     showNotification(`You joined room ${roomId}`, "join");
     appendMessage(`System: You joined room ${roomId}`);
     
@@ -308,7 +308,6 @@ joinBtn.addEventListener("click", async () => {
     showNotification("Join failed!", "danger");
   }
 });
-
 // ---------- ROOM HISTORY LISTENER ----------
 socket.on("room-history", (data) => {
   if (data.chats && data.chats.length > 0) {
