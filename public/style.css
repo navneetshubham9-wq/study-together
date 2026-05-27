@@ -41,21 +41,13 @@ header h1 {
   font-family: 'Poppins', sans-serif;
   font-size: 3.5rem;
   font-weight: 800;
-  color: #ffffff;
   letter-spacing: 3px;
-  text-shadow:
-    0 1px 0 #cccccc,
-    0 2px 0 #c9c9c9,
-    0 3px 0 #bbbbbb,
-    0 4px 0 #b9b9b9,
-    0 5px 0 #aaaaaa,
-    0 6px 1px rgba(0,0,0,0.1),
-    0 0 5px rgba(0,0,0,0.1),
-    0 1px 3px rgba(0,0,0,0.3),
-    0 3px 5px rgba(0,0,0,0.2),
-    0 5px 10px rgba(0,0,0,0.25),
-    0 10px 10px rgba(0,0,0,0.2),
-    0 20px 20px rgba(0,0,0,0.15);
+  background: linear-gradient(to right, #00d2d3, #3498db);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
   display: inline-block;
   vertical-align: middle;
 }
@@ -136,11 +128,12 @@ main {
   pointer-events: none; 
 }
 
+/* YAHAN FIX HAI: Workspace layout proper Grid me */
 #workspace {
   width: 100%; 
   display: none; 
   grid-template-columns: 2.5fr 1fr; 
-  grid-template-rows: auto auto auto auto;
+  grid-template-rows: auto auto auto; /* Fix rows */
   gap: 25px; 
   margin-top: 15px;
 }
@@ -149,20 +142,37 @@ main {
   display: grid; 
 }
 
-#controls { grid-column: 1 / span 2; grid-row: 1; }
-#video-area { grid-column: 1; grid-row: 2; display: flex; flex-direction: column; gap: 15px; }
-#chat-box { grid-column: 2; grid-row: 2; }
-#file-box { grid-column: 2; grid-row: 3; }
+#controls { 
+  grid-column: 1 / span 2; 
+  grid-row: 1; 
+}
 
+/* YAHAN FIX HAI: Video area ko row 2 and 3 dono cover karne diya taaki chat aur file ke barabar rahe */
+#video-area { 
+  grid-column: 1; 
+  grid-row: 2 / span 2; 
+}
+
+#chat-box { 
+  grid-column: 2; 
+  grid-row: 2; 
+}
+
+#file-box { 
+  grid-column: 2; 
+  grid-row: 3; 
+}
+
+/* YAHAN FIX HAI: Videos ek ke neeche ek nahi, side-by-side (bagal me) aayenge */
 .video-grid { 
   display: grid; 
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); 
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); 
   gap: 15px; 
   align-items: start; 
+  align-content: flex-start;
 }
 
 .video-card { 
-  height: 140px; 
   background: linear-gradient(to bottom right, rgba(0,0,0,0.6), rgba(0,0,0,0.9)); 
   border-radius: 12px; 
   overflow: hidden; 
@@ -172,7 +182,6 @@ main {
   transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); 
 }
 
-/* NAYA FIX: Screen share card ko exact height aur width de di gayi hai */
 .screen-share-card { 
   grid-column: 1 / -1 !important; 
   width: 100% !important;
