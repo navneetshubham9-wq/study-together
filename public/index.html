@@ -34,6 +34,14 @@
           <button id="muteAllBtn" style="background-color: #e74c3c; color: white; display: none;">Mute All (Host)</button>
           <button id="unmuteAllBtn" style="background-color: #4CAF50; color: white; display: none;">Unmute All (Host)</button>
         </div>
+
+        <div id="hostAudioContainer" style="display: none; width: 100%; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+          <p style="margin: 0 0 10px 0; font-weight: 500; font-size: 14px; text-align: center; color: var(--accent);">🎵 Host Music Player (Live Stream to Room)</p>
+          <div style="display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap;">
+            <input type="file" id="hostAudioFile" accept="audio/*" style="padding: 8px; background: rgba(0,0,0,0.2); border: var(--3d-border); border-radius: 6px; color: #fff; font-size: 13px; max-width: 250px;" />
+            <audio id="hostAudioPlayer" controls style="height: 38px; border-radius: 6px; outline: none;"></audio>
+          </div>
+        </div>
       </section>
 
       <section id="video-area" class="card video-grid entry-animation delay-video"></section>
@@ -49,8 +57,7 @@
 
       <section id="file-box" class="card entry-animation delay-files">
         <h3>📂 Shared Files</h3>
-        <div id="fileList" class="file-box-list">
-          </div>
+        <div id="fileList" class="file-box-list"></div>
         <div class="file-upload-footer">
           <input type="file" id="fileUpload" accept=".jpg,.jpeg,.pdf" style="display: none;" />
           <button id="customUploadBtn" onclick="document.getElementById('fileUpload').click()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); flex: 1;">Choose File</button>

@@ -13,6 +13,10 @@ let screenAudioTrack = null;
 let isHost = false; 
 const remoteUsers = {}; 
 
+// NEW: Music Bot State for Host
+let musicClient = null;
+let musicTrack = null;
+
 // DOM Elements
 const joinBtn = document.getElementById("joinBtn");
 const joinSection = document.getElementById("join-section"); 
@@ -33,6 +37,11 @@ const messages = document.getElementById("messages");
 const uploadBtn = document.getElementById("uploadBtn");
 const fileUpload = document.getElementById("fileUpload");
 const fileList = document.getElementById("fileList");
+
+// Host Audio DOM Elements
+const hostAudioContainer = document.getElementById("hostAudioContainer");
+const hostAudioFile = document.getElementById("hostAudioFile");
+const hostAudioPlayer = document.getElementById("hostAudioPlayer");
 
 // ---------- POPUP NOTIFICATION HELPER ----------
 function showNotification(message, type = 'info') {
@@ -288,21 +297,16 @@ joinBtn.addEventListener("click", async () => {
   }
 });
 
-// ---------- NEW: ROOM HISTORY LISTENER ----------
+// ---------- ROOM HISTORY LISTENER ----------
 socket.on("room-history", (data) => {
-  // Purani chats load karna
   if (data.chats && data.chats.length > 0) {
     data.chats.forEach(chat => {
-      // System ke purane "left the room" notifications ko chatbox me nahi dikhana,
-      // sirf normal chats hi rahengi jisse clean lage.
       if(chat.name === "System" && chat.text.includes("left the room")) return;
       appendMessage(`${chat.name}: ${chat.text}`);
     });
   }
   
-  // Purani shared files load karna
   if (data.files && data.files.length > 0) {
-    // Array ko ulta kar rahe hain taaki latest file sabse upar dikhe (reverse chronologically)
     [...data.files].reverse().forEach(file => {
       addFileLink(file.filename, file.url);
     });
@@ -312,6 +316,12 @@ socket.on("room-history", (data) => {
 // ---------- Host Role Detection & User Count Fix ----------
 socket.on("host-assignment", (data) => {
   isHost = data.isHost;
+  // Always show Host Audio Player if user is Host
+  if (isHost) {
+    hostAudioContainer.style.display = "block";
+  } else {
+    hostAudioContainer.style.display = "none";
+  }
 });
 
 socket.on("room-update", (data) => {
@@ -323,6 +333,50 @@ socket.on("room-update", (data) => {
     unmuteAllBtn.style.display = "none";
   }
 });
+
+// ---------- HOST MUSIC PLAYER LOGIC ----------
+hostAudioFile.addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  hostAudioPlayer.src = URL.createObjectURL(file);
+});
+
+hostAudioPlayer.addEventListener("play", async () => {
+  if (!joined || !isHost) return;
+  try {
+    if (!musicClient) {
+      // Invisible Audio Bot Bankar stream karega
+      musicClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+      await musicClient.join(APP_ID, currentRoom, null, null); 
+      
+      let stream;
+      if (hostAudioPlayer.captureStream) {
+        stream = hostAudioPlayer.captureStream();
+      } else if (hostAudioPlayer.mozCaptureStream) {
+        stream = hostAudioPlayer.mozCaptureStream();
+      }
+
+      if (stream && stream.getAudioTracks().length > 0) {
+        musicTrack = AgoraRTC.createCustomAudioTrack({ mediaStreamTrack: stream.getAudioTracks()[0] });
+        await musicClient.publish(musicTrack);
+        showNotification("Music is now streaming to the room! 🎵", "join");
+      } else {
+        showNotification("Audio streaming not supported on this browser.", "danger");
+      }
+    } else if (musicTrack) {
+      await musicTrack.setEnabled(true);
+    }
+  } catch (err) {
+    console.error("Music stream error:", err);
+  }
+});
+
+hostAudioPlayer.addEventListener("pause", async () => {
+  if (musicTrack) {
+    await musicTrack.setEnabled(false);
+  }
+});
+
 
 // ---------- LEAVE ROOM ----------
 leaveBtn.addEventListener("click", async () => {
@@ -346,6 +400,11 @@ leaveBtn.addEventListener("click", async () => {
       screenAudioTrack.stop();
       screenAudioTrack.close();
     }
+    
+    if (musicClient) {
+      await musicClient.leave();
+    }
+
     await client.leave();
     
     setTimeout(() => {
@@ -415,6 +474,8 @@ function removeRemoteUser3D(uid, name = null) {
   if (name) {
     showNotification(`${name} left the room`, "danger");
   } else {
+    // Hidden music bot check so we don't show unnecessary 'User left' popups
+    if (!name && !wrapper && !screenCard) return; 
     showNotification(`User left the room`, "danger");
   }
 
@@ -590,7 +651,7 @@ socket.on("control", async (data) => {
   }
 });
 
-// ---------- Messaging & File Actions ----------
+// ---------- Messaging & Enter Key Logic ----------
 sendMsgBtn.addEventListener("click", () => {
   const text = chatInput.value.trim();
   if (!text) return;
@@ -599,11 +660,20 @@ sendMsgBtn.addEventListener("click", () => {
   chatInput.value = "";
 });
 
+// NEW: Enter key se chat bhejne ka code
+chatInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault(); 
+    sendMsgBtn.click();
+  }
+});
+
 socket.on("chat-message", data => {
   if(data.name === "System" && data.text.includes("left the room")) return;
   appendMessage(`${data.name}: ${data.text}`);
 });
 
+// ---------- File Actions ----------
 uploadBtn.addEventListener("click", async () => {
   const f = fileUpload.files[0];
   if (!f) return;
