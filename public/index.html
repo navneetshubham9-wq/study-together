@@ -39,6 +39,7 @@
       <section id="video-area" class="card video-grid entry-animation delay-video"></section>
 
       <section id="chat-box" class="card entry-animation delay-chat">
+        <h3>💬 Live Chat</h3>
         <div id="messages" class="messages"></div>
         <div class="chat-input">
           <input id="chatInput" placeholder="Type a message..." />
@@ -47,17 +48,20 @@
       </section>
 
       <section id="file-box" class="card entry-animation delay-files">
-        <input type="file" id="fileUpload" accept=".jpg,.jpeg,.pdf" />
-        <button id="uploadBtn">Upload to Shared Folder</button>
-        <div id="fileList" class="file-list"></div>
+        <h3>📂 Shared Files</h3>
+        <div id="fileList" class="file-box-list">
+          </div>
+        <div class="file-upload-footer">
+          <input type="file" id="fileUpload" accept=".jpg,.jpeg,.pdf" style="display: none;" />
+          <button id="customUploadBtn" onclick="document.getElementById('fileUpload').click()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); flex: 1;">Choose File</button>
+          <button id="uploadBtn" style="background-color: var(--primary);">Upload</button>
+        </div>
       </section>
 
     </div> </main>
 
   <footer>
-    <p>Made with ❤️ for collaborative learning</p>
-    <p> 2026 Study Nest. All rights reserved.</p>
-    <p>Feedback/Contact: navneetshubham9@gmail.com,call/whatsapp on +918839339013</p>
+    <p>Contact: navneetshubham9@gmail.com</p>
   </footer>
 
   <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.0.js"></script>
