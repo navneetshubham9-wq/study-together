@@ -16,7 +16,6 @@ body {
   margin: 0;
   font-family: 'Poppins', sans-serif; 
   color: var(--text-main);
-  /* Naya Vibrant, Positive aur Energetic Background */
   background: linear-gradient(135deg, #4158D0 0%, #C850C0 46%, #FFCC70 100%);
   background-attachment: fixed;
   background-size: cover;
@@ -37,7 +36,6 @@ header {
   margin-bottom: 20px;
 }
 
-/* Yahan hai HERMES ka mast 3D Word Art Effect */
 header h1 { 
   margin: 0; 
   font-family: 'Poppins', sans-serif;
@@ -45,7 +43,6 @@ header h1 {
   font-weight: 800;
   color: #ffffff;
   letter-spacing: 3px;
-  /* 3D Shadows stacked together */
   text-shadow:
     0 1px 0 #cccccc,
     0 2px 0 #c9c9c9,
@@ -76,7 +73,6 @@ main {
   padding: 0 20px 40px; 
 }
 
-/* 3D Glassmorphism Cards */
 .card {
   background: var(--glass-bg);
   -webkit-backdrop-filter: blur(16px);
@@ -176,18 +172,23 @@ main {
   transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); 
 }
 
-/* NAYA FIX: Sirf Screen Share card full width me aayega, Local player baki users jaisa normal rahega */
+/* NAYA FIX: Screen share card ko exact height aur width de di gayi hai */
 .screen-share-card { 
-  grid-column: 1 / -1; 
-  height: 350px !important; 
+  grid-column: 1 / -1 !important; 
+  width: 100% !important;
+  height: 400px !important; 
 } 
 
-.video-wrapper-large { grid-column: span 3 !important; grid-row: span 2 !important; }
-.video-wrapper-large .video-card, .video-wrapper-large.video-card { height: 360px !important; }
+.video-wrapper-large { 
+  grid-column: 1 / -1 !important; 
+  width: 100% !important; 
+}
+.video-wrapper-large .video-card, .video-wrapper-large.video-card { 
+  height: 400px !important; 
+}
 .video-wrapper-small { grid-column: span 1 !important; }
 .video-wrapper-small .video-card, .video-wrapper-small.video-card { height: 100px !important; }
 
-/* HOVER EFFECT FOR CONTROLS */
 .local-controls { 
   position: absolute; 
   top: 6px; 
@@ -320,7 +321,6 @@ main {
   filter: brightness(1.2);
 }
 
-/* Animations */
 .entry-animation { 
   opacity: 0; 
   transform: rotateX(20deg) translateY(60px) translateZ(-50px) scale(0.95); 
@@ -356,7 +356,6 @@ main {
   } 
 }
 
-/* Modern Buttons */
 .control-row { 
   display: flex; 
   justify-content: center; 

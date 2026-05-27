@@ -9,6 +9,7 @@ let joined = false;
 let currentRoom = null;
 let screenTrack = null;
 let isHost = false; 
+let isSharing = false; // NAYA: Screen sharing track properly handle karne ke liye
 const remoteUsers = {}; 
 let currentMusicUrl = null;
 
@@ -318,38 +319,6 @@ function createRemoteWrapper(uid, labelText) {
   return wrapper;
 }
 
-function createScreenShareCard(uid) {
-  const cardId = `screen-card-${uid}`;
-  let card = document.getElementById(cardId);
-  if (card) return card;
-
-  card = document.createElement("div");
-  card.id = cardId; 
-  card.className = "video-card screen-share-card";
-  card.style.width = "100%"; 
-  card.style.height = "320px";
-  card.style.position = "relative"; 
-  card.style.border = "3px solid var(--accent)";
-
-  const label = document.createElement("div");
-  label.style.position = "absolute"; 
-  label.style.top = "6px"; 
-  label.style.left = "6px";
-  label.style.padding = "4px 8px"; 
-  label.style.background = "rgba(0,0,0,0.6)";
-  label.style.color = "#fff"; 
-  label.style.borderRadius = "6px"; 
-  label.style.fontSize = "13px";
-  label.style.zIndex = "10"; 
-  label.textContent = `User ${uid}'s Presentation`;
-  
-  card.appendChild(label);
-  addSizeControls(card, card);
-  videoArea.appendChild(card);
-  
-  return card;
-}
-
 // ---------- JOIN LOGIC ----------
 joinBtn.addEventListener("click", async () => {
   if (joined) return;
@@ -547,12 +516,8 @@ client.on("user-published", async (user, mediaType) => {
     remoteUsers[uid] = user;
 
     if (mediaType === "video") {
-      if (user.videoTrack.getTrackId().includes("screen") || uid.includes("screen")) {
-        user.videoTrack.play(createScreenShareCard(uid));
-      } else {
-        createRemoteWrapper(uid, `User ${uid}`);
-        user.videoTrack.play(document.getElementById(`remote-${uid}`));
-      }
+      createRemoteWrapper(uid, `User ${uid}`);
+      user.videoTrack.play(document.getElementById(`remote-${uid}`));
     }
     
     if (mediaType === "audio" && user.audioTrack) {
@@ -564,10 +529,7 @@ client.on("user-published", async (user, mediaType) => {
 });
 
 client.on("user-unpublished", (user, mediaType) => {
-  if (mediaType === "video") {
-    const sc = document.getElementById(`screen-card-${user.uid}`);
-    if (sc) sc.remove();
-  }
+  // Agora handles this gracefully, no extra logic needed here for simple track swap
 });
 
 client.on("user-left", (user) => removeRemoteUser(user.uid.toString()));
@@ -575,10 +537,8 @@ socket.on("user-left", info => { if (info && info.uid) removeRemoteUser(info.uid
 
 function removeRemoteUser(uid, name = null) {
   const w = document.getElementById(`remote-wrapper-${uid}`);
-  const s = document.getElementById(`screen-card-${uid}`);
   
   if (w) { w.classList.add("fly-out-3d"); setTimeout(() => w.remove(), 700); }
-  if (s) { s.classList.add("fly-out-3d"); setTimeout(() => s.remove(), 700); }
   
   if (name) showNotification(`${name} left`, "danger");
   delete remoteUsers[uid];
@@ -624,47 +584,76 @@ muteBtn.addEventListener("click", async () => {
   socket.emit("control", { room: currentRoom, targetUid: localUid, action: en ? "mute-audio" : "enable-audio" });
 });
 
-// NAYA SCREEN SHARE BUTTON LOGIC
+// NAYA: ROBUST SCREEN SHARE LOGIC
 shareBtn.addEventListener("click", async () => {
   if (!joined) return;
   
-  if (screenTrack) {
-    await client.unpublish(screenTrack); 
-    screenTrack.close(); 
-    screenTrack = null;
+  if (isSharing) {
+    isSharing = false;
     
-    document.getElementById("screen-share-container")?.remove();
+    // Stop sharing safely
+    if (screenTrack) {
+      await client.unpublish(screenTrack); 
+      screenTrack.close(); 
+      screenTrack = null;
+    }
     
+    // Remote users ko normal size karne ka command bhejo
+    socket.emit("control", { room: currentRoom, action: "share-stop", uid: localUid });
+    
+    // Khud ki screen par bhi normal height lagao
+    const myContainer = document.getElementById("local-player");
+    if(myContainer) {
+        myContainer.style.height = "200px";
+        myContainer.parentElement.style.width = "100%";
+        myContainer.parentElement.classList.remove("video-wrapper-large");
+    }
+
     if (localTracks.videoTrack) {
       await client.publish(localTracks.videoTrack);
-      localTracks.videoTrack.play(document.getElementById("local-player"));
+      localTracks.videoTrack.play(myContainer);
     }
-    // Wapas purana Screen Share icon
-    shareBtn.textContent = "🖥️ ↗️";
+    
+    shareBtn.textContent = "Share Screen";
+    shareBtn.style.background = "";
     return;
   }
   
-  if (localTracks.videoTrack) await client.unpublish(localTracks.videoTrack);
+  // Start Sharing
+  if (localTracks.videoTrack) {
+      await client.unpublish(localTracks.videoTrack);
+  }
   
-  screenTrack = await AgoraRTC.createScreenVideoTrack({ encoderConfig: "1080p_1" }, "auto");
-  
-  // Stop Share Icon
-  shareBtn.textContent = "🛑 🖥️";
-  
-  const sc = document.createElement("div");
-  sc.className = "video-card screen-share-card"; 
-  sc.id = "screen-share-container";
-  sc.style.gridColumn = "1 / -1"; 
-  sc.style.height = "320px"; 
-  sc.style.border = "2px solid var(--accent)";
-  
-  addSizeControls(sc, sc);
-  videoArea.appendChild(sc);
-  screenTrack.play(sc);
-  
-  await client.publish(screenTrack);
-  
-  screenTrack.on("track-ended", () => shareBtn.click());
+  try {
+      screenTrack = await AgoraRTC.createScreenVideoTrack({ encoderConfig: "1080p_1" }, "auto");
+      isSharing = true;
+      shareBtn.textContent = "Stop Share";
+      shareBtn.style.background = "linear-gradient(135deg, #e74c3c, #c0392b)";
+      
+      const myContainer = document.getElementById("local-player");
+      if(myContainer) {
+          myContainer.style.height = "400px";
+          myContainer.parentElement.classList.add("video-wrapper-large");
+          screenTrack.play(myContainer);
+      }
+      
+      await client.publish(screenTrack);
+      
+      // Remote users ko video bada karne ka command
+      socket.emit("control", { room: currentRoom, action: "share-start", uid: localUid });
+      
+      // Jab koi direct Google Chrome wale "Stop Sharing" se screen band kare
+      screenTrack.on("track-ended", () => {
+          if (isSharing) shareBtn.click();
+      });
+
+  } catch(e) {
+      console.error("Screen share cancel kiya gaya");
+      if (localTracks.videoTrack) {
+         await client.publish(localTracks.videoTrack);
+         localTracks.videoTrack.play(document.getElementById("local-player"));
+      }
+  }
 });
 
 // ---------- INCOMING SOCKET LISTENER ----------
@@ -688,6 +677,23 @@ socket.on("wb-control", (data) => {
 
 socket.on("control", async (data) => {
   if (!joined || !data) return;
+
+  // Remote Share Start (Remote users ko share bada dikhane ke liye)
+  if (data.action === "share-start") {
+     const remoteWrapper = document.getElementById(`remote-wrapper-${data.uid}`);
+     if (remoteWrapper) {
+        remoteWrapper.classList.remove("video-wrapper-small");
+        remoteWrapper.classList.add("video-wrapper-large");
+     }
+  }
+  
+  // Remote Share Stop
+  if (data.action === "share-stop") {
+     const remoteWrapper = document.getElementById(`remote-wrapper-${data.uid}`);
+     if (remoteWrapper) {
+        remoteWrapper.classList.remove("video-wrapper-large");
+     }
+  }
 
   if (data.action === "music-play" && !isHost) {
     localMusicMuteBtn.style.display = "inline-block";
