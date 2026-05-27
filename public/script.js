@@ -13,9 +13,12 @@ let screenAudioTrack = null;
 let isHost = false; 
 const remoteUsers = {}; 
 
-// NEW: Music Bot State for Host
+// Music Bot State for Host
 let musicClient = null;
 let musicTrack = null;
+let audioCtx = null;
+let musicSource = null;
+let musicDest = null;
 
 // DOM Elements
 const joinBtn = document.getElementById("joinBtn");
@@ -316,7 +319,6 @@ socket.on("room-history", (data) => {
 // ---------- Host Role Detection & User Count Fix ----------
 socket.on("host-assignment", (data) => {
   isHost = data.isHost;
-  // Always show Host Audio Player if user is Host
   if (isHost) {
     hostAudioContainer.style.display = "block";
   } else {
@@ -334,7 +336,7 @@ socket.on("room-update", (data) => {
   }
 });
 
-// ---------- HOST MUSIC PLAYER LOGIC ----------
+// ---------- HOST MUSIC PLAYER LOGIC (100% RELIABLE) ----------
 hostAudioFile.addEventListener("change", (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -345,26 +347,29 @@ hostAudioPlayer.addEventListener("play", async () => {
   if (!joined || !isHost) return;
   try {
     if (!musicClient) {
-      // Invisible Audio Bot Bankar stream karega
+      // 100% Guaranteed Audio Extraction logic (Web Audio API)
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      musicSource = audioCtx.createMediaElementSource(hostAudioPlayer);
+      musicDest = audioCtx.createMediaStreamDestination();
+      
+      musicSource.connect(musicDest);
+      musicSource.connect(audioCtx.destination); // Host ko bhi gaana sunai de
+
       musicClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
       await musicClient.join(APP_ID, currentRoom, null, null); 
       
-      let stream;
-      if (hostAudioPlayer.captureStream) {
-        stream = hostAudioPlayer.captureStream();
-      } else if (hostAudioPlayer.mozCaptureStream) {
-        stream = hostAudioPlayer.mozCaptureStream();
-      }
-
-      if (stream && stream.getAudioTracks().length > 0) {
-        musicTrack = AgoraRTC.createCustomAudioTrack({ mediaStreamTrack: stream.getAudioTracks()[0] });
-        await musicClient.publish(musicTrack);
-        showNotification("Music is now streaming to the room! 🎵", "join");
-      } else {
-        showNotification("Audio streaming not supported on this browser.", "danger");
-      }
+      musicTrack = AgoraRTC.createCustomAudioTrack({ mediaStreamTrack: musicDest.stream.getAudioTracks()[0] });
+      await musicClient.publish(musicTrack);
+      
+      // Sabko Real-time Notification bhejo!
+      socket.emit("chat-message", { room: currentRoom, name: "System", text: "🎵 Host started playing music!" });
     } else if (musicTrack) {
       await musicTrack.setEnabled(true);
+      socket.emit("chat-message", { room: currentRoom, name: "System", text: "🎵 Host resumed music!" });
+    }
+
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume();
     }
   } catch (err) {
     console.error("Music stream error:", err);
@@ -374,6 +379,7 @@ hostAudioPlayer.addEventListener("play", async () => {
 hostAudioPlayer.addEventListener("pause", async () => {
   if (musicTrack) {
     await musicTrack.setEnabled(false);
+    socket.emit("chat-message", { room: currentRoom, name: "System", text: "⏸️ Host paused the music." });
   }
 });
 
@@ -474,7 +480,6 @@ function removeRemoteUser3D(uid, name = null) {
   if (name) {
     showNotification(`${name} left the room`, "danger");
   } else {
-    // Hidden music bot check so we don't show unnecessary 'User left' popups
     if (!name && !wrapper && !screenCard) return; 
     showNotification(`User left the room`, "danger");
   }
@@ -660,7 +665,6 @@ sendMsgBtn.addEventListener("click", () => {
   chatInput.value = "";
 });
 
-// NEW: Enter key se chat bhejne ka code
 chatInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     e.preventDefault(); 
@@ -670,6 +674,12 @@ chatInput.addEventListener("keydown", (e) => {
 
 socket.on("chat-message", data => {
   if(data.name === "System" && data.text.includes("left the room")) return;
+  
+  // NAYI CHEEZ: Jab music play/pause ho toh popup dikhao baki users ko
+  if(data.name === "System" && (data.text.includes("music") || data.text.includes("Music"))) {
+    showNotification(data.text, "join");
+  }
+  
   appendMessage(`${data.name}: ${data.text}`);
 });
 
