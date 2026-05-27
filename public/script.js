@@ -16,6 +16,7 @@ let currentMusicUrl = null;
 let canDraw = false; 
 let currentBrushColor = "#000000";
 let currentBrushSize = 3;
+let isEraser = false; // NEW: Eraser Flag
 
 // DOM Elements
 const joinBtn = document.getElementById("joinBtn");
@@ -80,26 +81,41 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
   controlsDiv.className = "local-controls";
 
   const enlargeBtn = document.createElement("button");
-  enlargeBtn.className = "icon-btn"; enlargeBtn.innerHTML = "➕"; enlargeBtn.onclick = () => {
+  enlargeBtn.className = "icon-btn";
+  enlargeBtn.innerHTML = "➕";
+  enlargeBtn.onclick = () => {
     targetWrapper.classList.remove("video-wrapper-small");
     targetWrapper.classList.toggle("video-wrapper-large");
   };
 
   const shrinkBtn = document.createElement("button");
-  shrinkBtn.className = "icon-btn"; shrinkBtn.innerHTML = "➖"; shrinkBtn.onclick = () => {
+  shrinkBtn.className = "icon-btn";
+  shrinkBtn.innerHTML = "➖";
+  shrinkBtn.onclick = () => {
     targetWrapper.classList.remove("video-wrapper-large");
     targetWrapper.classList.toggle("video-wrapper-small");
   };
 
   const maxBtn = document.createElement("button");
-  maxBtn.className = "icon-btn"; maxBtn.innerHTML = "🖥️"; maxBtn.onclick = () => {
-    if (!document.fullscreenElement) elementToFullscreen.requestFullscreen().catch(err => showNotification("Fullscreen error", "danger"));
-    else document.exitFullscreen();
+  maxBtn.className = "icon-btn";
+  maxBtn.innerHTML = "🖥️";
+  maxBtn.onclick = () => {
+    if (!document.fullscreenElement) {
+      elementToFullscreen.requestFullscreen().catch(err => {
+        showNotification("Fullscreen error", "danger");
+      });
+    } else {
+      document.exitFullscreen();
+    }
   };
 
-  controlsDiv.appendChild(enlargeBtn); controlsDiv.appendChild(shrinkBtn); controlsDiv.appendChild(maxBtn);
+  controlsDiv.appendChild(enlargeBtn);
+  controlsDiv.appendChild(shrinkBtn);
+  controlsDiv.appendChild(maxBtn);
   elementToFullscreen.appendChild(controlsDiv);
 }
+
+// Adding Size Controls to Whiteboard
 addSizeControls(document.getElementById('whiteboard-box'), document.getElementById('whiteboard-container'));
 
 // ---------- NEW WHITEBOARD MS-TEAMS FEATURES ----------
@@ -110,9 +126,19 @@ function resizeCanvas() {
 window.addEventListener('resize', resizeCanvas);
 
 // Toolbar Listeners
-wbColor.addEventListener("input", (e) => currentBrushColor = e.target.value);
-wbSize.addEventListener("input", (e) => currentBrushSize = e.target.value);
-wbEraser.addEventListener("click", () => currentBrushColor = "#ffffff"); 
+wbColor.addEventListener("input", (e) => {
+  isEraser = false; // Reset eraser when color is picked
+  currentBrushColor = e.target.value;
+});
+
+wbSize.addEventListener("input", (e) => {
+  currentBrushSize = e.target.value;
+});
+
+wbEraser.addEventListener("click", () => {
+  isEraser = true; // Turn on big eraser
+});
+
 wbClear.addEventListener("click", () => {
   if (!canDraw) return;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -123,21 +149,31 @@ socket.on("clear-whiteboard", () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 });
 
-function draw(x0, y0, x1, y1, color, size, emit = false) {
+// Drawing Function (Now supports BIG Eraser)
+function draw(x0, y0, x1, y1, color, size, eraserFlag, emit = false) {
   ctx.beginPath();
   ctx.moveTo(x0, y0);
   ctx.lineTo(x1, y1);
-  ctx.strokeStyle = color;
-  ctx.lineWidth = size;
+  
+  // Set stroke style to white if eraser, otherwise use color
+  ctx.strokeStyle = eraserFlag ? "#ffffff" : color;
+  
+  // Make eraser brush massive (size 30) for easy rubbing
+  ctx.lineWidth = eraserFlag ? 30 : size; 
+  
   ctx.lineCap = 'round';
   ctx.stroke();
   ctx.closePath();
 
   if (!emit) return;
-  socket.emit('drawing', { x0, y0, x1, y1, color, size, room: currentRoom });
+  socket.emit('drawing', { 
+    x0, y0, x1, y1, color, size, isEraser: eraserFlag, room: currentRoom 
+  });
 }
 
-let lastX = 0; let lastY = 0;
+let lastX = 0; 
+let lastY = 0;
+
 canvas.addEventListener('mousedown', (e) => { 
   if (canDraw) {
     drawing = true;
@@ -145,17 +181,18 @@ canvas.addEventListener('mousedown', (e) => {
     lastY = e.offsetY;
   }
 });
+
 canvas.addEventListener('mouseup', () => drawing = false);
 canvas.addEventListener('mouseout', () => drawing = false);
 canvas.addEventListener('mousemove', (e) => {
   if (!drawing || !canDraw) return;
-  draw(lastX, lastY, e.offsetX, e.offsetY, currentBrushColor, currentBrushSize, true);
+  draw(lastX, lastY, e.offsetX, e.offsetY, currentBrushColor, currentBrushSize, isEraser, true);
   lastX = e.offsetX;
   lastY = e.offsetY;
 });
 
 socket.on('drawing', (data) => {
-  draw(data.x0, data.y0, data.x1, data.y1, data.color, data.size, false);
+  draw(data.x0, data.y0, data.x1, data.y1, data.color, data.size, data.isEraser, false);
 });
 
 // ---------- VIDEO UI HELPERS ----------
@@ -163,13 +200,20 @@ function createLocalCard(name) {
   let el = document.getElementById("local-player");
   if (el) return el;
   const localContainer = document.createElement("div");
-  localContainer.className = "video-card"; localContainer.id = "local-player";
+  localContainer.className = "video-card"; 
+  localContainer.id = "local-player";
   
   const label = document.createElement("div");
-  label.style.position = "absolute"; label.style.top = "6px"; label.style.left = "6px";
-  label.style.padding = "4px 8px"; label.style.background = "rgba(0,0,0,0.5)";
-  label.style.color = "#fff"; label.style.borderRadius = "6px"; label.style.fontSize = "13px";
-  label.style.zIndex = "10"; label.textContent = `${name} (You)`;
+  label.style.position = "absolute"; 
+  label.style.top = "6px"; 
+  label.style.left = "6px";
+  label.style.padding = "4px 8px"; 
+  label.style.background = "rgba(0,0,0,0.5)";
+  label.style.color = "#fff"; 
+  label.style.borderRadius = "6px"; 
+  label.style.fontSize = "13px";
+  label.style.zIndex = "10"; 
+  label.textContent = `${name} (You)`;
   
   localContainer.appendChild(label);
   addSizeControls(localContainer, localContainer);
@@ -184,40 +228,57 @@ function createRemoteWrapper(uid, labelText) {
 
   wrapper = document.createElement("div");
   wrapper.id = wrapperId;
-  wrapper.style.display = "flex"; wrapper.style.flexDirection = "column";
-  wrapper.style.alignItems = "center"; wrapper.style.gap = "6px"; wrapper.style.width = "100%"; 
+  wrapper.style.display = "flex"; 
+  wrapper.style.flexDirection = "column";
+  wrapper.style.alignItems = "center"; 
+  wrapper.style.gap = "6px"; 
+  wrapper.style.width = "100%"; 
 
   const card = document.createElement("div");
-  card.className = "video-card"; card.id = `remote-${uid}`;
-  card.style.width = "100%"; card.style.height = "200px"; card.style.position = "relative";
+  card.className = "video-card"; 
+  card.id = `remote-${uid}`;
+  card.style.width = "100%"; 
+  card.style.height = "200px"; 
+  card.style.position = "relative";
 
   const labelDiv = document.createElement("div");
-  labelDiv.style.position = "absolute"; labelDiv.style.top = "6px"; labelDiv.style.left = "6px";
-  labelDiv.style.padding = "4px 8px"; labelDiv.style.background = "rgba(0,0,0,0.5)";
-  labelDiv.style.color = "#fff"; labelDiv.style.borderRadius = "6px";
-  labelDiv.style.fontSize = "13px"; labelDiv.style.zIndex = "10";
+  labelDiv.style.position = "absolute"; 
+  labelDiv.style.top = "6px"; 
+  labelDiv.style.left = "6px";
+  labelDiv.style.padding = "4px 8px"; 
+  labelDiv.style.background = "rgba(0,0,0,0.5)";
+  labelDiv.style.color = "#fff"; 
+  labelDiv.style.borderRadius = "6px";
+  labelDiv.style.fontSize = "13px"; 
+  labelDiv.style.zIndex = "10";
   labelDiv.textContent = labelText || `User ${uid}`;
   card.appendChild(labelDiv);
 
   const controlsDiv = document.createElement("div");
-  controlsDiv.style.display = "flex"; controlsDiv.style.gap = "5px";
-  controlsDiv.style.justifyContent = "center"; controlsDiv.style.width = "100%";
+  controlsDiv.style.display = "flex"; 
+  controlsDiv.style.gap = "5px";
+  controlsDiv.style.justifyContent = "center"; 
+  controlsDiv.style.width = "100%";
 
-  // Mute Button (Host Only)
-  const muteBtn = document.createElement("button");
-  muteBtn.className = "small-btn host-only-btn"; 
-  muteBtn.style.display = isHost ? "inline-block" : "none";
-  muteBtn.textContent = "Mute";
-  muteBtn.onclick = () => socket.emit("control", { room: currentRoom, targetUid: uid.toString(), action: "mute-audio" });
+  // Mute Button (Host Only) - THIS WAS THE TYPO THAT CRASHED IT BEFORE!
+  const muteRemoteBtn = document.createElement("button");
+  muteRemoteBtn.className = "small-btn host-only-btn"; 
+  muteRemoteBtn.style.display = isHost ? "inline-block" : "none";
+  muteRemoteBtn.textContent = "Mute";
+  muteRemoteBtn.onclick = () => {
+    socket.emit("control", { room: currentRoom, targetUid: uid.toString(), action: "mute-audio" });
+  };
 
-  // Disbale Cam Button (Host Only)
+  // Disable Cam Button (Host Only)
   const camOffBtn = document.createElement("button");
   camOffBtn.className = "small-btn host-only-btn"; 
   camOffBtn.style.display = isHost ? "inline-block" : "none";
   camOffBtn.textContent = "No Cam";
-  camOffBtn.onclick = () => socket.emit("control", { room: currentRoom, targetUid: uid.toString(), action: "disable-video" });
+  camOffBtn.onclick = () => {
+    socket.emit("control", { room: currentRoom, targetUid: uid.toString(), action: "disable-video" });
+  };
 
-  // ✨ YAHI HAI WO "GIVE WB" BUTTON JO MISS HO GAYA THA ✨
+  // Give Whiteboard Access Button (Host Only)
   const wbBtn = document.createElement("button");
   wbBtn.className = "small-btn host-only-btn";
   wbBtn.style.display = isHost ? "inline-block" : "none";
@@ -226,15 +287,20 @@ function createRemoteWrapper(uid, labelText) {
   wbBtn.style.background = "var(--primary)";
   wbBtn.onclick = () => {
     const isGranting = wbBtn.dataset.access === "false";
-    socket.emit("wb-control", { room: currentRoom, targetUid: uid.toString(), action: isGranting ? "grant" : "revoke" });
+    socket.emit("wb-control", { 
+      room: currentRoom, 
+      targetUid: uid.toString(), 
+      action: isGranting ? "grant" : "revoke" 
+    });
+    
     wbBtn.dataset.access = isGranting ? "true" : "false";
     wbBtn.textContent = isGranting ? "Revoke WB" : "Give WB";
     wbBtn.style.background = isGranting ? "var(--danger)" : "var(--primary)";
   };
 
-  controlsDiv.appendChild(muteRemoteBtn);
+  controlsDiv.appendChild(muteRemoteBtn); // Fixed Variable Name
   controlsDiv.appendChild(camOffBtn);
-  controlsDiv.appendChild(wbBtn); // Appended properly!
+  controlsDiv.appendChild(wbBtn); 
 
   wrapper.appendChild(card);
   wrapper.appendChild(controlsDiv);
@@ -250,23 +316,33 @@ function createScreenShareCard(uid) {
   if (card) return card;
 
   card = document.createElement("div");
-  card.id = cardId; card.className = "video-card screen-share-card";
-  card.style.width = "100%"; card.style.height = "320px";
-  card.style.position = "relative"; card.style.border = "3px solid #4CAF50";
+  card.id = cardId; 
+  card.className = "video-card screen-share-card";
+  card.style.width = "100%"; 
+  card.style.height = "320px";
+  card.style.position = "relative"; 
+  card.style.border = "3px solid #4CAF50";
 
   const label = document.createElement("div");
-  label.style.position = "absolute"; label.style.top = "6px"; label.style.left = "6px";
-  label.style.padding = "4px 8px"; label.style.background = "rgba(0,0,0,0.6)";
-  label.style.color = "#fff"; label.style.borderRadius = "6px"; label.style.fontSize = "13px";
-  label.style.zIndex = "10"; label.textContent = `User ${uid}'s Presentation`;
+  label.style.position = "absolute"; 
+  label.style.top = "6px"; 
+  label.style.left = "6px";
+  label.style.padding = "4px 8px"; 
+  label.style.background = "rgba(0,0,0,0.6)";
+  label.style.color = "#fff"; 
+  label.style.borderRadius = "6px"; 
+  label.style.fontSize = "13px";
+  label.style.zIndex = "10"; 
+  label.textContent = `User ${uid}'s Presentation`;
+  
   card.appendChild(label);
-
   addSizeControls(card, card);
   videoArea.appendChild(card);
+  
   return card;
 }
 
-// ---------- JOIN LOGIC (WITH CAMERA ANIMATION FIX) ----------
+// ---------- JOIN LOGIC ----------
 joinBtn.addEventListener("click", async () => {
   if (joined) return;
   
@@ -275,7 +351,8 @@ joinBtn.addEventListener("click", async () => {
     let playPromise = remoteMusicPlayer.play();
     if (playPromise !== undefined) {
       playPromise.then(() => {
-        remoteMusicPlayer.pause(); remoteMusicPlayer.volume = 1; 
+        remoteMusicPlayer.pause(); 
+        remoteMusicPlayer.volume = 1; 
       }).catch(e => console.log("Audio unlock pending..."));
     }
   } catch(e) {}
@@ -288,6 +365,7 @@ joinBtn.addEventListener("click", async () => {
     const uid = await client.join(APP_ID, roomId, null, userName);
     localUid = uid.toString();
 
+    // Prepare media tracks
     try {
       const [microphoneTrack, cameraTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
       localTracks.audioTrack = microphoneTrack;
@@ -301,15 +379,20 @@ joinBtn.addEventListener("click", async () => {
     currentRoom = roomId;
     
     joinSection.classList.add("form-out");
+    
+    // Delayed rendering so Camera Container doesn't crash to 0x0
     setTimeout(() => {
       joinSection.style.display = "none";
       workspace.classList.remove("hidden");
       workspace.classList.add("workspace-active"); 
+      
       resizeCanvas(); 
       
       const localContainer = createLocalCard(userName);
-      if (localTracks.videoTrack) localTracks.videoTrack.play(localContainer);
-    }, 500); // 500ms Animation Delay fix included!
+      if (localTracks.videoTrack) {
+        localTracks.videoTrack.play(localContainer);
+      }
+    }, 500); 
 
     socket.emit("join-room", { room: roomId, uid: localUid, name: userName });
     showNotification(`You joined room ${roomId}`, "join");
@@ -322,22 +405,32 @@ joinBtn.addEventListener("click", async () => {
 
 // ---------- SOCKET RECEIVERS (Roles & Setup) ----------
 socket.on("room-history", (data) => {
-  if (data.chats) data.chats.forEach(chat => {
-    if(chat.name === "System" && chat.text.includes("left")) return;
-    appendMessage(`${chat.name}: ${chat.text}`);
-  });
-  if (data.files) [...data.files].reverse().forEach(file => addFileLink(file.filename, file.url));
+  if (data.chats) {
+    data.chats.forEach(chat => {
+      if(chat.name === "System" && chat.text.includes("left")) return;
+      appendMessage(`${chat.name}: ${chat.text}`);
+    });
+  }
+  if (data.files) {
+    [...data.files].reverse().forEach(file => {
+      addFileLink(file.filename, file.url);
+    });
+  }
 });
 
 socket.on("host-assignment", (data) => {
   isHost = data.isHost;
+  
   if (isHost) {
     hostAudioContainer.style.display = "block";
     canDraw = true;
     wbToolbar.style.display = "flex";
     canvas.style.cursor = "crosshair";
     wbStatus.textContent = "(Host Mode - You have control)";
-    document.querySelectorAll('.host-only-btn').forEach(btn => btn.style.display = "inline-block");
+    
+    document.querySelectorAll('.host-only-btn').forEach(btn => {
+      btn.style.display = "inline-block";
+    });
   } else {
     hostAudioContainer.style.display = "none";
     canDraw = false;
@@ -349,9 +442,11 @@ socket.on("host-assignment", (data) => {
 
 socket.on("room-update", (data) => {
   if (isHost && data.size > 1) {
-    muteAllBtn.style.display = "inline-block"; unmuteAllBtn.style.display = "inline-block";
+    muteAllBtn.style.display = "inline-block"; 
+    unmuteAllBtn.style.display = "inline-block";
   } else if (isHost) {
-    muteAllBtn.style.display = "none"; unmuteAllBtn.style.display = "none";
+    muteAllBtn.style.display = "none"; 
+    unmuteAllBtn.style.display = "none";
   }
 });
 
@@ -359,15 +454,21 @@ socket.on("room-update", (data) => {
 document.getElementById("hostAudioFile").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
+  
   showNotification("Uploading music to server...", "info");
   const fd = new FormData();
-  fd.append("file", file); fd.append("room", currentRoom || ""); fd.append("uploader", "Host-Music");
+  fd.append("file", file); 
+  fd.append("room", currentRoom || ""); 
+  fd.append("uploader", "Host-Music");
+  
   try {
     const res = await fetch("/upload", { method: "POST", body: fd });
     currentMusicUrl = (await res.json()).url; 
     hostAudioPlayer.src = currentMusicUrl;
     showNotification("Music ready to play 🎵", "join");
-  } catch (err) { showNotification("Music upload failed", "danger"); }
+  } catch (err) { 
+    showNotification("Music upload failed", "danger"); 
+  }
 });
 
 hostAudioPlayer.addEventListener("play", () => {
@@ -375,10 +476,12 @@ hostAudioPlayer.addEventListener("play", () => {
   socket.emit("control", { room: currentRoom, action: "music-play", url: currentMusicUrl, time: hostAudioPlayer.currentTime });
   socket.emit("chat-message", { room: currentRoom, name: "System", text: "🎵 Host started playing music!" });
 });
+
 hostAudioPlayer.addEventListener("pause", () => {
   if (!joined || !isHost) return;
   socket.emit("control", { room: currentRoom, action: "music-pause" });
 });
+
 hostAudioPlayer.addEventListener("seeked", () => {
   if (!joined || !isHost || !currentMusicUrl) return;
   socket.emit("control", { room: currentRoom, action: "music-seek", time: hostAudioPlayer.currentTime });
@@ -399,8 +502,13 @@ client.on("user-published", async (user, mediaType) => {
         user.videoTrack.play(document.getElementById(`remote-${uid}`));
       }
     }
-    if (mediaType === "audio" && user.audioTrack) user.audioTrack.play();
-  } catch (e) { console.error(e); }
+    
+    if (mediaType === "audio" && user.audioTrack) {
+      user.audioTrack.play();
+    }
+  } catch (e) { 
+    console.error(e); 
+  }
 });
 
 client.on("user-unpublished", (user, mediaType) => {
@@ -416,8 +524,10 @@ socket.on("user-left", info => { if (info && info.uid) removeRemoteUser(info.uid
 function removeRemoteUser(uid, name = null) {
   const w = document.getElementById(`remote-wrapper-${uid}`);
   const s = document.getElementById(`screen-card-${uid}`);
+  
   if (w) { w.classList.add("fly-out-3d"); setTimeout(() => w.remove(), 700); }
   if (s) { s.classList.add("fly-out-3d"); setTimeout(() => s.remove(), 700); }
+  
   if (name) showNotification(`${name} left`, "danger");
   delete remoteUsers[uid];
 }
@@ -432,8 +542,13 @@ leaveBtn.addEventListener("click", async () => {
   setTimeout(() => window.location.reload(), 100);
 });
 
-muteAllBtn.addEventListener("click", () => { if (joined && isHost) socket.emit("control", { room: currentRoom, action: "mute-all" }); });
-unmuteAllBtn.addEventListener("click", () => { if (joined && isHost) socket.emit("control", { room: currentRoom, action: "unmute-all" }); });
+muteAllBtn.addEventListener("click", () => { 
+  if (joined && isHost) socket.emit("control", { room: currentRoom, action: "mute-all" }); 
+});
+
+unmuteAllBtn.addEventListener("click", () => { 
+  if (joined && isHost) socket.emit("control", { room: currentRoom, action: "unmute-all" }); 
+});
 
 cameraBtn.addEventListener("click", async () => {
   if (!joined || !localTracks.videoTrack) return;
@@ -454,8 +569,12 @@ muteBtn.addEventListener("click", async () => {
 shareBtn.addEventListener("click", async () => {
   if (!joined) return;
   if (screenTrack) {
-    await client.unpublish(screenTrack); screenTrack.close(); screenTrack = null;
+    await client.unpublish(screenTrack); 
+    screenTrack.close(); 
+    screenTrack = null;
+    
     document.getElementById("screen-share-container")?.remove();
+    
     if (localTracks.videoTrack) {
       await client.publish(localTracks.videoTrack);
       localTracks.videoTrack.play(document.getElementById("local-player"));
@@ -463,17 +582,25 @@ shareBtn.addEventListener("click", async () => {
     shareBtn.textContent = "Screen Share";
     return;
   }
+  
   if (localTracks.videoTrack) await client.unpublish(localTracks.videoTrack);
+  
   screenTrack = await AgoraRTC.createScreenVideoTrack({ encoderConfig: "1080p_1" }, "auto");
   shareBtn.textContent = "Stop Share";
   
   const sc = document.createElement("div");
-  sc.className = "video-card screen-share-card"; sc.id = "screen-share-container";
-  sc.style.gridColumn = "1 / -1"; sc.style.height = "320px"; sc.style.border = "2px solid #2ecc71";
+  sc.className = "video-card screen-share-card"; 
+  sc.id = "screen-share-container";
+  sc.style.gridColumn = "1 / -1"; 
+  sc.style.height = "320px"; 
+  sc.style.border = "2px solid #2ecc71";
+  
   addSizeControls(sc, sc);
   videoArea.appendChild(sc);
   screenTrack.play(sc);
+  
   await client.publish(screenTrack);
+  
   screenTrack.on("track-ended", () => shareBtn.click());
 });
 
@@ -503,50 +630,105 @@ socket.on("control", async (data) => {
     const url = window.location.origin + data.url;
     if (remoteMusicPlayer.src !== url) remoteMusicPlayer.src = url;
     remoteMusicPlayer.currentTime = data.time || 0;
+    
     remoteMusicPlayer.play().catch(() => {
       showNotification("🎵 Click anywhere on screen to allow music!", "danger");
-      document.body.addEventListener('click', () => remoteMusicPlayer.play().catch(e=>e), { once: true });
+      document.body.addEventListener('click', () => {
+        remoteMusicPlayer.play().catch(e => console.error(e));
+      }, { once: true });
     });
   }
+  
   if (data.action === "music-pause" && !isHost) remoteMusicPlayer.pause();
   if (data.action === "music-seek" && !isHost) remoteMusicPlayer.currentTime = data.time || 0;
 
-  if (data.action === "mute-all" && localTracks.audioTrack) { await localTracks.audioTrack.setEnabled(false); muteBtn.textContent = "Unmute"; }
-  if (data.action === "unmute-all" && localTracks.audioTrack) { await localTracks.audioTrack.setEnabled(true); muteBtn.textContent = "Mute"; }
+  if (data.action === "mute-all" && localTracks.audioTrack) { 
+    await localTracks.audioTrack.setEnabled(false); 
+    muteBtn.textContent = "Unmute"; 
+  }
+  
+  if (data.action === "unmute-all" && localTracks.audioTrack) { 
+    await localTracks.audioTrack.setEnabled(true); 
+    muteBtn.textContent = "Mute"; 
+  }
   
   if (data.targetUid === localUid) {
-    if (data.action === "mute-audio" && localTracks.audioTrack) { await localTracks.audioTrack.setEnabled(false); muteBtn.textContent = "Unmute"; showNotification("Host muted you", "danger"); }
-    if (data.action === "disable-video" && localTracks.videoTrack) { await localTracks.videoTrack.setEnabled(false); cameraBtn.textContent = "Camera On"; }
-    if (data.action === "enable-audio" && localTracks.audioTrack) { await localTracks.audioTrack.setEnabled(true); muteBtn.textContent = "Mute"; }
-    if (data.action === "enable-video" && localTracks.videoTrack) { await localTracks.videoTrack.setEnabled(true); cameraBtn.textContent = "Camera Off"; }
+    if (data.action === "mute-audio" && localTracks.audioTrack) { 
+      await localTracks.audioTrack.setEnabled(false); 
+      muteBtn.textContent = "Unmute"; 
+      showNotification("Host muted you", "danger"); 
+    }
+    if (data.action === "disable-video" && localTracks.videoTrack) { 
+      await localTracks.videoTrack.setEnabled(false); 
+      cameraBtn.textContent = "Camera On"; 
+    }
+    if (data.action === "enable-audio" && localTracks.audioTrack) { 
+      await localTracks.audioTrack.setEnabled(true); 
+      muteBtn.textContent = "Mute"; 
+    }
+    if (data.action === "enable-video" && localTracks.videoTrack) { 
+      await localTracks.videoTrack.setEnabled(true); 
+      cameraBtn.textContent = "Camera Off"; 
+    }
   }
 });
 
 // ---------- CHAT & FILES ----------
 sendMsgBtn.addEventListener("click", () => {
-  const text = chatInput.value.trim(); if (!text) return;
+  const text = chatInput.value.trim(); 
+  if (!text) return;
   socket.emit("chat-message", { room: currentRoom, name: usernameInput.value || "Me", text });
-  appendMessage(`Me: ${text}`); chatInput.value = "";
+  appendMessage(`Me: ${text}`); 
+  chatInput.value = "";
 });
-chatInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); sendMsgBtn.click(); }});
+
+chatInput.addEventListener("keydown", (e) => { 
+  if (e.key === "Enter") { 
+    e.preventDefault(); 
+    sendMsgBtn.click(); 
+  }
+});
+
 socket.on("chat-message", data => {
   if(data.name === "System" && data.text.includes("left")) return;
-  if(data.name === "System" && data.text.includes("music")) showNotification(data.text, "join");
+  if(data.name === "System" && data.text.includes("music")) {
+    showNotification(data.text, "join");
+  }
   appendMessage(`${data.name}: ${data.text}`);
 });
 
 document.getElementById("uploadBtn").addEventListener("click", async () => {
-  const f = fileUpload.files[0]; if (!f) return;
-  const fd = new FormData(); fd.append("file", f); fd.append("room", currentRoom); fd.append("uploader", usernameInput.value || "User");
+  const f = fileUpload.files[0]; 
+  if (!f) return;
+  
+  const fd = new FormData(); 
+  fd.append("file", f); 
+  fd.append("room", currentRoom); 
+  fd.append("uploader", usernameInput.value || "User");
+  
   try {
     const res = await fetch("/upload", { method: "POST", body: fd });
     const json = await res.json();
     addFileLink(json.filename, json.url);
-  } catch (err) { showNotification("Upload failed", "danger"); }
+  } catch (err) { 
+    showNotification("Upload failed", "danger"); 
+  }
 });
+
 function addFileLink(name, url) {
-  const a = document.createElement("a"); a.href = url; a.textContent = name; a.download = name; a.target = "_blank";
+  const a = document.createElement("a"); 
+  a.href = url; 
+  a.textContent = name; 
+  a.download = name; 
+  a.target = "_blank";
   fileList.prepend(a);
 }
-socket.on("file-uploaded", data => { addFileLink(data.filename, data.url); showNotification(`${data.uploader} uploaded a file`, "info"); });
-socket.on("user-joined", info => showNotification(`${info.name || "User"} joined the room!`, "join"));
+
+socket.on("file-uploaded", data => { 
+  addFileLink(data.filename, data.url); 
+  showNotification(`${data.uploader} uploaded a file`, "info"); 
+});
+
+socket.on("user-joined", info => {
+  showNotification(`${info.name || "User"} joined the room!`, "join");
+});
