@@ -1,4 +1,3 @@
-// server.js
 const express = require("express");
 const http = require("http");
 const path = require("path");
@@ -13,6 +12,7 @@ const io = new Server(server);
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, "uploads");
 const PORT = process.env.PORT || 3000;
 
+// Create uploads folder if it doesn't exist
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const storage = multer.diskStorage({
@@ -26,153 +26,99 @@ const upload = multer({ storage });
 
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(UPLOAD_DIR));
-app.get("/health", (req, res) => res.send("OK"));
 
-// --- STATE MANAGEMENT ---
+// Memory State Storage
 const uidToSocket = new Map();
 const roomHosts = new Map();
-const socketUsers = new Map(); 
-
-// NEW: Room Memory Stores (Chats aur Files save rakhne ke liye)
-const roomChats = new Map(); 
+const socketUsers = new Map();
+const roomChats = new Map();
 const roomFiles = new Map();
 
+// File Upload Route
 app.post("/upload", upload.single("file"), (req, res) => {
-  try {
-    const room = req.body.room || "";
-    const filename = req.file.filename;
-    const url = `/uploads/${filename}`;
-    const uploader = req.body.uploader || "Someone";
-    
-    if (room) {
-      // File ko room ki memory me save karein
-      if (!roomFiles.has(room)) roomFiles.set(room, []);
-      roomFiles.get(room).push({ filename, url, uploader });
-      
-      io.to(room).emit("file-uploaded", { filename, url, uploader });
-    }
-    return res.json({ filename, url });
-  } catch (err) {
-    console.error("Upload error:", err);
-    return res.status(500).json({ error: "Upload failed" });
+  const room = req.body.room || "";
+  const filename = req.file.filename;
+  const url = `/uploads/${filename}`;
+  const uploader = req.body.uploader || "Host";
+  
+  if (room) {
+    if (!roomFiles.has(room)) roomFiles.set(room, []);
+    roomFiles.get(room).push({ filename, url, uploader });
+    io.to(room).emit("file-uploaded", { filename, url, uploader });
   }
+  res.json({ filename, url });
 });
 
-function sendControl(data) {
-  try {
-    if (!data) return;
-    const { room, targetUid, action } = data;
-    
-    if (action === "mute-all" || action === "unmute-all") {
-      io.to(room).emit("control", data);
-      return;
-    }
-
-    if (targetUid && uidToSocket.has(targetUid.toString())) {
-      const targetSocketId = uidToSocket.get(targetUid.toString());
-      io.to(targetSocketId).emit("control", data);
-    } else if (room) {
-      io.to(room).emit("control", data);
-    }
-  } catch (e) {
-    console.error("sendControl error:", e);
-  }
-}
-
-function handleUserLeave(socketId) {
-  const user = socketUsers.get(socketId);
-  if (user) {
-    io.to(user.room).emit("user-left", { uid: user.uid, name: user.name });
-    
-    const leaveMsg = { name: "System", text: `${user.name} left the room` };
-    
-    // System message ko bhi memory me daal do
-    if (!roomChats.has(user.room)) roomChats.set(user.room, []);
-    roomChats.get(user.room).push(leaveMsg);
-    
-    io.to(user.room).emit("chat-message", leaveMsg);
-
-    uidToSocket.delete(user.uid);
-    socketUsers.delete(socketId);
-
-    if (roomHosts.get(user.room) === socketId) {
-      roomHosts.set(user.room, null);
-    }
-
-    const currentRoomData = io.sockets.adapter.rooms.get(user.room);
-    const roomSize = currentRoomData ? currentRoomData.size - 1 : 0;
-    io.to(user.room).emit("room-update", { size: Math.max(0, roomSize) });
-  }
-}
-
+// Socket Connections
 io.on("connection", socket => {
+  
   socket.on("join-room", info => {
-    try {
-      const room = info && info.room;
-      const uid = info && info.uid ? info.uid.toString() : null;
-      const name = info && info.name ? info.name : "Anonymous";
-      if (!room) return;
-      
-      socket.join(room);
-      if (uid) uidToSocket.set(uid, socket.id);
-      socketUsers.set(socket.id, { uid, name, room });
+    const { room, uid, name } = info;
+    socket.join(room);
+    socketUsers.set(socket.id, { uid, name, room });
+    uidToSocket.set(uid.toString(), socket.id);
 
-      if (!roomHosts.has(room) || roomHosts.get(room) === null) {
-        roomHosts.set(room, socket.id);
-        socket.emit("host-assignment", { isHost: true });
-      } else {
-        socket.emit("host-assignment", { isHost: false });
-      }
-      
-      socket.to(room).emit("user-joined", { uid, name });
-      
-      // NEW: JAISE HI KOI JOIN KARE, USE PURANI CHATS AUR FILES BHEJ DO
-      const chats = roomChats.get(room) || [];
-      const files = roomFiles.get(room) || [];
-      socket.emit("room-history", { chats, files });
-
-      const roomSize = io.sockets.adapter.rooms.get(room).size;
-      io.to(room).emit("room-update", { size: roomSize });
-
-    } catch (e) {
-      console.error("join-room error:", e);
+    // Assign Host (Jo pehle aayega wo Host banega)
+    if (!roomHosts.has(room) || roomHosts.get(room) === null) {
+      roomHosts.set(room, socket.id);
+      socket.emit("host-assignment", { isHost: true });
+    } else {
+      socket.emit("host-assignment", { isHost: false });
     }
+    
+    // Send Old History (Chats & Files) to new user
+    socket.emit("room-history", { 
+      chats: roomChats.get(room) || [], 
+      files: roomFiles.get(room) || [] 
+    });
+
+    socket.to(room).emit("user-joined", { uid, name });
+    const roomSize = io.sockets.adapter.rooms.get(room)?.size || 1;
+    io.to(room).emit("room-update", { size: roomSize });
   });
 
+  // Global Controls (Music, Mute, Video)
   socket.on("control", data => {
-    try {
-      if (!data) return;
-      sendControl(data);
-    } catch (e) {
-      console.error("control error:", e);
-    }
+    io.to(data.room).emit("control", data);
   });
-
+  
+  // Chat Sync
   socket.on("chat-message", data => {
-    try {
-      if (!data || !data.room) return;
+    if (!roomChats.has(data.room)) roomChats.set(data.room, []);
+    roomChats.get(data.room).push({ name: data.name, text: data.text });
+    io.to(data.room).emit("chat-message", data);
+  });
+
+  // Whiteboard Drawing Sync
+  socket.on("drawing", (data) => {
+    socket.to(data.room).emit("drawing", data);
+  });
+
+  // Leave and Disconnect Handlers
+  socket.on("leave-room", () => handleUserLeave(socket.id));
+  socket.on("disconnecting", () => handleUserLeave(socket.id));
+
+  function handleUserLeave(socketId) {
+    const user = socketUsers.get(socketId);
+    if (user) {
+      io.to(user.room).emit("user-left", { uid: user.uid, name: user.name });
       
-      const msgObj = { name: data.name || "Someone", text: data.text };
+      const leaveMsg = { name: "System", text: `${user.name} left the room` };
+      if (!roomChats.has(user.room)) roomChats.set(user.room, []);
+      roomChats.get(user.room).push(leaveMsg);
+      io.to(user.room).emit("chat-message", leaveMsg);
+
+      if (roomHosts.get(user.room) === socketId) {
+        roomHosts.set(user.room, null);
+      }
+
+      socketUsers.delete(socketId);
+      uidToSocket.delete(user.uid.toString());
       
-      // Message ko room memory me save karein
-      if (!roomChats.has(data.room)) roomChats.set(data.room, []);
-      roomChats.get(data.room).push(msgObj);
-      
-      io.to(data.room).emit("chat-message", msgObj);
-    } catch (e) {
-      console.error("chat-message error:", e);
+      const roomSize = io.sockets.adapter.rooms.get(user.room)?.size || 1;
+      io.to(user.room).emit("room-update", { size: Math.max(0, roomSize - 1) });
     }
-  });
-
-  socket.on("leave-room", () => {
-    handleUserLeave(socket.id);
-  });
-
-  socket.on("disconnecting", () => {
-    handleUserLeave(socket.id);
-  });
+  }
 });
 
-server.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-});
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

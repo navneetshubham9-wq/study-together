@@ -38,7 +38,7 @@
         </div>
 
         <div id="hostAudioContainer" style="display: none; width: 100%; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
-          <p style="margin: 0 0 10px 0; font-weight: 500; font-size: 14px; text-align: center; color: var(--accent);">🎵 Host Music Player (Live Stream to Room)</p>
+          <p style="margin: 0 0 10px 0; font-weight: 500; font-size: 14px; text-align: center; color: var(--accent);">🎵 Host Music Player (Live Stream)</p>
           <div style="display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap;">
             <input type="file" id="hostAudioFile" accept="audio/*" style="padding: 8px; background: rgba(0,0,0,0.2); border: var(--3d-border); border-radius: 6px; color: #fff; font-size: 13px; max-width: 250px;" />
             <audio id="hostAudioPlayer" controls style="height: 38px; border-radius: 6px; outline: none;"></audio>
@@ -64,6 +64,13 @@
           <input type="file" id="fileUpload" accept=".jpg,.jpeg,.pdf" style="display: none;" />
           <button id="customUploadBtn" onclick="document.getElementById('fileUpload').click()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); flex: 1;">Choose File</button>
           <button id="uploadBtn" style="background-color: var(--primary);">Upload</button>
+        </div>
+      </section>
+
+      <section id="whiteboard-box" class="card entry-animation delay-files" style="grid-column: 1 / -1; height: 500px;">
+        <h3>🎨 Interactive Whiteboard (Real-time)</h3>
+        <div id="whiteboard-container" style="position: relative; width: 100%; height: 400px; background: #fff; border-radius: 10px;">
+          <canvas id="whiteboard" style="width: 100%; height: 100%; cursor: crosshair; display: block; border-radius: 8px;"></canvas>
         </div>
       </section>
 
