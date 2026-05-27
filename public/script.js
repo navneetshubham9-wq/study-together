@@ -13,7 +13,9 @@ let screenAudioTrack = null;
 let isHost = false; 
 const remoteUsers = {}; 
 
-let currentMusicUrl = null;
+// Music Bot State for Host
+let musicClient = null;
+let musicTrack = null;
 
 // DOM Elements
 const joinBtn = document.getElementById("joinBtn");
@@ -40,9 +42,6 @@ const hostAudioContainer = document.getElementById("hostAudioContainer");
 const hostAudioFile = document.getElementById("hostAudioFile");
 const hostAudioPlayer = document.getElementById("hostAudioPlayer");
 
-// NEW: Grabbing the remote player from DOM for Autoplay unlock
-const remoteMusicPlayer = document.getElementById("remoteMusicPlayer");
-
 // ---------- POPUP NOTIFICATION HELPER ----------
 function showNotification(message, type = 'info') {
   const container = document.getElementById('notification-container');
@@ -60,6 +59,7 @@ function showNotification(message, type = 'info') {
   }, 4000);
 }
 
+// ---------- Chat Helper ----------
 function appendMessage(text) {
   const d = document.createElement("div");
   d.textContent = text;
@@ -247,22 +247,9 @@ function createScreenShareCard(uid) {
   return card;
 }
 
-/// ---------- JOIN LOGIC ----------
+// ---------- JOIN ROOM ----------
 joinBtn.addEventListener("click", async () => {
   if (joined) return;
-  
-  // Audio Autoplay Hack for Browsers
-  try {
-    remoteMusicPlayer.volume = 0; 
-    let playPromise = remoteMusicPlayer.play();
-    if (playPromise !== undefined) {
-      playPromise.then(() => {
-        remoteMusicPlayer.pause();
-        remoteMusicPlayer.volume = 1; 
-      }).catch(e => console.log("Audio unlock pending..."));
-    }
-  } catch(e) {}
-
   const userName = usernameInput.value.trim();
   const roomId = roomInput.value.trim();
   if (!userName || !roomId) { alert("Enter both Name and Room ID"); return; }
@@ -271,36 +258,36 @@ joinBtn.addEventListener("click", async () => {
     const uid = await client.join(APP_ID, roomId, null, userName);
     localUid = uid.toString();
 
-    let microphoneTrack, cameraTrack;
     try {
-      [microphoneTrack, cameraTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
+      const [microphoneTrack, cameraTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
       localTracks.audioTrack = microphoneTrack;
       localTracks.videoTrack = cameraTrack;
+
+      const localContainer = createLocalCard(userName);
+      localTracks.videoTrack.play(localContainer);
+
       await client.publish([microphoneTrack, cameraTrack]);
     } catch (mediaErr) {
       showNotification("Camera/Mic busy. Joined as viewer.", "info");
+      createLocalCard(userName); 
     }
 
     joined = true;
     currentRoom = roomId;
+
+    muteBtn.textContent = "Mute";
+    cameraBtn.textContent = "Camera Off";
     
     joinSection.classList.add("form-out");
     
-    // ✨ THE FIX: Animation khatam hone ke baad camera play karna ✨
     setTimeout(() => {
       joinSection.style.display = "none";
       workspace.classList.remove("hidden");
       workspace.classList.add("workspace-active"); 
-      resizeCanvas(); 
-      
-      // Ab box screen par aa chuka hai, yahan apna camera lagao
-      const localContainer = createLocalCard(userName);
-      if (localTracks.videoTrack) {
-        localTracks.videoTrack.play(localContainer);
-      }
     }, 500);
 
     socket.emit("join-room", { room: roomId, uid: localUid, name: userName });
+    
     showNotification(`You joined room ${roomId}`, "join");
     appendMessage(`System: You joined room ${roomId}`);
     
@@ -308,6 +295,7 @@ joinBtn.addEventListener("click", async () => {
     showNotification("Join failed!", "danger");
   }
 });
+
 // ---------- ROOM HISTORY LISTENER ----------
 socket.on("room-history", (data) => {
   if (data.chats && data.chats.length > 0) {
@@ -324,7 +312,7 @@ socket.on("room-history", (data) => {
   }
 });
 
-// ---------- Host Role Detection ----------
+// ---------- Host Role Detection & User Count Fix ----------
 socket.on("host-assignment", (data) => {
   isHost = data.isHost;
   if (isHost) {
@@ -344,51 +332,63 @@ socket.on("room-update", (data) => {
   }
 });
 
-// ---------- HOST MUSIC PLAYER (SOCKET BROADCAST) ----------
-hostAudioFile.addEventListener("change", async (e) => {
+// ---------- HOST MUSIC PLAYER LOGIC (100% RELIABLE METHOD) ----------
+hostAudioFile.addEventListener("change", (e) => {
   const file = e.target.files[0];
   if (!file) return;
   
-  showNotification("Uploading music to server...", "info");
-  const fd = new FormData();
-  fd.append("file", file);
-  fd.append("room", currentRoom || "music-room");
-  fd.append("uploader", "Host-Music");
+  // FIX 1: CORS bypass for local files
+  hostAudioPlayer.crossOrigin = "anonymous";
+  hostAudioPlayer.src = URL.createObjectURL(file);
+});
 
+hostAudioPlayer.addEventListener("play", async () => {
+  if (!joined || !isHost) return;
   try {
-    const res = await fetch("/upload", { method: "POST", body: fd });
-    const json = await res.json();
-    
-    currentMusicUrl = json.url; 
-    hostAudioPlayer.src = currentMusicUrl;
-    
-    showNotification("Music uploaded! Ready to play 🎵", "join");
+    if (!musicClient) {
+      
+      // FIX 2: Added 400ms micro-delay so track generates fully before WebRTC captures it
+      setTimeout(async () => {
+        let stream = null;
+        if (hostAudioPlayer.captureStream) {
+          stream = hostAudioPlayer.captureStream();
+        } else if (hostAudioPlayer.mozCaptureStream) {
+          stream = hostAudioPlayer.mozCaptureStream();
+        }
+
+        if (stream && stream.getAudioTracks().length > 0) {
+          musicClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+          await musicClient.join(APP_ID, currentRoom, null, null); 
+          
+          musicTrack = AgoraRTC.createCustomAudioTrack({ 
+            mediaStreamTrack: stream.getAudioTracks()[0] 
+          });
+          
+          await musicClient.publish(musicTrack);
+          
+          socket.emit("chat-message", { room: currentRoom, name: "System", text: "🎵 Host started playing music!" });
+          showNotification("Music is broadcasting to room! 🎵", "info");
+        } else {
+          showNotification("Audio extraction failed in this browser.", "danger");
+        }
+      }, 400); 
+
+    } else if (musicTrack) {
+      await musicTrack.setEnabled(true);
+      socket.emit("chat-message", { room: currentRoom, name: "System", text: "🎵 Host resumed music!" });
+    }
   } catch (err) {
-    showNotification("Music upload failed", "danger");
+    console.error("Music stream error:", err);
   }
 });
 
-hostAudioPlayer.addEventListener("play", () => {
-  if (!joined || !isHost || !currentMusicUrl) return;
-  socket.emit("control", { 
-    room: currentRoom, 
-    action: "music-play", 
-    url: currentMusicUrl, 
-    time: hostAudioPlayer.currentTime 
-  });
-  socket.emit("chat-message", { room: currentRoom, name: "System", text: "🎵 Host started playing music!" });
+hostAudioPlayer.addEventListener("pause", async () => {
+  if (musicTrack) {
+    await musicTrack.setEnabled(false);
+    socket.emit("chat-message", { room: currentRoom, name: "System", text: "⏸️ Host paused the music." });
+  }
 });
 
-hostAudioPlayer.addEventListener("pause", () => {
-  if (!joined || !isHost) return;
-  socket.emit("control", { room: currentRoom, action: "music-pause" });
-  socket.emit("chat-message", { room: currentRoom, name: "System", text: "⏸️ Host paused the music." });
-});
-
-hostAudioPlayer.addEventListener("seeked", () => {
-  if (!joined || !isHost || !currentMusicUrl) return;
-  socket.emit("control", { room: currentRoom, action: "music-seek", time: hostAudioPlayer.currentTime });
-});
 
 // ---------- LEAVE ROOM ----------
 leaveBtn.addEventListener("click", async () => {
@@ -408,9 +408,21 @@ leaveBtn.addEventListener("click", async () => {
       screenTrack.stop();
       screenTrack.close();
     }
+    if (screenAudioTrack) {
+      screenAudioTrack.stop();
+      screenAudioTrack.close();
+    }
+    
+    if (musicClient) {
+      await musicClient.leave();
+    }
 
     await client.leave();
-    setTimeout(() => window.location.reload(), 100);
+    
+    setTimeout(() => {
+      window.location.reload();
+    }, 100);
+
   } catch (error) {
     console.error("Error leaving room:", error);
     window.location.reload();
@@ -474,6 +486,7 @@ function removeRemoteUser3D(uid, name = null) {
   if (name) {
     showNotification(`${name} left the room`, "danger");
   } else {
+    // Hidden music bot check so we don't show unnecessary popups
     if (!name && !wrapper && !screenCard) return; 
     showNotification(`User left the room`, "danger");
   }
@@ -489,6 +502,17 @@ socket.on("user-left", info => {
   if (info && info.uid) {
     removeRemoteUser3D(info.uid.toString(), info.name);
   }
+});
+
+// ---------- Host Global Commands ----------
+muteAllBtn.addEventListener("click", () => {
+  if (!joined || !isHost) return;
+  socket.emit("control", { room: currentRoom, action: "mute-all" });
+});
+
+unmuteAllBtn.addEventListener("click", () => {
+  if (!joined || !isHost) return;
+  socket.emit("control", { room: currentRoom, action: "unmute-all" });
 });
 
 // ---------- Local Client Toggle ----------
@@ -517,6 +541,11 @@ shareBtn.addEventListener("click", async () => {
   if (!joined) return;
   try {
     if (screenTrack) {
+      if (screenAudioTrack) {
+        await client.unpublish(screenAudioTrack);
+        screenAudioTrack.close();
+        screenAudioTrack = null;
+      }
       await client.unpublish(screenTrack);
       screenTrack.close();
       screenTrack = null;
@@ -537,7 +566,14 @@ shareBtn.addEventListener("click", async () => {
       await client.unpublish(localTracks.videoTrack);
     }
 
-    screenTrack = await AgoraRTC.createScreenVideoTrack({ encoderConfig: "1080p_1" }, "auto");
+    const screenStreams = await AgoraRTC.createScreenVideoTrack({ encoderConfig: "1080p_1" }, "auto");
+    
+    if (Array.isArray(screenStreams)) {
+      screenTrack = screenStreams[0];
+      screenAudioTrack = screenStreams[1];
+    } else {
+      screenTrack = screenStreams;
+    }
 
     shareBtn.textContent = "Stop Share";
 
@@ -568,6 +604,9 @@ shareBtn.addEventListener("click", async () => {
     screenTrack.play(screenCard);
     
     await client.publish(screenTrack);
+    if (screenAudioTrack) {
+      await client.publish(screenAudioTrack);
+    }
 
     screenTrack.on("track-ended", () => {
       if (screenTrack) shareBtn.click();
@@ -583,42 +622,9 @@ shareBtn.addEventListener("click", async () => {
   }
 });
 
-// ---------- Live Commands Receiver (MUSIC BULLETPROOF FALLBACK) ----------
+// ---------- Live Commands Receiver ----------
 socket.on("control", async (data) => {
   if (!joined || !data) return;
-
-  // Music Sync Event Handlers
-  if (data.action === "music-play") {
-    if (!isHost) { 
-      // Fully construct origin URL to prevent cross-origin blocks
-      const fullUrl = window.location.origin + data.url;
-      if (remoteMusicPlayer.src !== fullUrl) {
-        remoteMusicPlayer.src = fullUrl;
-      }
-      remoteMusicPlayer.currentTime = data.time || 0;
-      
-      let playPromise = remoteMusicPlayer.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(error => {
-          console.error("Autoplay blocked:", error);
-          // Master Stroke: Agar browser phir bhi roke, toh screen par click karwao!
-          showNotification("🎵 Click anywhere on screen to allow music!", "danger");
-          document.body.addEventListener('click', () => {
-            remoteMusicPlayer.play().catch(e => console.error(e));
-          }, { once: true });
-        });
-      }
-    }
-    return;
-  }
-  if (data.action === "music-pause") {
-    if (!isHost) remoteMusicPlayer.pause();
-    return;
-  }
-  if (data.action === "music-seek") {
-    if (!isHost) remoteMusicPlayer.currentTime = data.time || 0;
-    return;
-  }
 
   if (data.action === "mute-all" && localTracks.audioTrack) {
     await localTracks.audioTrack.setEnabled(false);
@@ -632,6 +638,7 @@ socket.on("control", async (data) => {
     showNotification("Unmuted by Host", "info");
     return;
   }
+
   if (data.targetUid === localUid) {
     if (data.action === "mute-audio" && localTracks.audioTrack) {
       await localTracks.audioTrack.setEnabled(false);
@@ -675,6 +682,7 @@ chatInput.addEventListener("keydown", (e) => {
 socket.on("chat-message", data => {
   if(data.name === "System" && data.text.includes("left the room")) return;
   
+  // FIX 3: Host ke dwara play kiye gaye music ki notification sabko jayegi
   if(data.name === "System" && (data.text.includes("music") || data.text.includes("Music"))) {
     showNotification(data.text, "join");
   }
