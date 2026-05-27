@@ -123,17 +123,15 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
   elementToFullscreen.appendChild(controlsDiv);
 }
 
-// Adding Size Controls to Whiteboard
 addSizeControls(whiteboardBox, document.getElementById('whiteboard-container'));
 
-// ---------- WHITEBOARD MS-TEAMS FEATURES ----------
+// ---------- WHITEBOARD LOGIC ----------
 function resizeCanvas() {
   canvas.width = canvas.offsetWidth;
   canvas.height = canvas.offsetHeight;
 }
 window.addEventListener('resize', resizeCanvas);
 
-// Toolbar Listeners
 wbColor.addEventListener("input", (e) => {
   isEraser = false;
   currentBrushColor = e.target.value;
@@ -157,7 +155,6 @@ socket.on("clear-whiteboard", () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 });
 
-// Drawing Function (Eraser logic included)
 function draw(x0, y0, x1, y1, color, size, eraserFlag, emit = false) {
   ctx.beginPath();
   ctx.moveTo(x0, y0);
@@ -200,7 +197,7 @@ socket.on('drawing', (data) => {
   draw(data.x0, data.y0, data.x1, data.y1, data.color, data.size, data.isEraser, false);
 });
 
-// ---------- VIDEO UI HELPERS (Using Iconic buttons) ----------
+// ---------- VIDEO UI HELPERS ----------
 function createLocalCard(name) {
   let el = document.getElementById("local-player");
   if (el) return el;
@@ -208,6 +205,11 @@ function createLocalCard(name) {
   const localContainer = document.createElement("div");
   localContainer.className = "video-card"; 
   localContainer.id = "local-player";
+  
+  // YAHAN FIX HAI: Exact size wahi diya jo remote users ko diya hai!
+  localContainer.style.width = "100%"; 
+  localContainer.style.height = "200px"; 
+  localContainer.style.position = "relative";
   
   const label = document.createElement("div");
   label.style.position = "absolute"; 
@@ -267,7 +269,6 @@ function createRemoteWrapper(uid, labelText) {
   controlsDiv.style.justifyContent = "center"; 
   controlsDiv.style.width = "100%";
 
-  // Mute Remote Button (Icon)
   const muteRemoteBtn = document.createElement("button");
   muteRemoteBtn.className = "small-btn host-only-btn"; 
   muteRemoteBtn.style.display = isHost ? "inline-block" : "none";
@@ -277,7 +278,6 @@ function createRemoteWrapper(uid, labelText) {
     socket.emit("control", { room: currentRoom, targetUid: uid.toString(), action: "mute-audio" });
   };
 
-  // Disable Cam Button (Icon)
   const camOffBtn = document.createElement("button");
   camOffBtn.className = "small-btn host-only-btn"; 
   camOffBtn.style.display = isHost ? "inline-block" : "none";
@@ -287,7 +287,6 @@ function createRemoteWrapper(uid, labelText) {
     socket.emit("control", { room: currentRoom, targetUid: uid.toString(), action: "disable-video" });
   };
 
-  // Give Whiteboard Access Button (Iconic)
   const wbBtn = document.createElement("button");
   wbBtn.className = "small-btn host-only-btn";
   wbBtn.style.display = isHost ? "inline-block" : "none";
@@ -352,7 +351,7 @@ function createScreenShareCard(uid) {
   return card;
 }
 
-// ---------- JOIN LOGIC ----------
+// ---------- JOIN LOGIC (FIXED CAMERA TIMING) ----------
 joinBtn.addEventListener("click", async () => {
   if (joined) return;
   
@@ -389,15 +388,21 @@ joinBtn.addEventListener("click", async () => {
     
     joinSection.classList.add("form-out");
     
+    // UI Expand hone tak wait karega
     setTimeout(() => {
       joinSection.style.display = "none";
       workspace.classList.remove("hidden");
       workspace.classList.add("workspace-active"); 
       
-      const localContainer = createLocalCard(userName);
-      if (localTracks.videoTrack) {
-        localTracks.videoTrack.play(localContainer);
-      }
+      // Animation settle hone ke liye ek aur chhota delay taaki box size perfect ho
+      setTimeout(() => {
+        resizeCanvas(); 
+        const localContainer = createLocalCard(userName);
+        if (localTracks.videoTrack) {
+          localTracks.videoTrack.play(localContainer, { fit: "cover" }); // Fit cover force karega
+        }
+      }, 300);
+      
     }, 500); 
 
     socket.emit("join-room", { room: roomId, uid: localUid, name: userName });
@@ -409,7 +414,7 @@ joinBtn.addEventListener("click", async () => {
   }
 });
 
-// ---------- SOCKET RECEIVERS (Roles & Setup) ----------
+// ---------- SOCKET RECEIVERS ----------
 socket.on("room-history", (data) => {
   if (data.chats) {
     data.chats.forEach(chat => {
@@ -465,8 +470,7 @@ socket.on("room-update", (data) => {
   }
 });
 
-// ---------- LOCAL MUTING & WHITEBOARD TOGGLE LOGIC ----------
-
+// ---------- LOCAL CONTROLS ----------
 localMusicMuteBtn.addEventListener("click", () => {
   const isMuted = remoteMusicPlayer.muted;
   remoteMusicPlayer.muted = !isMuted;
@@ -583,7 +587,7 @@ function removeRemoteUser(uid, name = null) {
   delete remoteUsers[uid];
 }
 
-// ---------- LOCAL / GLOBAL CONTROLS ----------
+// ---------- LOCAL & GLOBAL CONTROLS ----------
 leaveBtn.addEventListener("click", async () => {
   socket.emit("leave-room");
   if (localTracks.audioTrack) localTracks.audioTrack.close();
@@ -661,7 +665,7 @@ shareBtn.addEventListener("click", async () => {
   screenTrack.on("track-ended", () => shareBtn.click());
 });
 
-// ---------- INCOMING SOCKET LISTENER (PERMISSIONS & CONTROL) ----------
+// ---------- INCOMING SOCKET LISTENER ----------
 socket.on("wb-control", (data) => {
   if (data.targetUid === localUid) {
     if (data.action === "grant") {
@@ -684,7 +688,6 @@ socket.on("control", async (data) => {
   if (!joined || !data) return;
 
   if (data.action === "music-play" && !isHost) {
-    
     localMusicMuteBtn.style.display = "inline-block";
     
     const url = window.location.origin + data.url;
