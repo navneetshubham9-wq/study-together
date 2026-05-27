@@ -13,8 +13,6 @@ let screenAudioTrack = null;
 let isHost = false; 
 const remoteUsers = {}; 
 
-// --- NEW: Socket Synchronized Music Player Variables ---
-const remoteMusicPlayer = new Audio(); // Baki users ke liye hidden player
 let currentMusicUrl = null;
 
 // DOM Elements
@@ -42,6 +40,9 @@ const hostAudioContainer = document.getElementById("hostAudioContainer");
 const hostAudioFile = document.getElementById("hostAudioFile");
 const hostAudioPlayer = document.getElementById("hostAudioPlayer");
 
+// NEW: Grabbing the remote player from DOM for Autoplay unlock
+const remoteMusicPlayer = document.getElementById("remoteMusicPlayer");
+
 // ---------- POPUP NOTIFICATION HELPER ----------
 function showNotification(message, type = 'info') {
   const container = document.getElementById('notification-container');
@@ -59,7 +60,6 @@ function showNotification(message, type = 'info') {
   }, 4000);
 }
 
-// ---------- Chat Helper ----------
 function appendMessage(text) {
   const d = document.createElement("div");
   d.textContent = text;
@@ -250,6 +250,19 @@ function createScreenShareCard(uid) {
 // ---------- JOIN ROOM ----------
 joinBtn.addEventListener("click", async () => {
   if (joined) return;
+  
+  // 1. AUTOPLAY UNLOCK HACK: Join dabate hi browser ko lagna chahiye ki user ne audio allow kiya hai.
+  try {
+    remoteMusicPlayer.volume = 0; // Silent
+    let playPromise = remoteMusicPlayer.play();
+    if (playPromise !== undefined) {
+      playPromise.then(() => {
+        remoteMusicPlayer.pause();
+        remoteMusicPlayer.volume = 1; // Wapas volume theek kardo
+      }).catch(e => console.log("Audio unlock pending..."));
+    }
+  } catch(e) {}
+
   const userName = usernameInput.value.trim();
   const roomId = roomInput.value.trim();
   if (!userName || !roomId) { alert("Enter both Name and Room ID"); return; }
@@ -312,7 +325,7 @@ socket.on("room-history", (data) => {
   }
 });
 
-// ---------- Host Role Detection & User Count Fix ----------
+// ---------- Host Role Detection ----------
 socket.on("host-assignment", (data) => {
   isHost = data.isHost;
   if (isHost) {
@@ -332,12 +345,11 @@ socket.on("room-update", (data) => {
   }
 });
 
-// ---------- HOST MUSIC PLAYER (100% WORKING SERVER-UPLOAD METHOD) ----------
+// ---------- HOST MUSIC PLAYER (SOCKET BROADCAST) ----------
 hostAudioFile.addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
   
-  // 1. Aapke idea ke anusaar, pehle file ko server par upload karenge!
   showNotification("Uploading music to server...", "info");
   const fd = new FormData();
   fd.append("file", file);
@@ -348,7 +360,6 @@ hostAudioFile.addEventListener("change", async (e) => {
     const res = await fetch("/upload", { method: "POST", body: fd });
     const json = await res.json();
     
-    // Server se direct link mil gaya
     currentMusicUrl = json.url; 
     hostAudioPlayer.src = currentMusicUrl;
     
@@ -360,8 +371,6 @@ hostAudioFile.addEventListener("change", async (e) => {
 
 hostAudioPlayer.addEventListener("play", () => {
   if (!joined || !isHost || !currentMusicUrl) return;
-  
-  // 2. Play dabate hi baki sabko command aur server URL chala jayega
   socket.emit("control", { 
     room: currentRoom, 
     action: "music-play", 
@@ -382,7 +391,6 @@ hostAudioPlayer.addEventListener("seeked", () => {
   socket.emit("control", { room: currentRoom, action: "music-seek", time: hostAudioPlayer.currentTime });
 });
 
-
 // ---------- LEAVE ROOM ----------
 leaveBtn.addEventListener("click", async () => {
   if (!joined) return;
@@ -401,17 +409,9 @@ leaveBtn.addEventListener("click", async () => {
       screenTrack.stop();
       screenTrack.close();
     }
-    if (screenAudioTrack) {
-      screenAudioTrack.stop();
-      screenAudioTrack.close();
-    }
-    
-    await client.leave();
-    
-    setTimeout(() => {
-      window.location.reload();
-    }, 100);
 
+    await client.leave();
+    setTimeout(() => window.location.reload(), 100);
   } catch (error) {
     console.error("Error leaving room:", error);
     window.location.reload();
@@ -492,17 +492,6 @@ socket.on("user-left", info => {
   }
 });
 
-// ---------- Host Global Commands ----------
-muteAllBtn.addEventListener("click", () => {
-  if (!joined || !isHost) return;
-  socket.emit("control", { room: currentRoom, action: "mute-all" });
-});
-
-unmuteAllBtn.addEventListener("click", () => {
-  if (!joined || !isHost) return;
-  socket.emit("control", { room: currentRoom, action: "unmute-all" });
-});
-
 // ---------- Local Client Toggle ----------
 cameraBtn.addEventListener("click", async () => {
   if (!joined || !localTracks.videoTrack) return;
@@ -529,11 +518,6 @@ shareBtn.addEventListener("click", async () => {
   if (!joined) return;
   try {
     if (screenTrack) {
-      if (screenAudioTrack) {
-        await client.unpublish(screenAudioTrack);
-        screenAudioTrack.close();
-        screenAudioTrack = null;
-      }
       await client.unpublish(screenTrack);
       screenTrack.close();
       screenTrack = null;
@@ -554,14 +538,7 @@ shareBtn.addEventListener("click", async () => {
       await client.unpublish(localTracks.videoTrack);
     }
 
-    const screenStreams = await AgoraRTC.createScreenVideoTrack({ encoderConfig: "1080p_1" }, "auto");
-    
-    if (Array.isArray(screenStreams)) {
-      screenTrack = screenStreams[0];
-      screenAudioTrack = screenStreams[1];
-    } else {
-      screenTrack = screenStreams;
-    }
+    screenTrack = await AgoraRTC.createScreenVideoTrack({ encoderConfig: "1080p_1" }, "auto");
 
     shareBtn.textContent = "Stop Share";
 
@@ -592,9 +569,6 @@ shareBtn.addEventListener("click", async () => {
     screenTrack.play(screenCard);
     
     await client.publish(screenTrack);
-    if (screenAudioTrack) {
-      await client.publish(screenAudioTrack);
-    }
 
     screenTrack.on("track-ended", () => {
       if (screenTrack) shareBtn.click();
@@ -610,18 +584,31 @@ shareBtn.addEventListener("click", async () => {
   }
 });
 
-// ---------- Live Commands Receiver (INCLUDING MUSIC CONTROLS) ----------
+// ---------- Live Commands Receiver (MUSIC BULLETPROOF FALLBACK) ----------
 socket.on("control", async (data) => {
   if (!joined || !data) return;
 
   // Music Sync Event Handlers
   if (data.action === "music-play") {
     if (!isHost) { 
-      if (!remoteMusicPlayer.src.includes(data.url)) {
-        remoteMusicPlayer.src = data.url;
+      // Fully construct origin URL to prevent cross-origin blocks
+      const fullUrl = window.location.origin + data.url;
+      if (remoteMusicPlayer.src !== fullUrl) {
+        remoteMusicPlayer.src = fullUrl;
       }
       remoteMusicPlayer.currentTime = data.time || 0;
-      remoteMusicPlayer.play().catch(e => console.error("Auto-play error:", e));
+      
+      let playPromise = remoteMusicPlayer.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          console.error("Autoplay blocked:", error);
+          // Master Stroke: Agar browser phir bhi roke, toh screen par click karwao!
+          showNotification("🎵 Click anywhere on screen to allow music!", "danger");
+          document.body.addEventListener('click', () => {
+            remoteMusicPlayer.play().catch(e => console.error(e));
+          }, { once: true });
+        });
+      }
     }
     return;
   }
@@ -634,7 +621,6 @@ socket.on("control", async (data) => {
     return;
   }
 
-  // Regular controls
   if (data.action === "mute-all" && localTracks.audioTrack) {
     await localTracks.audioTrack.setEnabled(false);
     muteBtn.textContent = "Unmute";
@@ -647,7 +633,6 @@ socket.on("control", async (data) => {
     showNotification("Unmuted by Host", "info");
     return;
   }
-
   if (data.targetUid === localUid) {
     if (data.action === "mute-audio" && localTracks.audioTrack) {
       await localTracks.audioTrack.setEnabled(false);
