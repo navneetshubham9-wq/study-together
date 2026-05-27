@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>📚 Study Nest</title>
+  <title>🚀 HERMES Workspace</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -11,15 +11,15 @@
   <div id="notification-container"></div>
 
   <header>
-    <h1>📚 STUDY NEST</h1>
-    <h2>Collaborate, Learn, and Grow Together</h2>
+    <h1>🚀 HERMES</h1>
+    <h2>Advanced Collaboration & Communication</h2>
   </header>
 
   <main>
     <section id="join-section" class="card">
       <input id="username" placeholder="Enter Your Name" />
       <input id="room" placeholder="Enter Room ID" />
-      <button id="joinBtn">Join Room</button>
+      <button id="joinBtn">🚀 Join Room</button>
     </section>
 
     <div id="workspace" class="hidden">
@@ -28,19 +28,26 @@
 
       <section id="controls" class="card entry-animation delay-controls">
         <div class="control-row">
-          <button id="cameraBtn">Camera Off</button>
-          <button id="muteBtn">Mute</button>
-          <button id="shareBtn">Screen Share</button>
-          <button id="leaveBtn" style="background-color: #e74c3c; color: white;">Leave Room</button>
           
-          <button id="muteAllBtn" style="background-color: #e74c3c; color: white; display: none;">Mute All (Host)</button>
-          <button id="unmuteAllBtn" style="background-color: #4CAF50; color: white; display: none;">Unmute All (Host)</button>
+          <button id="cameraBtn" title="Toggle Camera">📹</button>
+          <button id="muteBtn" title="Toggle Microphone">🎙️</button>
+          <button id="shareBtn" title="Share Screen">💻</button>
+          
+          <button id="localMusicMuteBtn" title="Mute Host Music Locally" style="display: none; background: #9b59b6;">🎵🔇</button>
+          
+          <button id="leaveBtn" title="Leave Room" style="background: linear-gradient(135deg, #e74c3c, #c0392b); color: white;">🚪</button>
+          
+          <button id="muteAllBtn" class="host-only-btn" title="Mute All Users" style="background: linear-gradient(135deg, #e67e22, #d35400); color: white; display: none;">🤫 All</button>
+          <button id="unmuteAllBtn" class="host-only-btn" title="Unmute All Users" style="background: linear-gradient(135deg, #2ecc71, #27ae60); color: white; display: none;">🔊 All</button>
+          
+          <button id="toggleWbBtn" class="host-only-btn" title="Show/Hide Whiteboard for Everyone" style="background: linear-gradient(135deg, #3498db, #2980b9); color: white; display: none;" data-show="false">🎨 Board</button>
+          
         </div>
 
         <div id="hostAudioContainer" style="display: none; width: 100%; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
-          <p style="margin: 0 0 10px 0; font-weight: 500; font-size: 14px; text-align: center; color: var(--accent);">🎵 Host Music Player (Live Stream)</p>
+          <p style="margin: 0 0 10px 0; font-weight: 500; font-size: 14px; text-align: center; color: var(--accent);">🎵 Host Music Studio</p>
           <div style="display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap;">
-            <input type="file" id="hostAudioFile" accept="audio/*" style="padding: 8px; background: rgba(0,0,0,0.2); border: var(--3d-border); border-radius: 6px; color: #fff; font-size: 13px; max-width: 250px;" />
+            <input type="file" id="hostAudioFile" accept="audio/*" style="padding: 8px; background: rgba(0,0,0,0.3); border: var(--3d-border); border-radius: 6px; color: #fff; font-size: 13px; max-width: 250px;" />
             <audio id="hostAudioPlayer" controls style="height: 38px; border-radius: 6px; outline: none;"></audio>
           </div>
         </div>
@@ -53,7 +60,7 @@
         <div id="messages" class="messages"></div>
         <div class="chat-input">
           <input id="chatInput" placeholder="Type a message..." />
-          <button id="sendMsg">Send</button>
+          <button id="sendMsg">➤</button>
         </div>
       </section>
 
@@ -62,21 +69,22 @@
         <div id="fileList" class="file-box-list"></div>
         <div class="file-upload-footer">
           <input type="file" id="fileUpload" accept=".jpg,.jpeg,.pdf" style="display: none;" />
-          <button id="customUploadBtn" onclick="document.getElementById('fileUpload').click()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); flex: 1;">Choose File</button>
-          <button id="uploadBtn" style="background-color: var(--primary);">Upload</button>
+          <button id="customUploadBtn" onclick="document.getElementById('fileUpload').click()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); flex: 1;">📄 Select File</button>
+          <button id="uploadBtn" style="background: linear-gradient(135deg, var(--primary), #2980b9);">⬆️ Upload</button>
         </div>
       </section>
 
-      <section id="whiteboard-box" class="card entry-animation delay-files" style="grid-column: 1 / -1; height: 550px;">
-        <h3>🎨 Interactive Whiteboard <span id="wb-status" style="font-size:12px; color:var(--accent); font-weight:400; margin-left: 10px;">(View Only)</span></h3>
-        <div id="whiteboard-container" style="position: relative; width: 100%; height: 450px; background: #fff; border-radius: 10px; overflow: hidden; border: 1px solid #ccc;">
+      <section id="whiteboard-box" class="card" style="grid-column: 1 / -1; height: 550px; display: none;">
+        <h3>🎨 HERMES Whiteboard <span id="wb-status" style="font-size:12px; color:var(--accent); font-weight:400; margin-left: 10px;">(View Only)</span></h3>
+        
+        <div id="whiteboard-container" style="position: relative; width: 100%; height: 450px; background: #fdfdfd; border-radius: 12px; overflow: hidden; box-shadow: inset 0 5px 15px rgba(0,0,0,0.1);">
           <canvas id="whiteboard" style="width: 100%; height: 100%; cursor: not-allowed; display: block;"></canvas>
           
-          <div id="wb-toolbar" style="display: none; position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); padding: 10px 20px; border-radius: 30px; gap: 15px; align-items: center; z-index: 20; box-shadow: 0 10px 20px rgba(0,0,0,0.5);">
-            <input type="color" id="wb-color" value="#000000" style="cursor: pointer; width: 30px; height: 30px; border: 2px solid white; border-radius: 50%; padding:0; background:transparent;" title="Choose Color">
+          <div id="wb-toolbar" style="display: none; position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); background: rgba(20, 20, 20, 0.9); padding: 12px 25px; border-radius: 30px; gap: 15px; align-items: center; z-index: 20; box-shadow: 0 15px 30px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2);">
+            <input type="color" id="wb-color" value="#000000" style="cursor: pointer; width: 35px; height: 35px; border: 2px solid white; border-radius: 50%; padding:0; background:transparent;" title="Choose Color">
             <input type="range" id="wb-size" min="1" max="20" value="3" style="width: 100px; cursor: pointer;" title="Brush Size">
-            <button id="wb-eraser" class="icon-btn" style="font-size: 16px; padding: 5px 10px;" title="Eraser">🧽</button>
-            <button id="wb-clear" class="icon-btn" style="background: var(--danger); font-size: 16px; padding: 5px 10px;" title="Clear Board">🗑️</button>
+            <button id="wb-eraser" class="icon-btn" style="font-size: 18px; padding: 6px 12px;" title="Eraser">🧽</button>
+            <button id="wb-clear" class="icon-btn" style="background: var(--danger); font-size: 18px; padding: 6px 12px;" title="Clear Board">🗑️</button>
           </div>
         </div>
       </section>
@@ -85,7 +93,7 @@
   </main>
 
   <footer>
-    <p>Contact: navneetshubham9@gmail.com</p>
+    <p>Powered by HERMES Collaboration Engine</p>
   </footer>
 
   <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.0.js"></script>

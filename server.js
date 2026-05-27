@@ -12,6 +12,7 @@ const io = new Server(server);
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, "uploads");
 const PORT = process.env.PORT || 3000;
 
+// Create uploads folder if it doesn't exist
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
@@ -28,12 +29,15 @@ const upload = multer({ storage });
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(UPLOAD_DIR));
 
+// Memory State Storage
 const uidToSocket = new Map();
 const roomHosts = new Map();
 const socketUsers = new Map();
 const roomChats = new Map();
 const roomFiles = new Map();
+const roomWbState = new Map(); // NAYA: Whiteboard ki state save rakhne ke liye
 
+// File Upload Route
 app.post("/upload", upload.single("file"), (req, res) => {
   const room = req.body.room || "";
   const filename = req.file.filename;
@@ -41,21 +45,26 @@ app.post("/upload", upload.single("file"), (req, res) => {
   const uploader = req.body.uploader || "Host";
   
   if (room) {
-    if (!roomFiles.has(room)) roomFiles.set(room, []);
+    if (!roomFiles.has(room)) {
+      roomFiles.set(room, []);
+    }
     roomFiles.get(room).push({ filename, url, uploader });
     io.to(room).emit("file-uploaded", { filename, url, uploader });
   }
   res.json({ filename, url });
 });
 
+// Socket Connections
 io.on("connection", socket => {
   
   socket.on("join-room", info => {
     const { room, uid, name } = info;
     socket.join(room);
+    
     socketUsers.set(socket.id, { uid, name, room });
     uidToSocket.set(uid.toString(), socket.id);
 
+    // Assign Host
     if (!roomHosts.has(room) || roomHosts.get(room) === null) {
       roomHosts.set(room, socket.id);
       socket.emit("host-assignment", { isHost: true });
@@ -63,30 +72,45 @@ io.on("connection", socket => {
       socket.emit("host-assignment", { isHost: false });
     }
     
+    // Send Old History
     socket.emit("room-history", { 
       chats: roomChats.get(room) || [], 
-      files: roomFiles.get(room) || [] 
+      files: roomFiles.get(room) || [],
+      wbVisible: roomWbState.get(room) || false // Naya user aaye toh usko bhi WB ki state pata chale
     });
 
     socket.to(room).emit("user-joined", { uid, name });
+    
     const roomSize = io.sockets.adapter.rooms.get(room)?.size || 1;
     io.to(room).emit("room-update", { size: roomSize });
   });
 
+  // Global Controls (Music, Mute, Video)
   socket.on("control", data => {
     io.to(data.room).emit("control", data);
   });
   
+  // NAYA: Whiteboard Enable/Disable by Host
+  socket.on("wb-toggle", data => {
+    roomWbState.set(data.room, data.show);
+    io.to(data.room).emit("wb-toggle", data);
+  });
+  
+  // Whiteboard Access Permissions
   socket.on("wb-control", data => {
     io.to(data.room).emit("wb-control", data);
   });
 
+  // Chat Sync
   socket.on("chat-message", data => {
-    if (!roomChats.has(data.room)) roomChats.set(data.room, []);
+    if (!roomChats.has(data.room)) {
+      roomChats.set(data.room, []);
+    }
     roomChats.get(data.room).push({ name: data.name, text: data.text });
     io.to(data.room).emit("chat-message", data);
   });
 
+  // Whiteboard Drawing Sync
   socket.on("drawing", (data) => {
     socket.to(data.room).emit("drawing", data);
   });
@@ -95,16 +119,22 @@ io.on("connection", socket => {
     socket.to(data.room).emit("clear-whiteboard");
   });
 
+  // Leave and Disconnect Handlers
   socket.on("leave-room", () => handleUserLeave(socket.id));
   socket.on("disconnecting", () => handleUserLeave(socket.id));
 
   function handleUserLeave(socketId) {
     const user = socketUsers.get(socketId);
+    
     if (user) {
       io.to(user.room).emit("user-left", { uid: user.uid, name: user.name });
       
       const leaveMsg = { name: "System", text: `${user.name} left the room` };
-      if (!roomChats.has(user.room)) roomChats.set(user.room, []);
+      
+      if (!roomChats.has(user.room)) {
+        roomChats.set(user.room, []);
+      }
+      
       roomChats.get(user.room).push(leaveMsg);
       io.to(user.room).emit("chat-message", leaveMsg);
 
@@ -121,4 +151,6 @@ io.on("connection", socket => {
   }
 });
 
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});

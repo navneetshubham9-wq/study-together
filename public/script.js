@@ -16,7 +16,7 @@ let currentMusicUrl = null;
 let canDraw = false; 
 let currentBrushColor = "#000000";
 let currentBrushSize = 3;
-let isEraser = false; // NEW: Eraser Flag
+let isEraser = false; 
 
 // DOM Elements
 const joinBtn = document.getElementById("joinBtn");
@@ -25,12 +25,17 @@ const workspace = document.getElementById("workspace");
 const usernameInput = document.getElementById("username");
 const roomInput = document.getElementById("room");
 const controls = document.getElementById("controls");
+
+// Buttons (Now using Icons)
 const cameraBtn = document.getElementById("cameraBtn");
 const muteBtn = document.getElementById("muteBtn");
 const shareBtn = document.getElementById("shareBtn");
 const leaveBtn = document.getElementById("leaveBtn");
 const muteAllBtn = document.getElementById("muteAllBtn");
 const unmuteAllBtn = document.getElementById("unmuteAllBtn");
+const localMusicMuteBtn = document.getElementById("localMusicMuteBtn"); // NAYA BUTTON
+const toggleWbBtn = document.getElementById("toggleWbBtn"); // NAYA BUTTON
+
 const videoArea = document.getElementById("video-area");
 const sendMsgBtn = document.getElementById("sendMsg");
 const chatInput = document.getElementById("chatInput");
@@ -39,11 +44,13 @@ const uploadBtn = document.getElementById("uploadBtn");
 const fileUpload = document.getElementById("fileUpload");
 const fileList = document.getElementById("fileList");
 
+// Host Audio & Remote Player
 const hostAudioContainer = document.getElementById("hostAudioContainer");
 const hostAudioPlayer = document.getElementById("hostAudioPlayer");
 const remoteMusicPlayer = document.getElementById("remoteMusicPlayer");
 
 // Whiteboard Elements
+const whiteboardBox = document.getElementById("whiteboard-box"); // Box itself
 const canvas = document.getElementById('whiteboard');
 const ctx = canvas.getContext('2d');
 const wbToolbar = document.getElementById('wb-toolbar');
@@ -116,9 +123,9 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
 }
 
 // Adding Size Controls to Whiteboard
-addSizeControls(document.getElementById('whiteboard-box'), document.getElementById('whiteboard-container'));
+addSizeControls(whiteboardBox, document.getElementById('whiteboard-container'));
 
-// ---------- NEW WHITEBOARD MS-TEAMS FEATURES ----------
+// ---------- WHITEBOARD MS-TEAMS FEATURES ----------
 function resizeCanvas() {
   canvas.width = canvas.offsetWidth;
   canvas.height = canvas.offsetHeight;
@@ -127,7 +134,7 @@ window.addEventListener('resize', resizeCanvas);
 
 // Toolbar Listeners
 wbColor.addEventListener("input", (e) => {
-  isEraser = false; // Reset eraser when color is picked
+  isEraser = false;
   currentBrushColor = e.target.value;
 });
 
@@ -136,7 +143,7 @@ wbSize.addEventListener("input", (e) => {
 });
 
 wbEraser.addEventListener("click", () => {
-  isEraser = true; // Turn on big eraser
+  isEraser = true; 
 });
 
 wbClear.addEventListener("click", () => {
@@ -149,23 +156,20 @@ socket.on("clear-whiteboard", () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 });
 
-// Drawing Function (Now supports BIG Eraser)
+// Drawing Function (Eraser logic included)
 function draw(x0, y0, x1, y1, color, size, eraserFlag, emit = false) {
   ctx.beginPath();
   ctx.moveTo(x0, y0);
   ctx.lineTo(x1, y1);
   
-  // Set stroke style to white if eraser, otherwise use color
   ctx.strokeStyle = eraserFlag ? "#ffffff" : color;
-  
-  // Make eraser brush massive (size 30) for easy rubbing
   ctx.lineWidth = eraserFlag ? 30 : size; 
-  
   ctx.lineCap = 'round';
   ctx.stroke();
   ctx.closePath();
 
   if (!emit) return;
+  
   socket.emit('drawing', { 
     x0, y0, x1, y1, color, size, isEraser: eraserFlag, room: currentRoom 
   });
@@ -195,10 +199,11 @@ socket.on('drawing', (data) => {
   draw(data.x0, data.y0, data.x1, data.y1, data.color, data.size, data.isEraser, false);
 });
 
-// ---------- VIDEO UI HELPERS ----------
+// ---------- VIDEO UI HELPERS (Using Iconic buttons) ----------
 function createLocalCard(name) {
   let el = document.getElementById("local-player");
   if (el) return el;
+  
   const localContainer = document.createElement("div");
   localContainer.className = "video-card"; 
   localContainer.id = "local-player";
@@ -218,6 +223,7 @@ function createLocalCard(name) {
   localContainer.appendChild(label);
   addSizeControls(localContainer, localContainer);
   videoArea.prepend(localContainer);
+  
   return localContainer;
 }
 
@@ -260,29 +266,32 @@ function createRemoteWrapper(uid, labelText) {
   controlsDiv.style.justifyContent = "center"; 
   controlsDiv.style.width = "100%";
 
-  // Mute Button (Host Only) - THIS WAS THE TYPO THAT CRASHED IT BEFORE!
+  // Mute Remote Button (Icon)
   const muteRemoteBtn = document.createElement("button");
   muteRemoteBtn.className = "small-btn host-only-btn"; 
   muteRemoteBtn.style.display = isHost ? "inline-block" : "none";
-  muteRemoteBtn.textContent = "Mute";
+  muteRemoteBtn.textContent = "🎙️❌"; // Iconic
+  muteRemoteBtn.title = "Mute User";
   muteRemoteBtn.onclick = () => {
     socket.emit("control", { room: currentRoom, targetUid: uid.toString(), action: "mute-audio" });
   };
 
-  // Disable Cam Button (Host Only)
+  // Disable Cam Button (Icon)
   const camOffBtn = document.createElement("button");
   camOffBtn.className = "small-btn host-only-btn"; 
   camOffBtn.style.display = isHost ? "inline-block" : "none";
-  camOffBtn.textContent = "No Cam";
+  camOffBtn.textContent = "📹❌"; // Iconic
+  camOffBtn.title = "Disable Camera";
   camOffBtn.onclick = () => {
     socket.emit("control", { room: currentRoom, targetUid: uid.toString(), action: "disable-video" });
   };
 
-  // Give Whiteboard Access Button (Host Only)
+  // Give Whiteboard Access Button (Iconic)
   const wbBtn = document.createElement("button");
   wbBtn.className = "small-btn host-only-btn";
   wbBtn.style.display = isHost ? "inline-block" : "none";
-  wbBtn.textContent = "Give WB";
+  wbBtn.textContent = "🖍️ WB";
+  wbBtn.title = "Give Whiteboard Access";
   wbBtn.dataset.access = "false";
   wbBtn.style.background = "var(--primary)";
   wbBtn.onclick = () => {
@@ -294,11 +303,11 @@ function createRemoteWrapper(uid, labelText) {
     });
     
     wbBtn.dataset.access = isGranting ? "true" : "false";
-    wbBtn.textContent = isGranting ? "Revoke WB" : "Give WB";
+    wbBtn.textContent = isGranting ? "🚫🖍️ WB" : "🖍️ WB";
     wbBtn.style.background = isGranting ? "var(--danger)" : "var(--primary)";
   };
 
-  controlsDiv.appendChild(muteRemoteBtn); // Fixed Variable Name
+  controlsDiv.appendChild(muteRemoteBtn); 
   controlsDiv.appendChild(camOffBtn);
   controlsDiv.appendChild(wbBtn); 
 
@@ -321,7 +330,7 @@ function createScreenShareCard(uid) {
   card.style.width = "100%"; 
   card.style.height = "320px";
   card.style.position = "relative"; 
-  card.style.border = "3px solid #4CAF50";
+  card.style.border = "3px solid var(--accent)";
 
   const label = document.createElement("div");
   label.style.position = "absolute"; 
@@ -365,7 +374,6 @@ joinBtn.addEventListener("click", async () => {
     const uid = await client.join(APP_ID, roomId, null, userName);
     localUid = uid.toString();
 
-    // Prepare media tracks
     try {
       const [microphoneTrack, cameraTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
       localTracks.audioTrack = microphoneTrack;
@@ -380,13 +388,10 @@ joinBtn.addEventListener("click", async () => {
     
     joinSection.classList.add("form-out");
     
-    // Delayed rendering so Camera Container doesn't crash to 0x0
     setTimeout(() => {
       joinSection.style.display = "none";
       workspace.classList.remove("hidden");
       workspace.classList.add("workspace-active"); 
-      
-      resizeCanvas(); 
       
       const localContainer = createLocalCard(userName);
       if (localTracks.videoTrack) {
@@ -416,6 +421,13 @@ socket.on("room-history", (data) => {
       addFileLink(file.filename, file.url);
     });
   }
+  
+  // Set initial Whiteboard State based on Room History
+  if (data.wbVisible) {
+    whiteboardBox.style.display = "block";
+    setTimeout(resizeCanvas, 100);
+    if(isHost) toggleWbBtn.dataset.show = "true";
+  }
 });
 
 socket.on("host-assignment", (data) => {
@@ -428,6 +440,9 @@ socket.on("host-assignment", (data) => {
     canvas.style.cursor = "crosshair";
     wbStatus.textContent = "(Host Mode - You have control)";
     
+    // Unhide Host Buttons (including Whiteboard toggle)
+    toggleWbBtn.style.display = "inline-block";
+    
     document.querySelectorAll('.host-only-btn').forEach(btn => {
       btn.style.display = "inline-block";
     });
@@ -437,6 +452,7 @@ socket.on("host-assignment", (data) => {
     wbToolbar.style.display = "none";
     canvas.style.cursor = "not-allowed";
     wbStatus.textContent = "(View Only - Ask host for access)";
+    toggleWbBtn.style.display = "none";
   }
 });
 
@@ -449,6 +465,48 @@ socket.on("room-update", (data) => {
     unmuteAllBtn.style.display = "none";
   }
 });
+
+// ---------- LOCAL MUTING & WHITEBOARD TOGGLE LOGIC ----------
+
+// Local Mute Toggle (Sahuliyat)
+localMusicMuteBtn.addEventListener("click", () => {
+  const isMuted = remoteMusicPlayer.muted;
+  remoteMusicPlayer.muted = !isMuted;
+  
+  if (remoteMusicPlayer.muted) {
+    localMusicMuteBtn.textContent = "🎵🔊"; // Show unmute icon
+    localMusicMuteBtn.title = "Unmute Music";
+    localMusicMuteBtn.style.background = "#7f8c8d";
+  } else {
+    localMusicMuteBtn.textContent = "🎵🔇"; // Show mute icon
+    localMusicMuteBtn.title = "Mute Music";
+    localMusicMuteBtn.style.background = "#9b59b6";
+  }
+});
+
+// Host Whiteboard Toggle (Hide/Show for everyone)
+toggleWbBtn.addEventListener("click", () => {
+  const isShowing = toggleWbBtn.dataset.show === "true";
+  const willShow = !isShowing;
+  
+  // Emit to all users
+  socket.emit("wb-toggle", { room: currentRoom, show: willShow });
+  
+  // Update Host button UI
+  toggleWbBtn.dataset.show = willShow ? "true" : "false";
+  toggleWbBtn.style.background = willShow ? "linear-gradient(135deg, #e74c3c, #c0392b)" : "linear-gradient(135deg, #3498db, #2980b9)";
+});
+
+// Receive Whiteboard Toggle Command
+socket.on("wb-toggle", (data) => {
+  if (data.show) {
+    whiteboardBox.style.display = "block";
+    setTimeout(resizeCanvas, 100);
+  } else {
+    whiteboardBox.style.display = "none";
+  }
+});
+
 
 // ---------- MUSIC PLAYER (Host Only) ----------
 document.getElementById("hostAudioFile").addEventListener("change", async (e) => {
@@ -554,7 +612,11 @@ cameraBtn.addEventListener("click", async () => {
   if (!joined || !localTracks.videoTrack) return;
   const en = localTracks.videoTrack.enabled;
   await localTracks.videoTrack.setEnabled(!en);
-  cameraBtn.textContent = en ? "Camera On" : "Camera Off";
+  
+  // Icon Update
+  cameraBtn.textContent = en ? "📹" : "🚫📹";
+  cameraBtn.style.background = en ? "" : "rgba(231, 76, 60, 0.7)"; // Reddish when off
+  
   socket.emit("control", { room: currentRoom, targetUid: localUid, action: en ? "disable-video" : "enable-video" });
 });
 
@@ -562,7 +624,11 @@ muteBtn.addEventListener("click", async () => {
   if (!joined || !localTracks.audioTrack) return;
   const en = localTracks.audioTrack.enabled;
   await localTracks.audioTrack.setEnabled(!en);
-  muteBtn.textContent = en ? "Unmute" : "Mute";
+  
+  // Icon Update
+  muteBtn.textContent = en ? "🎙️" : "🔇";
+  muteBtn.style.background = en ? "" : "rgba(231, 76, 60, 0.7)"; // Reddish when off
+  
   socket.emit("control", { room: currentRoom, targetUid: localUid, action: en ? "mute-audio" : "enable-audio" });
 });
 
@@ -579,21 +645,21 @@ shareBtn.addEventListener("click", async () => {
       await client.publish(localTracks.videoTrack);
       localTracks.videoTrack.play(document.getElementById("local-player"));
     }
-    shareBtn.textContent = "Screen Share";
+    shareBtn.textContent = "💻";
     return;
   }
   
   if (localTracks.videoTrack) await client.unpublish(localTracks.videoTrack);
   
   screenTrack = await AgoraRTC.createScreenVideoTrack({ encoderConfig: "1080p_1" }, "auto");
-  shareBtn.textContent = "Stop Share";
+  shareBtn.textContent = "🛑💻";
   
   const sc = document.createElement("div");
   sc.className = "video-card screen-share-card"; 
   sc.id = "screen-share-container";
   sc.style.gridColumn = "1 / -1"; 
   sc.style.height = "320px"; 
-  sc.style.border = "2px solid #2ecc71";
+  sc.style.border = "2px solid var(--accent)";
   
   addSizeControls(sc, sc);
   videoArea.appendChild(sc);
@@ -627,6 +693,10 @@ socket.on("control", async (data) => {
   if (!joined || !data) return;
 
   if (data.action === "music-play" && !isHost) {
+    
+    // Show local mute button for non-hosts when music plays
+    localMusicMuteBtn.style.display = "inline-block";
+    
     const url = window.location.origin + data.url;
     if (remoteMusicPlayer.src !== url) remoteMusicPlayer.src = url;
     remoteMusicPlayer.currentTime = data.time || 0;
@@ -644,31 +714,37 @@ socket.on("control", async (data) => {
 
   if (data.action === "mute-all" && localTracks.audioTrack) { 
     await localTracks.audioTrack.setEnabled(false); 
-    muteBtn.textContent = "Unmute"; 
+    muteBtn.textContent = "🔇"; 
+    muteBtn.style.background = "rgba(231, 76, 60, 0.7)";
   }
   
   if (data.action === "unmute-all" && localTracks.audioTrack) { 
     await localTracks.audioTrack.setEnabled(true); 
-    muteBtn.textContent = "Mute"; 
+    muteBtn.textContent = "🎙️"; 
+    muteBtn.style.background = "";
   }
   
   if (data.targetUid === localUid) {
     if (data.action === "mute-audio" && localTracks.audioTrack) { 
       await localTracks.audioTrack.setEnabled(false); 
-      muteBtn.textContent = "Unmute"; 
+      muteBtn.textContent = "🔇"; 
+      muteBtn.style.background = "rgba(231, 76, 60, 0.7)";
       showNotification("Host muted you", "danger"); 
     }
     if (data.action === "disable-video" && localTracks.videoTrack) { 
       await localTracks.videoTrack.setEnabled(false); 
-      cameraBtn.textContent = "Camera On"; 
+      cameraBtn.textContent = "🚫📹"; 
+      cameraBtn.style.background = "rgba(231, 76, 60, 0.7)";
     }
     if (data.action === "enable-audio" && localTracks.audioTrack) { 
       await localTracks.audioTrack.setEnabled(true); 
-      muteBtn.textContent = "Mute"; 
+      muteBtn.textContent = "🎙️"; 
+      muteBtn.style.background = "";
     }
     if (data.action === "enable-video" && localTracks.videoTrack) { 
       await localTracks.videoTrack.setEnabled(true); 
-      cameraBtn.textContent = "Camera Off"; 
+      cameraBtn.textContent = "📹"; 
+      cameraBtn.style.background = "";
     }
   }
 });
