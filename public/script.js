@@ -206,7 +206,6 @@ function createLocalCard(name) {
   localContainer.className = "video-card"; 
   localContainer.id = "local-player";
   
-  // YAHAN FIX HAI: Exact size wahi diya jo remote users ko diya hai!
   localContainer.style.width = "100%"; 
   localContainer.style.height = "200px"; 
   localContainer.style.position = "relative";
@@ -351,7 +350,7 @@ function createScreenShareCard(uid) {
   return card;
 }
 
-// ---------- JOIN LOGIC (FIXED CAMERA TIMING) ----------
+// ---------- JOIN LOGIC ----------
 joinBtn.addEventListener("click", async () => {
   if (joined) return;
   
@@ -388,18 +387,16 @@ joinBtn.addEventListener("click", async () => {
     
     joinSection.classList.add("form-out");
     
-    // UI Expand hone tak wait karega
     setTimeout(() => {
       joinSection.style.display = "none";
       workspace.classList.remove("hidden");
       workspace.classList.add("workspace-active"); 
       
-      // Animation settle hone ke liye ek aur chhota delay taaki box size perfect ho
       setTimeout(() => {
         resizeCanvas(); 
         const localContainer = createLocalCard(userName);
         if (localTracks.videoTrack) {
-          localTracks.videoTrack.play(localContainer, { fit: "cover" }); // Fit cover force karega
+          localTracks.videoTrack.play(localContainer, { fit: "cover" });
         }
       }, 300);
       
@@ -627,8 +624,10 @@ muteBtn.addEventListener("click", async () => {
   socket.emit("control", { room: currentRoom, targetUid: localUid, action: en ? "mute-audio" : "enable-audio" });
 });
 
+// NAYA SCREEN SHARE BUTTON LOGIC
 shareBtn.addEventListener("click", async () => {
   if (!joined) return;
+  
   if (screenTrack) {
     await client.unpublish(screenTrack); 
     screenTrack.close(); 
@@ -640,14 +639,17 @@ shareBtn.addEventListener("click", async () => {
       await client.publish(localTracks.videoTrack);
       localTracks.videoTrack.play(document.getElementById("local-player"));
     }
-    shareBtn.textContent = "💻";
+    // Wapas purana Screen Share icon
+    shareBtn.textContent = "🖥️ ↗️";
     return;
   }
   
   if (localTracks.videoTrack) await client.unpublish(localTracks.videoTrack);
   
   screenTrack = await AgoraRTC.createScreenVideoTrack({ encoderConfig: "1080p_1" }, "auto");
-  shareBtn.textContent = "🛑💻";
+  
+  // Stop Share Icon
+  shareBtn.textContent = "🛑 🖥️";
   
   const sc = document.createElement("div");
   sc.className = "video-card screen-share-card"; 
