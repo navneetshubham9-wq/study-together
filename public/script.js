@@ -13,9 +13,9 @@ let screenAudioTrack = null;
 let isHost = false; 
 const remoteUsers = {}; 
 
-// Music Bot State for Host
-let musicClient = null;
-let musicTrack = null;
+// --- NEW: Socket Synchronized Music Player Variables ---
+const remoteMusicPlayer = new Audio(); // Baki users ke liye hidden player
+let currentMusicUrl = null;
 
 // DOM Elements
 const joinBtn = document.getElementById("joinBtn");
@@ -332,61 +332,54 @@ socket.on("room-update", (data) => {
   }
 });
 
-// ---------- HOST MUSIC PLAYER LOGIC (100% RELIABLE METHOD) ----------
-hostAudioFile.addEventListener("change", (e) => {
+// ---------- HOST MUSIC PLAYER (100% WORKING SERVER-UPLOAD METHOD) ----------
+hostAudioFile.addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
   
-  // FIX 1: CORS bypass for local files
-  hostAudioPlayer.crossOrigin = "anonymous";
-  hostAudioPlayer.src = URL.createObjectURL(file);
-});
+  // 1. Aapke idea ke anusaar, pehle file ko server par upload karenge!
+  showNotification("Uploading music to server...", "info");
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("room", currentRoom || "music-room");
+  fd.append("uploader", "Host-Music");
 
-hostAudioPlayer.addEventListener("play", async () => {
-  if (!joined || !isHost) return;
   try {
-    if (!musicClient) {
-      
-      // FIX 2: Added 400ms micro-delay so track generates fully before WebRTC captures it
-      setTimeout(async () => {
-        let stream = null;
-        if (hostAudioPlayer.captureStream) {
-          stream = hostAudioPlayer.captureStream();
-        } else if (hostAudioPlayer.mozCaptureStream) {
-          stream = hostAudioPlayer.mozCaptureStream();
-        }
-
-        if (stream && stream.getAudioTracks().length > 0) {
-          musicClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
-          await musicClient.join(APP_ID, currentRoom, null, null); 
-          
-          musicTrack = AgoraRTC.createCustomAudioTrack({ 
-            mediaStreamTrack: stream.getAudioTracks()[0] 
-          });
-          
-          await musicClient.publish(musicTrack);
-          
-          socket.emit("chat-message", { room: currentRoom, name: "System", text: "🎵 Host started playing music!" });
-          showNotification("Music is broadcasting to room! 🎵", "info");
-        } else {
-          showNotification("Audio extraction failed in this browser.", "danger");
-        }
-      }, 400); 
-
-    } else if (musicTrack) {
-      await musicTrack.setEnabled(true);
-      socket.emit("chat-message", { room: currentRoom, name: "System", text: "🎵 Host resumed music!" });
-    }
+    const res = await fetch("/upload", { method: "POST", body: fd });
+    const json = await res.json();
+    
+    // Server se direct link mil gaya
+    currentMusicUrl = json.url; 
+    hostAudioPlayer.src = currentMusicUrl;
+    
+    showNotification("Music uploaded! Ready to play 🎵", "join");
   } catch (err) {
-    console.error("Music stream error:", err);
+    showNotification("Music upload failed", "danger");
   }
 });
 
-hostAudioPlayer.addEventListener("pause", async () => {
-  if (musicTrack) {
-    await musicTrack.setEnabled(false);
-    socket.emit("chat-message", { room: currentRoom, name: "System", text: "⏸️ Host paused the music." });
-  }
+hostAudioPlayer.addEventListener("play", () => {
+  if (!joined || !isHost || !currentMusicUrl) return;
+  
+  // 2. Play dabate hi baki sabko command aur server URL chala jayega
+  socket.emit("control", { 
+    room: currentRoom, 
+    action: "music-play", 
+    url: currentMusicUrl, 
+    time: hostAudioPlayer.currentTime 
+  });
+  socket.emit("chat-message", { room: currentRoom, name: "System", text: "🎵 Host started playing music!" });
+});
+
+hostAudioPlayer.addEventListener("pause", () => {
+  if (!joined || !isHost) return;
+  socket.emit("control", { room: currentRoom, action: "music-pause" });
+  socket.emit("chat-message", { room: currentRoom, name: "System", text: "⏸️ Host paused the music." });
+});
+
+hostAudioPlayer.addEventListener("seeked", () => {
+  if (!joined || !isHost || !currentMusicUrl) return;
+  socket.emit("control", { room: currentRoom, action: "music-seek", time: hostAudioPlayer.currentTime });
 });
 
 
@@ -413,10 +406,6 @@ leaveBtn.addEventListener("click", async () => {
       screenAudioTrack.close();
     }
     
-    if (musicClient) {
-      await musicClient.leave();
-    }
-
     await client.leave();
     
     setTimeout(() => {
@@ -486,7 +475,6 @@ function removeRemoteUser3D(uid, name = null) {
   if (name) {
     showNotification(`${name} left the room`, "danger");
   } else {
-    // Hidden music bot check so we don't show unnecessary popups
     if (!name && !wrapper && !screenCard) return; 
     showNotification(`User left the room`, "danger");
   }
@@ -622,10 +610,31 @@ shareBtn.addEventListener("click", async () => {
   }
 });
 
-// ---------- Live Commands Receiver ----------
+// ---------- Live Commands Receiver (INCLUDING MUSIC CONTROLS) ----------
 socket.on("control", async (data) => {
   if (!joined || !data) return;
 
+  // Music Sync Event Handlers
+  if (data.action === "music-play") {
+    if (!isHost) { 
+      if (!remoteMusicPlayer.src.includes(data.url)) {
+        remoteMusicPlayer.src = data.url;
+      }
+      remoteMusicPlayer.currentTime = data.time || 0;
+      remoteMusicPlayer.play().catch(e => console.error("Auto-play error:", e));
+    }
+    return;
+  }
+  if (data.action === "music-pause") {
+    if (!isHost) remoteMusicPlayer.pause();
+    return;
+  }
+  if (data.action === "music-seek") {
+    if (!isHost) remoteMusicPlayer.currentTime = data.time || 0;
+    return;
+  }
+
+  // Regular controls
   if (data.action === "mute-all" && localTracks.audioTrack) {
     await localTracks.audioTrack.setEnabled(false);
     muteBtn.textContent = "Unmute";
@@ -682,7 +691,6 @@ chatInput.addEventListener("keydown", (e) => {
 socket.on("chat-message", data => {
   if(data.name === "System" && data.text.includes("left the room")) return;
   
-  // FIX 3: Host ke dwara play kiye gaye music ki notification sabko jayegi
   if(data.name === "System" && (data.text.includes("music") || data.text.includes("Music"))) {
     showNotification(data.text, "join");
   }
