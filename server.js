@@ -28,13 +28,28 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(UPLOAD_DIR));
 app.get("/health", (req, res) => res.send("OK"));
 
+// --- STATE MANAGEMENT ---
+const uidToSocket = new Map();
+const roomHosts = new Map();
+const socketUsers = new Map(); 
+
+// NEW: Room Memory Stores (Chats aur Files save rakhne ke liye)
+const roomChats = new Map(); 
+const roomFiles = new Map();
+
 app.post("/upload", upload.single("file"), (req, res) => {
   try {
     const room = req.body.room || "";
     const filename = req.file.filename;
     const url = `/uploads/${filename}`;
+    const uploader = req.body.uploader || "Someone";
+    
     if (room) {
-      io.to(room).emit("file-uploaded", { filename, url, uploader: req.body.uploader || "Someone" });
+      // File ko room ki memory me save karein
+      if (!roomFiles.has(room)) roomFiles.set(room, []);
+      roomFiles.get(room).push({ filename, url, uploader });
+      
+      io.to(room).emit("file-uploaded", { filename, url, uploader });
     }
     return res.json({ filename, url });
   } catch (err) {
@@ -42,10 +57,6 @@ app.post("/upload", upload.single("file"), (req, res) => {
     return res.status(500).json({ error: "Upload failed" });
   }
 });
-
-const uidToSocket = new Map();
-const roomHosts = new Map();
-const socketUsers = new Map(); // Track users for accurate notifications
 
 function sendControl(data) {
   try {
@@ -68,18 +79,18 @@ function sendControl(data) {
   }
 }
 
-// Ye function user ke jaane par sab clean karega aur chat message bhejega
 function handleUserLeave(socketId) {
   const user = socketUsers.get(socketId);
   if (user) {
-    // 1. UI se video gayab karne ke liye
     io.to(user.room).emit("user-left", { uid: user.uid, name: user.name });
     
-    // 2. Chatbox me left notification bhejne ke liye
-    io.to(user.room).emit("chat-message", { 
-      name: "System", 
-      text: `${user.name} left the room` 
-    });
+    const leaveMsg = { name: "System", text: `${user.name} left the room` };
+    
+    // System message ko bhi memory me daal do
+    if (!roomChats.has(user.room)) roomChats.set(user.room, []);
+    roomChats.get(user.room).push(leaveMsg);
+    
+    io.to(user.room).emit("chat-message", leaveMsg);
 
     uidToSocket.delete(user.uid);
     socketUsers.delete(socketId);
@@ -90,7 +101,6 @@ function handleUserLeave(socketId) {
 
     const currentRoomData = io.sockets.adapter.rooms.get(user.room);
     const roomSize = currentRoomData ? currentRoomData.size - 1 : 0;
-    // Host buttons ko manage karne ke liye room size update
     io.to(user.room).emit("room-update", { size: Math.max(0, roomSize) });
   }
 }
@@ -115,6 +125,11 @@ io.on("connection", socket => {
       }
       
       socket.to(room).emit("user-joined", { uid, name });
+      
+      // NEW: JAISE HI KOI JOIN KARE, USE PURANI CHATS AUR FILES BHEJ DO
+      const chats = roomChats.get(room) || [];
+      const files = roomFiles.get(room) || [];
+      socket.emit("room-history", { chats, files });
 
       const roomSize = io.sockets.adapter.rooms.get(room).size;
       io.to(room).emit("room-update", { size: roomSize });
@@ -136,18 +151,23 @@ io.on("connection", socket => {
   socket.on("chat-message", data => {
     try {
       if (!data || !data.room) return;
-      io.to(data.room).emit("chat-message", { name: data.name || "Someone", text: data.text });
+      
+      const msgObj = { name: data.name || "Someone", text: data.text };
+      
+      // Message ko room memory me save karein
+      if (!roomChats.has(data.room)) roomChats.set(data.room, []);
+      roomChats.get(data.room).push(msgObj);
+      
+      io.to(data.room).emit("chat-message", msgObj);
     } catch (e) {
       console.error("chat-message error:", e);
     }
   });
 
-  // Explicit leave event before reload
   socket.on("leave-room", () => {
     handleUserLeave(socket.id);
   });
 
-  // Fallback if tab is closed directly
   socket.on("disconnecting", () => {
     handleUserLeave(socket.id);
   });

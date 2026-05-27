@@ -59,12 +59,11 @@ function appendMessage(text) {
   messages.scrollTop = messages.scrollHeight;
 }
 
-// ---------- NEW: DYNAMIC SIZE CONTROLS (Chhota/Bada/Maximize) ----------
+// ---------- DYNAMIC SIZE CONTROLS ----------
 function addSizeControls(targetWrapper, videoCard) {
   const controlsDiv = document.createElement("div");
   controlsDiv.className = "local-controls";
 
-  // Enlarge Button
   const enlargeBtn = document.createElement("button");
   enlargeBtn.className = "icon-btn";
   enlargeBtn.innerHTML = "➕";
@@ -74,7 +73,6 @@ function addSizeControls(targetWrapper, videoCard) {
     targetWrapper.classList.toggle("video-wrapper-large");
   };
 
-  // Shrink Button
   const shrinkBtn = document.createElement("button");
   shrinkBtn.className = "icon-btn";
   shrinkBtn.innerHTML = "➖";
@@ -84,7 +82,6 @@ function addSizeControls(targetWrapper, videoCard) {
     targetWrapper.classList.toggle("video-wrapper-small");
   };
 
-  // Maximize (Fullscreen) Button
   const maxBtn = document.createElement("button");
   maxBtn.className = "icon-btn";
   maxBtn.innerHTML = "🖥️";
@@ -125,10 +122,7 @@ function createLocalCard(name) {
   label.textContent = `${name} (You)`;
   
   localContainer.appendChild(label);
-  
-  // Size Controls added here
   addSizeControls(localContainer, localContainer);
-  
   videoArea.prepend(localContainer);
   return localContainer;
 }
@@ -144,7 +138,7 @@ function createRemoteWrapper(uid, labelText) {
   wrapper.style.flexDirection = "column";
   wrapper.style.alignItems = "center";
   wrapper.style.gap = "6px";
-  wrapper.style.width = "100%"; // Fixed to expand properly
+  wrapper.style.width = "100%"; 
 
   const card = document.createElement("div");
   card.className = "video-card";
@@ -181,7 +175,6 @@ function createRemoteWrapper(uid, labelText) {
   placeholder.textContent = "Camera Off";
   card.appendChild(placeholder);
 
-  // Mute & Disable Controls
   const controlsDiv = document.createElement("div");
   controlsDiv.style.display = "flex";
   controlsDiv.style.gap = "8px";
@@ -209,10 +202,7 @@ function createRemoteWrapper(uid, labelText) {
 
   wrapper.appendChild(card);
   wrapper.appendChild(controlsDiv);
-  
-  // Size Controls added to remote card
   addSizeControls(wrapper, card);
-  
   videoArea.appendChild(wrapper);
 
   return wrapper;
@@ -244,9 +234,7 @@ function createScreenShareCard(uid) {
   label.textContent = `User ${uid}'s Presentation Screen`;
   card.appendChild(label);
 
-  // Size Controls added to screen share
   addSizeControls(card, card);
-
   videoArea.appendChild(card);
   return card;
 }
@@ -297,6 +285,27 @@ joinBtn.addEventListener("click", async () => {
     
   } catch (err) {
     showNotification("Join failed!", "danger");
+  }
+});
+
+// ---------- NEW: ROOM HISTORY LISTENER ----------
+socket.on("room-history", (data) => {
+  // Purani chats load karna
+  if (data.chats && data.chats.length > 0) {
+    data.chats.forEach(chat => {
+      // System ke purane "left the room" notifications ko chatbox me nahi dikhana,
+      // sirf normal chats hi rahengi jisse clean lage.
+      if(chat.name === "System" && chat.text.includes("left the room")) return;
+      appendMessage(`${chat.name}: ${chat.text}`);
+    });
+  }
+  
+  // Purani shared files load karna
+  if (data.files && data.files.length > 0) {
+    // Array ko ulta kar rahe hain taaki latest file sabse upar dikhe (reverse chronologically)
+    [...data.files].reverse().forEach(file => {
+      addFileLink(file.filename, file.url);
+    });
   }
 });
 
@@ -454,7 +463,7 @@ muteBtn.addEventListener("click", async () => {
   socket.emit("control", { room: currentRoom, targetUid: localUid, action: enabled ? "mute-audio" : "enable-audio" });
 });
 
-// ---------- Screen Share (FIXED AUTO PARAMETER) ----------
+// ---------- Screen Share ----------
 shareBtn.addEventListener("click", async () => {
   if (!joined) return;
   try {
