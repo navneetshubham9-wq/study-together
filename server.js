@@ -9,14 +9,15 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+// Upload Directory Setup
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, "uploads");
 const PORT = process.env.PORT || 3000;
 
-// Create uploads folder if it doesn't exist
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
+// Multer Storage Configuration
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename: (req, file, cb) => {
@@ -26,6 +27,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+// Express Middlewares
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(UPLOAD_DIR));
 
@@ -35,7 +37,7 @@ const roomHosts = new Map();
 const socketUsers = new Map();
 const roomChats = new Map();
 const roomFiles = new Map();
-const roomWbState = new Map(); // NAYA: Whiteboard ki state save rakhne ke liye
+const roomWbState = new Map();
 
 // File Upload Route
 app.post("/upload", upload.single("file"), (req, res) => {
@@ -76,7 +78,7 @@ io.on("connection", socket => {
     socket.emit("room-history", { 
       chats: roomChats.get(room) || [], 
       files: roomFiles.get(room) || [],
-      wbVisible: roomWbState.get(room) || false // Naya user aaye toh usko bhi WB ki state pata chale
+      wbVisible: roomWbState.get(room) || false
     });
 
     socket.to(room).emit("user-joined", { uid, name });
@@ -85,12 +87,12 @@ io.on("connection", socket => {
     io.to(room).emit("room-update", { size: roomSize });
   });
 
-  // Global Controls (Music, Mute, Video)
+  // Global Controls
   socket.on("control", data => {
     io.to(data.room).emit("control", data);
   });
   
-  // NAYA: Whiteboard Enable/Disable by Host
+  // Whiteboard Enable/Disable by Host
   socket.on("wb-toggle", data => {
     roomWbState.set(data.room, data.show);
     io.to(data.room).emit("wb-toggle", data);

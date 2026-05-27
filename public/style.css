@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
 
 :root {
   --primary: #3498db;       
@@ -16,9 +16,8 @@ body {
   margin: 0;
   font-family: 'Poppins', sans-serif; 
   color: var(--text-main);
-  background-color: #0f2027; 
-  /* Naya Vibrant Dynamic Background */
-  background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+  /* Naya Vibrant, Positive aur Energetic Background */
+  background: linear-gradient(135deg, #4158D0 0%, #C850C0 46%, #FFCC70 100%);
   background-attachment: fixed;
   background-size: cover;
   background-position: center;
@@ -29,6 +28,7 @@ body {
 
 header {
   background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(15px);
   backdrop-filter: blur(15px);
   padding: 25px 20px;
   text-align: center;
@@ -37,21 +37,30 @@ header {
   margin-bottom: 20px;
 }
 
+/* Yahan hai HERMES ka mast 3D Word Art Effect */
 header h1 { 
   margin: 0; 
-  font-size: 2.8rem; 
-  font-weight: 700; 
-  letter-spacing: 2px;
-  /* Standard gradient format */
-  background: linear-gradient(to right, #00d2d3, #3498db);
-  /* Webkit aur Standard background clip dono lagaye */
-  -webkit-background-clip: text;
-  background-clip: text;
-  /* Text color ko safe tarike se transparent kiya */
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-  /* Text-shadow ki jagah drop-shadow use kiya taki error na aaye aur gradient par sahi dikhe */
-  filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
+  font-family: 'Poppins', sans-serif;
+  font-size: 3.5rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 3px;
+  /* 3D Shadows stacked together */
+  text-shadow:
+    0 1px 0 #cccccc,
+    0 2px 0 #c9c9c9,
+    0 3px 0 #bbbbbb,
+    0 4px 0 #b9b9b9,
+    0 5px 0 #aaaaaa,
+    0 6px 1px rgba(0,0,0,0.1),
+    0 0 5px rgba(0,0,0,0.1),
+    0 1px 3px rgba(0,0,0,0.3),
+    0 3px 5px rgba(0,0,0,0.2),
+    0 5px 10px rgba(0,0,0,0.25),
+    0 10px 10px rgba(0,0,0,0.2),
+    0 20px 20px rgba(0,0,0,0.15);
+  display: inline-block;
+  vertical-align: middle;
 }
 
 header h2 { 
@@ -70,8 +79,8 @@ main {
 /* 3D Glassmorphism Cards */
 .card {
   background: var(--glass-bg);
-  backdrop-filter: blur(16px); 
   -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px); 
   border-radius: 20px;
   padding: 25px;
   border: var(--3d-border);
@@ -167,7 +176,8 @@ main {
   transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); 
 }
 
-#local-player, .screen-share-card { 
+/* NAYA FIX: Sirf Screen Share card full width me aayega, Local player baki users jaisa normal rahega */
+.screen-share-card { 
   grid-column: 1 / -1; 
   height: 350px !important; 
 } 
@@ -201,6 +211,7 @@ main {
   padding: 4px 8px; 
   cursor: pointer; 
   font-size: 13px; 
+  -webkit-backdrop-filter: blur(5px);
   backdrop-filter: blur(5px);
   transition: all 0.2s;
 }
@@ -231,6 +242,7 @@ main {
 }
 
 .chat-input { display: flex; gap: 10px; }
+
 .chat-input input { 
   flex: 1; 
   padding: 12px; 
@@ -240,6 +252,7 @@ main {
   color: #fff; 
   font-size: 14px;
 }
+
 .chat-input button { 
   padding: 10px 20px; 
   background: linear-gradient(135deg, var(--primary), #2980b9); 
@@ -291,6 +304,7 @@ main {
 }
 
 .file-upload-footer { display: flex; gap: 10px; }
+
 .file-upload-footer button { 
   padding: 12px 15px; 
   border: none; 
@@ -342,7 +356,7 @@ main {
   } 
 }
 
-/* Beautiful Modern Buttons */
+/* Modern Buttons */
 .control-row { 
   display: flex; 
   justify-content: center; 
@@ -371,7 +385,15 @@ main {
 }
 
 .hidden { display: none !important; }
-footer { text-align: center; padding: 30px 20px; color: var(--text-muted); font-size: 14px; }
+
+footer { 
+  text-align: center; 
+  padding: 30px 20px; 
+  color: var(--text-main); 
+  font-size: 15px; 
+  font-weight: 500;
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+}
 
 #notification-container { 
   position: fixed; 
@@ -385,6 +407,7 @@ footer { text-align: center; padding: 30px 20px; color: var(--text-muted); font-
 
 .toast { 
   background: rgba(20, 30, 48, 0.95); 
+  -webkit-backdrop-filter: blur(15px);
   backdrop-filter: blur(15px); 
   border: 1px solid rgba(255, 255, 255, 0.2); 
   box-shadow: 0 15px 35px rgba(0,0,0,0.5); 

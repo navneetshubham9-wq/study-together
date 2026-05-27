@@ -26,15 +26,15 @@ const usernameInput = document.getElementById("username");
 const roomInput = document.getElementById("room");
 const controls = document.getElementById("controls");
 
-// Buttons (Now using Icons)
+// Buttons
 const cameraBtn = document.getElementById("cameraBtn");
 const muteBtn = document.getElementById("muteBtn");
 const shareBtn = document.getElementById("shareBtn");
 const leaveBtn = document.getElementById("leaveBtn");
 const muteAllBtn = document.getElementById("muteAllBtn");
 const unmuteAllBtn = document.getElementById("unmuteAllBtn");
-const localMusicMuteBtn = document.getElementById("localMusicMuteBtn"); // NAYA BUTTON
-const toggleWbBtn = document.getElementById("toggleWbBtn"); // NAYA BUTTON
+const localMusicMuteBtn = document.getElementById("localMusicMuteBtn"); 
+const toggleWbBtn = document.getElementById("toggleWbBtn"); 
 
 const videoArea = document.getElementById("video-area");
 const sendMsgBtn = document.getElementById("sendMsg");
@@ -50,7 +50,7 @@ const hostAudioPlayer = document.getElementById("hostAudioPlayer");
 const remoteMusicPlayer = document.getElementById("remoteMusicPlayer");
 
 // Whiteboard Elements
-const whiteboardBox = document.getElementById("whiteboard-box"); // Box itself
+const whiteboardBox = document.getElementById("whiteboard-box");
 const canvas = document.getElementById('whiteboard');
 const ctx = canvas.getContext('2d');
 const wbToolbar = document.getElementById('wb-toolbar');
@@ -69,6 +69,7 @@ function showNotification(message, type = 'info') {
   toast.className = `toast toast-${type}`;
   toast.innerHTML = `<span>${message}</span>`;
   container.appendChild(toast);
+  
   setTimeout(() => {
     toast.classList.add('toast-exit');
     setTimeout(() => toast.remove(), 500);
@@ -270,7 +271,7 @@ function createRemoteWrapper(uid, labelText) {
   const muteRemoteBtn = document.createElement("button");
   muteRemoteBtn.className = "small-btn host-only-btn"; 
   muteRemoteBtn.style.display = isHost ? "inline-block" : "none";
-  muteRemoteBtn.textContent = "🎙️❌"; // Iconic
+  muteRemoteBtn.textContent = "🎙️❌"; 
   muteRemoteBtn.title = "Mute User";
   muteRemoteBtn.onclick = () => {
     socket.emit("control", { room: currentRoom, targetUid: uid.toString(), action: "mute-audio" });
@@ -280,7 +281,7 @@ function createRemoteWrapper(uid, labelText) {
   const camOffBtn = document.createElement("button");
   camOffBtn.className = "small-btn host-only-btn"; 
   camOffBtn.style.display = isHost ? "inline-block" : "none";
-  camOffBtn.textContent = "📹❌"; // Iconic
+  camOffBtn.textContent = "📹❌"; 
   camOffBtn.title = "Disable Camera";
   camOffBtn.onclick = () => {
     socket.emit("control", { room: currentRoom, targetUid: uid.toString(), action: "disable-video" });
@@ -422,7 +423,6 @@ socket.on("room-history", (data) => {
     });
   }
   
-  // Set initial Whiteboard State based on Room History
   if (data.wbVisible) {
     whiteboardBox.style.display = "block";
     setTimeout(resizeCanvas, 100);
@@ -440,7 +440,6 @@ socket.on("host-assignment", (data) => {
     canvas.style.cursor = "crosshair";
     wbStatus.textContent = "(Host Mode - You have control)";
     
-    // Unhide Host Buttons (including Whiteboard toggle)
     toggleWbBtn.style.display = "inline-block";
     
     document.querySelectorAll('.host-only-btn').forEach(btn => {
@@ -468,36 +467,31 @@ socket.on("room-update", (data) => {
 
 // ---------- LOCAL MUTING & WHITEBOARD TOGGLE LOGIC ----------
 
-// Local Mute Toggle (Sahuliyat)
 localMusicMuteBtn.addEventListener("click", () => {
   const isMuted = remoteMusicPlayer.muted;
   remoteMusicPlayer.muted = !isMuted;
   
   if (remoteMusicPlayer.muted) {
-    localMusicMuteBtn.textContent = "🎵🔊"; // Show unmute icon
+    localMusicMuteBtn.textContent = "🎵🔊"; 
     localMusicMuteBtn.title = "Unmute Music";
     localMusicMuteBtn.style.background = "#7f8c8d";
   } else {
-    localMusicMuteBtn.textContent = "🎵🔇"; // Show mute icon
+    localMusicMuteBtn.textContent = "🎵🔇"; 
     localMusicMuteBtn.title = "Mute Music";
     localMusicMuteBtn.style.background = "#9b59b6";
   }
 });
 
-// Host Whiteboard Toggle (Hide/Show for everyone)
 toggleWbBtn.addEventListener("click", () => {
   const isShowing = toggleWbBtn.dataset.show === "true";
   const willShow = !isShowing;
   
-  // Emit to all users
   socket.emit("wb-toggle", { room: currentRoom, show: willShow });
   
-  // Update Host button UI
   toggleWbBtn.dataset.show = willShow ? "true" : "false";
   toggleWbBtn.style.background = willShow ? "linear-gradient(135deg, #e74c3c, #c0392b)" : "linear-gradient(135deg, #3498db, #2980b9)";
 });
 
-// Receive Whiteboard Toggle Command
 socket.on("wb-toggle", (data) => {
   if (data.show) {
     whiteboardBox.style.display = "block";
@@ -506,7 +500,6 @@ socket.on("wb-toggle", (data) => {
     whiteboardBox.style.display = "none";
   }
 });
-
 
 // ---------- MUSIC PLAYER (Host Only) ----------
 document.getElementById("hostAudioFile").addEventListener("change", async (e) => {
@@ -613,9 +606,8 @@ cameraBtn.addEventListener("click", async () => {
   const en = localTracks.videoTrack.enabled;
   await localTracks.videoTrack.setEnabled(!en);
   
-  // Icon Update
   cameraBtn.textContent = en ? "📹" : "🚫📹";
-  cameraBtn.style.background = en ? "" : "rgba(231, 76, 60, 0.7)"; // Reddish when off
+  cameraBtn.style.background = en ? "" : "rgba(231, 76, 60, 0.7)"; 
   
   socket.emit("control", { room: currentRoom, targetUid: localUid, action: en ? "disable-video" : "enable-video" });
 });
@@ -625,9 +617,8 @@ muteBtn.addEventListener("click", async () => {
   const en = localTracks.audioTrack.enabled;
   await localTracks.audioTrack.setEnabled(!en);
   
-  // Icon Update
   muteBtn.textContent = en ? "🎙️" : "🔇";
-  muteBtn.style.background = en ? "" : "rgba(231, 76, 60, 0.7)"; // Reddish when off
+  muteBtn.style.background = en ? "" : "rgba(231, 76, 60, 0.7)"; 
   
   socket.emit("control", { room: currentRoom, targetUid: localUid, action: en ? "mute-audio" : "enable-audio" });
 });
@@ -694,7 +685,6 @@ socket.on("control", async (data) => {
 
   if (data.action === "music-play" && !isHost) {
     
-    // Show local mute button for non-hosts when music plays
     localMusicMuteBtn.style.display = "inline-block";
     
     const url = window.location.origin + data.url;
