@@ -38,6 +38,7 @@ const socketUsers = new Map();
 const roomChats = new Map();
 const roomFiles = new Map();
 const roomWbState = new Map();
+const roomMapState = new Map(); // NAYA: Map ki state save rakhne ke liye
 
 // File Upload Route
 app.post("/upload", upload.single("file"), (req, res) => {
@@ -78,7 +79,8 @@ io.on("connection", socket => {
     socket.emit("room-history", { 
       chats: roomChats.get(room) || [], 
       files: roomFiles.get(room) || [],
-      wbVisible: roomWbState.get(room) || false
+      wbVisible: roomWbState.get(room) || false,
+      mapVisible: roomMapState.get(room) || false // Naya user join karega toh use bhi map dikhega
     });
 
     socket.to(room).emit("user-joined", { uid, name });
@@ -92,10 +94,16 @@ io.on("connection", socket => {
     io.to(data.room).emit("control", data);
   });
   
-  // Whiteboard Enable/Disable by Host
+  // Whiteboard Enable/Disable
   socket.on("wb-toggle", data => {
     roomWbState.set(data.room, data.show);
     io.to(data.room).emit("wb-toggle", data);
+  });
+
+  // NAYA: Map Enable/Disable
+  socket.on("map-toggle", data => {
+    roomMapState.set(data.room, data.show);
+    io.to(data.room).emit("map-toggle", data);
   });
   
   // Whiteboard Access Permissions

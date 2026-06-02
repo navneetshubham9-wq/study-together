@@ -9,7 +9,7 @@ let joined = false;
 let currentRoom = null;
 let screenTrack = null;
 let isHost = false; 
-let isSharing = false; // NAYA: Screen sharing track properly handle karne ke liye
+let isSharing = false; 
 const remoteUsers = {}; 
 let currentMusicUrl = null;
 
@@ -36,6 +36,7 @@ const muteAllBtn = document.getElementById("muteAllBtn");
 const unmuteAllBtn = document.getElementById("unmuteAllBtn");
 const localMusicMuteBtn = document.getElementById("localMusicMuteBtn"); 
 const toggleWbBtn = document.getElementById("toggleWbBtn"); 
+const toggleMapBtn = document.getElementById("toggleMapBtn"); // NAYA: Map Button
 
 const videoArea = document.getElementById("video-area");
 const sendMsgBtn = document.getElementById("sendMsg");
@@ -60,6 +61,11 @@ const wbColor = document.getElementById('wb-color');
 const wbSize = document.getElementById('wb-size');
 const wbEraser = document.getElementById('wb-eraser');
 const wbClear = document.getElementById('wb-clear');
+
+// Map Elements
+const mapBox = document.getElementById("map-box");
+const mapContainer = document.getElementById("map-container");
+let geoMap; // Leaflet map instance
 let drawing = false;
 
 // ---------- NOTIFICATION HELPER ----------
@@ -95,6 +101,7 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
   enlargeBtn.onclick = () => {
     targetWrapper.classList.remove("video-wrapper-small");
     targetWrapper.classList.toggle("video-wrapper-large");
+    if(geoMap) setTimeout(() => geoMap.invalidateSize(), 300); // Fix map size on resize
   };
 
   const shrinkBtn = document.createElement("button");
@@ -103,6 +110,7 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
   shrinkBtn.onclick = () => {
     targetWrapper.classList.remove("video-wrapper-large");
     targetWrapper.classList.toggle("video-wrapper-small");
+    if(geoMap) setTimeout(() => geoMap.invalidateSize(), 300);
   };
 
   const maxBtn = document.createElement("button");
@@ -125,13 +133,33 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
 }
 
 addSizeControls(whiteboardBox, document.getElementById('whiteboard-container'));
+addSizeControls(mapBox, mapContainer); // Apply size controls to Map too
+
+// ---------- INITIALIZE LEAFLET WORLD MAP ----------
+function initWorldMap() {
+  // Initialize map pointing to center of the world (Lat: 20, Lng: 0), Zoom: 2
+  geoMap = L.map('map-container').setView([20.0, 0.0], 2);
+  
+  // Use ESRI World Imagery (Beautiful Satellite View similar to Google Earth)
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+  }).addTo(geoMap);
+}
+// Init immediately (it will stay hidden until host toggles it)
+initWorldMap();
+
 
 // ---------- WHITEBOARD LOGIC ----------
 function resizeCanvas() {
   canvas.width = canvas.offsetWidth;
   canvas.height = canvas.offsetHeight;
 }
-window.addEventListener('resize', resizeCanvas);
+window.addEventListener('resize', () => {
+  resizeCanvas();
+  if(geoMap && mapBox.style.display !== "none") {
+      geoMap.invalidateSize();
+  }
+});
 
 wbColor.addEventListener("input", (e) => {
   isEraser = false;
@@ -363,6 +391,8 @@ joinBtn.addEventListener("click", async () => {
       
       setTimeout(() => {
         resizeCanvas(); 
+        if(geoMap) geoMap.invalidateSize(); // Ensure map loads tiles correctly
+        
         const localContainer = createLocalCard(userName);
         if (localTracks.videoTrack) {
           localTracks.videoTrack.play(localContainer, { fit: "cover" });
@@ -399,6 +429,13 @@ socket.on("room-history", (data) => {
     setTimeout(resizeCanvas, 100);
     if(isHost) toggleWbBtn.dataset.show = "true";
   }
+  
+  // Handle Map history visibility
+  if (data.mapVisible) {
+    mapBox.style.display = "block";
+    setTimeout(() => geoMap.invalidateSize(), 100);
+    if(isHost) toggleMapBtn.dataset.show = "true";
+  }
 });
 
 socket.on("host-assignment", (data) => {
@@ -412,6 +449,7 @@ socket.on("host-assignment", (data) => {
     wbStatus.textContent = "(Host Mode - You have control)";
     
     toggleWbBtn.style.display = "inline-block";
+    toggleMapBtn.style.display = "inline-block"; // NAYA: Host ko Map button dikhao
     
     document.querySelectorAll('.host-only-btn').forEach(btn => {
       btn.style.display = "inline-block";
@@ -423,6 +461,7 @@ socket.on("host-assignment", (data) => {
     canvas.style.cursor = "not-allowed";
     wbStatus.textContent = "(View Only - Ask host for access)";
     toggleWbBtn.style.display = "none";
+    toggleMapBtn.style.display = "none";
   }
 });
 
@@ -452,6 +491,7 @@ localMusicMuteBtn.addEventListener("click", () => {
   }
 });
 
+// Toggle Whiteboard
 toggleWbBtn.addEventListener("click", () => {
   const isShowing = toggleWbBtn.dataset.show === "true";
   const willShow = !isShowing;
@@ -468,6 +508,29 @@ socket.on("wb-toggle", (data) => {
     setTimeout(resizeCanvas, 100);
   } else {
     whiteboardBox.style.display = "none";
+  }
+});
+
+// NAYA: Toggle Interactive World Map
+toggleMapBtn.addEventListener("click", () => {
+  const isShowing = toggleMapBtn.dataset.show === "true";
+  const willShow = !isShowing;
+  
+  socket.emit("map-toggle", { room: currentRoom, show: willShow });
+  
+  toggleMapBtn.dataset.show = willShow ? "true" : "false";
+  toggleMapBtn.style.background = willShow ? "linear-gradient(135deg, #e74c3c, #c0392b)" : "linear-gradient(135deg, #27ae60, #2ecc71)";
+});
+
+socket.on("map-toggle", (data) => {
+  if (data.show) {
+    mapBox.style.display = "block";
+    // Leaflet needs to know its container size changed to render tiles properly
+    setTimeout(() => {
+        if(geoMap) geoMap.invalidateSize();
+    }, 100);
+  } else {
+    mapBox.style.display = "none";
   }
 });
 
@@ -516,8 +579,12 @@ client.on("user-published", async (user, mediaType) => {
     remoteUsers[uid] = user;
 
     if (mediaType === "video") {
-      createRemoteWrapper(uid, `User ${uid}`);
-      user.videoTrack.play(document.getElementById(`remote-${uid}`));
+      if (user.videoTrack.getTrackId().includes("screen") || uid.includes("screen")) {
+        user.videoTrack.play(createScreenShareCard(uid));
+      } else {
+        createRemoteWrapper(uid, `User ${uid}`);
+        user.videoTrack.play(document.getElementById(`remote-${uid}`));
+      }
     }
     
     if (mediaType === "audio" && user.audioTrack) {
@@ -529,7 +596,10 @@ client.on("user-published", async (user, mediaType) => {
 });
 
 client.on("user-unpublished", (user, mediaType) => {
-  // Agora handles this gracefully, no extra logic needed here for simple track swap
+  if (mediaType === "video") {
+    const sc = document.getElementById(`screen-card-${user.uid}`);
+    if (sc) sc.remove();
+  }
 });
 
 client.on("user-left", (user) => removeRemoteUser(user.uid.toString()));
@@ -537,8 +607,10 @@ socket.on("user-left", info => { if (info && info.uid) removeRemoteUser(info.uid
 
 function removeRemoteUser(uid, name = null) {
   const w = document.getElementById(`remote-wrapper-${uid}`);
+  const s = document.getElementById(`screen-card-${uid}`);
   
   if (w) { w.classList.add("fly-out-3d"); setTimeout(() => w.remove(), 700); }
+  if (s) { s.classList.add("fly-out-3d"); setTimeout(() => s.remove(), 700); }
   
   if (name) showNotification(`${name} left`, "danger");
   delete remoteUsers[uid];
@@ -584,24 +656,20 @@ muteBtn.addEventListener("click", async () => {
   socket.emit("control", { room: currentRoom, targetUid: localUid, action: en ? "mute-audio" : "enable-audio" });
 });
 
-// NAYA: ROBUST SCREEN SHARE LOGIC
 shareBtn.addEventListener("click", async () => {
   if (!joined) return;
   
   if (isSharing) {
     isSharing = false;
     
-    // Stop sharing safely
     if (screenTrack) {
       await client.unpublish(screenTrack); 
       screenTrack.close(); 
       screenTrack = null;
     }
     
-    // Remote users ko normal size karne ka command bhejo
     socket.emit("control", { room: currentRoom, action: "share-stop", uid: localUid });
     
-    // Khud ki screen par bhi normal height lagao
     const myContainer = document.getElementById("local-player");
     if(myContainer) {
         myContainer.style.height = "200px";
@@ -619,7 +687,6 @@ shareBtn.addEventListener("click", async () => {
     return;
   }
   
-  // Start Sharing
   if (localTracks.videoTrack) {
       await client.unpublish(localTracks.videoTrack);
   }
@@ -639,10 +706,8 @@ shareBtn.addEventListener("click", async () => {
       
       await client.publish(screenTrack);
       
-      // Remote users ko video bada karne ka command
       socket.emit("control", { room: currentRoom, action: "share-start", uid: localUid });
       
-      // Jab koi direct Google Chrome wale "Stop Sharing" se screen band kare
       screenTrack.on("track-ended", () => {
           if (isSharing) shareBtn.click();
       });
@@ -678,7 +743,6 @@ socket.on("wb-control", (data) => {
 socket.on("control", async (data) => {
   if (!joined || !data) return;
 
-  // Remote Share Start (Remote users ko share bada dikhane ke liye)
   if (data.action === "share-start") {
      const remoteWrapper = document.getElementById(`remote-wrapper-${data.uid}`);
      if (remoteWrapper) {
@@ -687,7 +751,6 @@ socket.on("control", async (data) => {
      }
   }
   
-  // Remote Share Stop
   if (data.action === "share-stop") {
      const remoteWrapper = document.getElementById(`remote-wrapper-${data.uid}`);
      if (remoteWrapper) {

@@ -128,12 +128,11 @@ main {
   pointer-events: none; 
 }
 
-/* YAHAN FIX HAI: Workspace layout proper Grid me */
 #workspace {
   width: 100%; 
   display: none; 
   grid-template-columns: 2.5fr 1fr; 
-  grid-template-rows: auto auto auto; /* Fix rows */
+  grid-template-rows: auto auto auto; 
   gap: 25px; 
   margin-top: 15px;
 }
@@ -147,7 +146,6 @@ main {
   grid-row: 1; 
 }
 
-/* YAHAN FIX HAI: Video area ko row 2 and 3 dono cover karne diya taaki chat aur file ke barabar rahe */
 #video-area { 
   grid-column: 1; 
   grid-row: 2 / span 2; 
@@ -163,7 +161,6 @@ main {
   grid-row: 3; 
 }
 
-/* YAHAN FIX HAI: Videos ek ke neeche ek nahi, side-by-side (bagal me) aayenge */
 .video-grid { 
   display: grid; 
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); 
@@ -213,6 +210,11 @@ main {
   opacity: 1; 
 }
 
+/* NAYA: Map container pe bhi controls dikhane ke liye */
+#map-container:hover .local-controls {
+  opacity: 1;
+}
+
 .icon-btn { 
   background: rgba(0,0,0,0.7); 
   color: white; 
@@ -231,7 +233,8 @@ main {
   transform: translateY(-2px);
 }
 
-#chat-box h3, #file-box h3, #whiteboard-box h3 { 
+/* NAYA: #map-box h3 added */
+#chat-box h3, #file-box h3, #whiteboard-box h3, #map-box h3 { 
   margin: 0 0 12px 0; 
   font-size: 1.2rem; 
   letter-spacing: 0.5px; 
@@ -444,7 +447,7 @@ footer {
   100% { opacity: 0; transform: translateX(100px) scale(0.8); } 
 }
 
-:fullscreen .video-card, :fullscreen #whiteboard-container { 
+:fullscreen .video-card, :fullscreen #whiteboard-container, :fullscreen #map-container { 
   width: 100vw !important; 
   height: 100vh !important; 
   border-radius: 0; 
