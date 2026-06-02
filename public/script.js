@@ -12,6 +12,7 @@ let isSharing = false;
 const remoteUsers = {}; 
 let currentMusicUrl = null;
 
+// DOM Elements
 const joinBtn = document.getElementById("joinBtn");
 const joinSection = document.getElementById("join-section"); 
 const workspace = document.getElementById("workspace"); 
@@ -27,12 +28,14 @@ const muteAllBtn = document.getElementById("muteAllBtn");
 const unmuteAllBtn = document.getElementById("unmuteAllBtn");
 const localMusicMuteBtn = document.getElementById("localMusicMuteBtn"); 
 
+// Panel Toggles
 const toggleWbBtn = document.getElementById("toggleWbBtn"); 
 const toggleMapBtn = document.getElementById("toggleMapBtn"); 
 const togglePresBtn = document.getElementById("togglePresBtn"); 
 const openMathBtn = document.getElementById("openMathBtn"); 
-const toggleCalcBtn = document.getElementById("toggleCalcBtn"); // NAYA
+const toggleCalcBtn = document.getElementById("toggleCalcBtn"); 
 
+// Chat & Files
 const sendMsgBtn = document.getElementById("sendMsg");
 const chatInput = document.getElementById("chatInput");
 const messages = document.getElementById("messages");
@@ -40,9 +43,11 @@ const uploadBtn = document.getElementById("uploadBtn");
 const fileUpload = document.getElementById("fileUpload");
 const fileList = document.getElementById("fileList");
 
-// Personal Calculator Logic
+// NAYA: Draggable Personal Calculator Logic
 const calcModal = document.getElementById("calc-modal");
 const calcDisplay = document.getElementById("calc-display");
+const calcHeader = document.getElementById("calc-header");
+
 toggleCalcBtn.addEventListener("click", () => {
     calcModal.style.display = calcModal.style.display === "none" || calcModal.style.display === "" ? "block" : "none";
 });
@@ -52,6 +57,26 @@ window.calcCalculate = () => {
     try { calcDisplay.value = eval(calcDisplay.value); } 
     catch(e) { calcDisplay.value = "Error"; setTimeout(calcClear, 1000); } 
 };
+
+// Drag Logic for Calculator
+let isCalcDragging = false;
+let calcStartX, calcStartY, calcInitialX, calcInitialY;
+calcHeader.addEventListener("mousedown", (e) => {
+    isCalcDragging = true;
+    calcStartX = e.clientX; calcStartY = e.clientY;
+    const rect = calcModal.getBoundingClientRect();
+    calcInitialX = rect.left; calcInitialY = rect.top;
+    calcModal.style.right = "auto"; // Unlock right positioning
+    calcModal.style.left = calcInitialX + "px";
+    calcModal.style.top = calcInitialY + "px";
+});
+document.addEventListener("mousemove", (e) => {
+    if(!isCalcDragging) return;
+    calcModal.style.left = (calcInitialX + e.clientX - calcStartX) + "px";
+    calcModal.style.top = (calcInitialY + e.clientY - calcStartY) + "px";
+});
+document.addEventListener("mouseup", () => isCalcDragging = false);
+
 
 // Math Modal
 const mathModal = document.getElementById("math-modal");
@@ -94,7 +119,7 @@ let labelsVisible = true;
 // Whiteboard Elements
 const whiteboardBox = document.getElementById("whiteboard-box");
 const canvas = document.getElementById('whiteboard');
-const ctx = canvas.getContext('2d', { willReadFrequently: true }); // Important for getImageData speed
+const ctx = canvas.getContext('2d', { willReadFrequently: true }); 
 const wbStatus = document.getElementById('wb-status');
 
 let canDraw = false; 
@@ -107,6 +132,7 @@ let canvasSnapshot;
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
+// ---------- NOTIFICATIONS ----------
 function showNotification(message, type = 'info') {
   const container = document.getElementById('notification-container');
   if (!container) return;
@@ -122,6 +148,7 @@ function appendMessage(text) {
   messages.appendChild(d); messages.scrollTop = messages.scrollHeight;
 }
 
+// ---------- SIZE CONTROLS ----------
 function addSizeControls(targetWrapper, elementToFullscreen) {
   const controlsDiv = document.createElement("div");
   controlsDiv.className = "local-controls";
@@ -132,7 +159,6 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
     targetWrapper.classList.remove("video-wrapper-small");
     targetWrapper.classList.toggle("video-wrapper-large");
     if(geoMap) setTimeout(() => geoMap.invalidateSize(), 300); 
-    if(targetWrapper.id === 'whiteboard-box') setTimeout(resizeCanvas, 300); // Trigger safe resize
   };
 
   const shrinkBtn = document.createElement("button");
@@ -141,7 +167,6 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
     targetWrapper.classList.remove("video-wrapper-large");
     targetWrapper.classList.toggle("video-wrapper-small");
     if(geoMap) setTimeout(() => geoMap.invalidateSize(), 300);
-    if(targetWrapper.id === 'whiteboard-box') setTimeout(resizeCanvas, 300); // Trigger safe resize
   };
 
   const maxBtn = document.createElement("button");
@@ -159,6 +184,7 @@ addSizeControls(whiteboardBox, document.getElementById('whiteboard-container'));
 addSizeControls(mapBox, mapContainer); 
 addSizeControls(presentationBox, presentationContainer); 
 
+// ---------- SMART PANEL TOGGLE LOGIC ----------
 function hideAllBigPanels() {
     whiteboardBox.style.display = "none";
     mapBox.style.display = "none";
@@ -189,7 +215,7 @@ socket.on("pres-toggle", (data) => {
 });
 
 socket.on("wb-toggle", (data) => {
-  if (data.show) { hideAllBigPanels(); whiteboardBox.style.display = "block"; setTimeout(resizeCanvas, 100); if(isHost){toggleWbBtn.dataset.show="true"; toggleWbBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
+  if (data.show) { hideAllBigPanels(); whiteboardBox.style.display = "block"; if(isHost){toggleWbBtn.dataset.show="true"; toggleWbBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
   else { whiteboardBox.style.display = "none"; if(isHost){toggleWbBtn.dataset.show="false"; toggleWbBtn.style.background="linear-gradient(135deg, #3498db, #2980b9)";} }
 });
 
@@ -197,6 +223,7 @@ socket.on("map-toggle", (data) => {
   if (data.show) { hideAllBigPanels(); mapBox.style.display = "block"; setTimeout(() => { if(geoMap) geoMap.invalidateSize(); }, 100); if(isHost){toggleMapBtn.dataset.show="true"; toggleMapBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
   else { mapBox.style.display = "none"; if(isHost){toggleMapBtn.dataset.show="false"; toggleMapBtn.style.background="linear-gradient(135deg, #27ae60, #2ecc71)";} }
 });
+
 
 // ---------- MATH FORMULA LIBRARY LOGIC ----------
 const formulas = {
@@ -324,25 +351,7 @@ socket.on("laser-pointer", (data) => {
     clearTimeout(laserTimeout); laserTimeout = setTimeout(() => { laserPointer.style.display = "none"; }, 2000);
 });
 
-// ---------- ADVANCED PRO WHITEBOARD (WITH SAFE RESIZE & FETCH FIX) ----------
-function resizeCanvas() { 
-  if(!canvas.width || !canvas.height) {
-      canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; return;
-  }
-  // NAYA: SAFE RESIZE - Pehle content save karo, phir resize karo, phir wapas dalo
-  const tempCanvas = document.createElement('canvas');
-  tempCanvas.width = canvas.width; tempCanvas.height = canvas.height;
-  tempCanvas.getContext('2d').drawImage(canvas, 0, 0);
-  
-  canvas.width = canvas.offsetWidth; 
-  canvas.height = canvas.offsetHeight; 
-  
-  ctx.drawImage(tempCanvas, 0, 0);
-}
-window.addEventListener('resize', () => { 
-  resizeCanvas(); 
-  if(geoMap && mapBox.style.display !== "none") geoMap.invalidateSize(); 
-});
+// ---------- ADVANCED PRO WHITEBOARD (CORS & RESIZE FIX) ----------
 
 const toggleShapesBtn = document.getElementById("toggleShapesBtn");
 const wbShapesMenu = document.getElementById("wb-shapes-menu");
@@ -380,23 +389,6 @@ const subjectAssets = {
 const subjectCategory = document.getElementById("subjectCategory");
 const subjectAssetsList = document.getElementById("subjectAssetsList");
 
-// NAYA: CORS FETCH FIX - Directly getting Blob so Canvas doesn't get blocked
-async function loadAssetToCanvas(url, name) {
-    try {
-        showNotification(`Downloading ${name}...`, "info");
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-        const response = await fetch(proxyUrl);
-        const blob = await response.blob();
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            drawWbImage(reader.result, true);
-        };
-        reader.readAsDataURL(blob);
-    } catch(e) {
-        showNotification(`Failed to load ${name}`, "danger");
-    }
-}
-
 function loadSubjectAssets(cat) {
     subjectAssetsList.innerHTML = "";
     subjectAssets[cat].forEach(asset => {
@@ -404,7 +396,9 @@ function loadSubjectAssets(cat) {
         btn.textContent = "➕ Insert " + asset.name;
         btn.style.cssText = "background: rgba(255,255,255,0.1); color: white; border: 1px solid var(--accent); padding: 8px; border-radius: 6px; cursor: pointer; text-align: left; font-size: 13px;";
         btn.onclick = () => {
-            loadAssetToCanvas(asset.url, asset.name);
+            showNotification(`Inserting ${asset.name}...`, "info");
+            // Direct URL Emit (Fixes CORS issue)
+            drawWbImage(asset.url, true);
             wbSubjectsMenu.style.display = "none";
         };
         subjectAssetsList.appendChild(btn);
@@ -429,6 +423,17 @@ document.getElementById('wb-clear').addEventListener("click", () => {
 });
 socket.on("clear-whiteboard", () => ctx.clearRect(0, 0, canvas.width, canvas.height));
 
+// NAYA: Precise Coordinate Calculation
+function getCanvasPoint(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY
+    };
+}
+
 // NAYA: FLOOD FILL ALGORITHM (Color Bucket)
 function floodFill(startX, startY, fillColorHex, emit=false) {
     const hex = fillColorHex.replace('#','');
@@ -442,19 +447,17 @@ function floodFill(startX, startY, fillColorHex, emit=false) {
     const width = canvas.width;
     const height = canvas.height;
     
-    // Exact coordinates
     const sx = Math.floor(startX); const sy = Math.floor(startY);
     if(sx < 0 || sx >= width || sy < 0 || sy >= height) return;
 
     const startPos = (sy * width + sx) * 4;
     const startR = data[startPos]; const startG = data[startPos + 1]; const startB = data[startPos + 2]; const startA = data[startPos + 3];
 
-    if (startR === fillR && startG === fillG && startB === fillB && startA === fillA) return; // Same color
+    if (startR === fillR && startG === fillG && startB === fillB && startA === fillA) return; 
 
     const matchColor = (pos) => {
         return data[pos] === startR && data[pos+1] === startG && data[pos+2] === startB && data[pos+3] === startA;
     };
-
     const colorPixel = (pos) => {
         data[pos] = fillR; data[pos+1] = fillG; data[pos+2] = fillB; data[pos+3] = fillA;
     };
@@ -487,74 +490,100 @@ function floodFill(startX, startY, fillColorHex, emit=false) {
     if(emit) socket.emit("wb-fill", {room: currentRoom, x: sx, y: sy, color: fillColorHex});
 }
 
-socket.on("wb-fill", (data) => {
-    floodFill(data.x, data.y, data.color, false);
-});
+socket.on("wb-fill", (data) => floodFill(data.x, data.y, data.color, false));
 
 function drawFreehand(x0, y0, x1, y1, color, size, toolType, emit = false) {
   if(toolType === 'eraser') {
       ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
-      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = size * 3; ctx.lineCap = 'round'; ctx.shadowBlur = 0; ctx.stroke(); ctx.closePath();
+      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = size * 3; ctx.lineCap = 'round'; 
+      ctx.shadowBlur = 0; ctx.stroke(); ctx.closePath();
   } 
   else if (toolType === 'spray') {
       ctx.fillStyle = color;
       for (let i = 0; i < size * 2; i++) {
-          const offsetX = x1 + (Math.random() * size - size/2); const offsetY = y1 + (Math.random() * size - size/2);
+          const offsetX = x1 + (Math.random() * size - size/2);
+          const offsetY = y1 + (Math.random() * size - size/2);
           ctx.fillRect(offsetX, offsetY, 2, 2);
       }
   }
   else {
       ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
       ctx.strokeStyle = color; ctx.lineWidth = size; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-      if(toolType === 'brush') { ctx.shadowBlur = size * 1.5; ctx.shadowColor = color; } else { ctx.shadowBlur = 0; }
+      if(toolType === 'brush') { ctx.shadowBlur = size * 1.5; ctx.shadowColor = color; } 
+      else { ctx.shadowBlur = 0; }
       ctx.stroke(); ctx.closePath();
   }
+
   if (emit) socket.emit('drawing', { type: 'free', x0, y0, x1, y1, color, size, toolType: toolType, room: currentRoom });
 }
 
 function drawShapeObj(x0, y0, x1, y1, type, color, size, emit = false) {
   ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = size; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.shadowBlur = 0;
-  let w = x1 - x0; let h = y1 - y0;
+  
+  let w = x1 - x0;
+  let h = y1 - y0;
 
   if(type === 'line') { ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); }
   else if(type === 'arrow') {
       ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
       let angle = Math.atan2(y1-y0, x1-x0);
-      ctx.lineTo(x1 - size*3 * Math.cos(angle - Math.PI/6), y1 - size*3 * Math.sin(angle - Math.PI/6)); ctx.moveTo(x1, y1); ctx.lineTo(x1 - size*3 * Math.cos(angle + Math.PI/6), y1 - size*3 * Math.sin(angle + Math.PI/6));
+      ctx.lineTo(x1 - size*3 * Math.cos(angle - Math.PI/6), y1 - size*3 * Math.sin(angle - Math.PI/6));
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x1 - size*3 * Math.cos(angle + Math.PI/6), y1 - size*3 * Math.sin(angle + Math.PI/6));
   }
   else if(type === 'rect') { ctx.rect(x0, y0, w, h); }
-  else if(type === 'circle') { let r = Math.sqrt(Math.pow(w, 2) + Math.pow(h, 2)); ctx.arc(x0, y0, r, 0, 2*Math.PI); }
-  else if(type === 'triangle') { ctx.moveTo(x0 + w/2, y0); ctx.lineTo(x1, y1); ctx.lineTo(x0, y1); ctx.closePath(); }
+  else if(type === 'circle') {
+      let r = Math.sqrt(Math.pow(w, 2) + Math.pow(h, 2)); 
+      ctx.arc(x0, y0, r, 0, 2*Math.PI);
+  }
+  else if(type === 'triangle') {
+      ctx.moveTo(x0 + w/2, y0); ctx.lineTo(x1, y1); ctx.lineTo(x0, y1); ctx.closePath();
+  }
   else if(type === 'pentagon' || type === 'hexagon' || type === 'star') {
-      let r = Math.sqrt(w*w + h*h); let sides = type === 'pentagon' ? 5 : (type === 'hexagon' ? 6 : 5); let step = (Math.PI * 2) / sides;
+      let r = Math.sqrt(w*w + h*h);
+      let sides = type === 'pentagon' ? 5 : (type === 'hexagon' ? 6 : 5);
+      let step = (Math.PI * 2) / sides;
       for(let i=0; i<=sides; i++) {
-          let cx = x0 + r * Math.cos(i * step - Math.PI/2); let cy = y0 + r * Math.sin(i * step - Math.PI/2);
+          let cx = x0 + r * Math.cos(i * step - Math.PI/2);
+          let cy = y0 + r * Math.sin(i * step - Math.PI/2);
           if(type === 'star' && i<sides) {
-              let ix = x0 + (r/2.5) * Math.cos((i+0.5) * step - Math.PI/2); let iy = y0 + (r/2.5) * Math.sin((i+0.5) * step - Math.PI/2);
-              if(i===0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy); ctx.lineTo(ix, iy);
-          } else { if(i===0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy); }
+              let ix = x0 + (r/2.5) * Math.cos((i+0.5) * step - Math.PI/2);
+              let iy = y0 + (r/2.5) * Math.sin((i+0.5) * step - Math.PI/2);
+              if(i===0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+              ctx.lineTo(ix, iy);
+          } else {
+              if(i===0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+          }
       }
       ctx.closePath();
   }
   else if(type === 'cube') {
-      let d = Math.min(Math.abs(w), Math.abs(h)) * 0.4;
+      let d = Math.min(Math.abs(w), Math.abs(h)) * 0.4; 
       ctx.rect(x0, y0+d, w-d, h-d);
       ctx.moveTo(x0+d, y0); ctx.lineTo(x1, y0); ctx.lineTo(x1, y1-d); ctx.lineTo(x0+d, y1-d); ctx.closePath();
-      ctx.moveTo(x0, y0+d); ctx.lineTo(x0+d, y0); ctx.moveTo(x1-d, y0+d); ctx.lineTo(x1, y0); ctx.moveTo(x1-d, y1); ctx.lineTo(x1, y1-d); ctx.moveTo(x0, y1); ctx.lineTo(x0+d, y1-d);
+      ctx.moveTo(x0, y0+d); ctx.lineTo(x0+d, y0);
+      ctx.moveTo(x1-d, y0+d); ctx.lineTo(x1, y0);
+      ctx.moveTo(x1-d, y1); ctx.lineTo(x1, y1-d);
+      ctx.moveTo(x0, y1); ctx.lineTo(x0+d, y1-d);
   }
   else if(type === 'cylinder') {
-      let rX = Math.abs(w/2), rY = Math.abs(h * 0.15);
+      let rX = Math.abs(w/2);
+      let rY = Math.abs(h * 0.15); 
       ctx.ellipse(x0 + w/2, y0 + rY, rX, rY, 0, 0, 2 * Math.PI);
-      ctx.moveTo(x0, y1 - rY); ctx.ellipse(x0 + w/2, y1 - rY, rX, rY, 0, 0, Math.PI);
-      ctx.moveTo(x0, y0 + rY); ctx.lineTo(x0, y1 - rY); ctx.moveTo(x1, y0 + rY); ctx.lineTo(x1, y1 - rY);
+      ctx.moveTo(x0, y1 - rY);
+      ctx.ellipse(x0 + w/2, y1 - rY, rX, rY, 0, 0, Math.PI);
+      ctx.moveTo(x0, y0 + rY); ctx.lineTo(x0, y1 - rY);
+      ctx.moveTo(x1, y0 + rY); ctx.lineTo(x1, y1 - rY);
   }
   else if(type === 'cone') {
       let rX = Math.abs(w/2), rY = Math.abs(h * 0.15);
       ctx.ellipse(x0 + w/2, y1 - rY, rX, rY, 0, 0, 2 * Math.PI);
-      ctx.moveTo(x0 + w/2, y0); ctx.lineTo(x0, y1 - rY); ctx.moveTo(x0 + w/2, y0); ctx.lineTo(x1, y1 - rY);
+      ctx.moveTo(x0 + w/2, y0); ctx.lineTo(x0, y1 - rY);
+      ctx.moveTo(x0 + w/2, y0); ctx.lineTo(x1, y1 - rY);
   }
   else if(type === 'sphere') {
-      let r = Math.sqrt(w*w + h*h); ctx.arc(x0, y0, r, 0, 2*Math.PI);
+      let r = Math.sqrt(w*w + h*h);
+      ctx.arc(x0, y0, r, 0, 2*Math.PI);
       ctx.moveTo(x0-r, y0); ctx.ellipse(x0, y0, r, r*0.3, 0, 0, 2*Math.PI); 
   }
   
@@ -568,41 +597,43 @@ let wbLaserTimeout;
 canvas.addEventListener('mousedown', (e) => { 
   if (!canDraw) return; 
   if(currentTool === 'pointer') return; 
+  
+  const pt = getCanvasPoint(e);
+  
   if(currentTool === 'fill') {
-      floodFill(e.offsetX, e.offsetY, currentBrushColor, true);
+      floodFill(pt.x, pt.y, currentBrushColor, true);
       return;
   }
-  drawing = true; startX = e.offsetX; startY = e.offsetY; 
+  drawing = true; startX = pt.x; startY = pt.y; 
   canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
 });
-
 canvas.addEventListener('mousemove', (e) => {
   if (!canDraw) return;
+  const pt = getCanvasPoint(e);
+  
   if(currentTool === 'pointer') {
-      const rect = canvas.getBoundingClientRect();
-      socket.emit("wb-pointer", { room: currentRoom, x: e.offsetX / rect.width, y: e.offsetY / rect.height });
+      socket.emit("wb-pointer", { room: currentRoom, x: pt.x / canvas.width, y: pt.y / canvas.height });
       return;
   }
   if (!drawing || currentTool === 'fill') return;
 
   if(['pen', 'brush', 'spray', 'eraser'].includes(currentTool)) {
-      drawFreehand(startX, startY, e.offsetX, e.offsetY, currentBrushColor, currentBrushSize, currentTool, true);
-      startX = e.offsetX; startY = e.offsetY;
+      drawFreehand(startX, startY, pt.x, pt.y, currentBrushColor, currentBrushSize, currentTool, true);
+      startX = pt.x; startY = pt.y;
   } else {
       ctx.putImageData(canvasSnapshot, 0, 0);
-      drawShapeObj(startX, startY, e.offsetX, e.offsetY, currentTool, currentBrushColor, currentBrushSize, false);
+      drawShapeObj(startX, startY, pt.x, pt.y, currentTool, currentBrushColor, currentBrushSize, false);
   }
 });
-
 canvas.addEventListener('mouseup', (e) => { 
   if (!drawing || !canDraw || currentTool === 'pointer' || currentTool === 'fill') return; 
   drawing = false; 
+  const pt = getCanvasPoint(e);
   if(!['pen', 'brush', 'spray', 'eraser'].includes(currentTool)) {
-      drawShapeObj(startX, startY, e.offsetX, e.offsetY, currentTool, currentBrushColor, currentBrushSize, true);
+      drawShapeObj(startX, startY, pt.x, pt.y, currentTool, currentBrushColor, currentBrushSize, true);
   }
   ctx.shadowBlur = 0; 
 });
-
 canvas.addEventListener('mouseout', () => {
     drawing = false;
     if(currentTool === 'pointer' && canDraw) socket.emit("wb-pointer", { room: currentRoom, hide: true });
@@ -615,8 +646,11 @@ socket.on('drawing', (data) => {
 
 socket.on("wb-pointer", (data) => {
     if(data.hide) { wbLaser.style.display = "none"; return; }
-    wbLaser.style.display = "block"; wbLaser.style.left = (data.x * 100) + "%"; wbLaser.style.top = (data.y * 100) + "%";
-    clearTimeout(wbLaserTimeout); wbLaserTimeout = setTimeout(() => { wbLaser.style.display = "none"; }, 2000);
+    wbLaser.style.display = "block";
+    wbLaser.style.left = (data.x * 100) + "%";
+    wbLaser.style.top = (data.y * 100) + "%";
+    clearTimeout(wbLaserTimeout); 
+    wbLaserTimeout = setTimeout(() => { wbLaser.style.display = "none"; }, 2000);
 });
 
 document.getElementById('tool-pdf').addEventListener("click", () => document.getElementById('wbPdfUpload').click());
@@ -649,12 +683,7 @@ function drawWbImage(src, emit=false) {
         ctx.drawImage(img, x, y, w * scale, h * scale);
         
         if(emit) {
-            let sendSrc = src;
-            if(!src.startsWith("data:")) {
-                const tc = document.createElement("canvas"); tc.width=w; tc.height=h;
-                tc.getContext("2d").drawImage(img,0,0); sendSrc = tc.toDataURL();
-            }
-            socket.emit("wb-image", {room: currentRoom, image: sendSrc});
+            socket.emit("wb-image", {room: currentRoom, image: src});
         }
     };
     img.onerror = () => showNotification("Failed to load image.", "danger");
@@ -712,7 +741,7 @@ joinBtn.addEventListener("click", async () => {
     joined = true; currentRoom = roomId; joinSection.classList.add("form-out");
     setTimeout(() => {
       joinSection.style.display = "none"; workspace.classList.remove("hidden"); workspace.classList.add("workspace-active"); 
-      setTimeout(() => { resizeCanvas(); if(geoMap) geoMap.invalidateSize(); const localContainer = createLocalCard(userName); if (localTracks.videoTrack) localTracks.videoTrack.play(localContainer, { fit: "cover" }); }, 300);
+      setTimeout(() => { if(geoMap) geoMap.invalidateSize(); const localContainer = createLocalCard(userName); if (localTracks.videoTrack) localTracks.videoTrack.play(localContainer, { fit: "cover" }); }, 300);
     }, 500); 
     socket.emit("join-room", { room: roomId, uid: localUid, name: userName });
     showNotification(`You joined room ${roomId}`, "join"); appendMessage(`System: You joined room ${roomId}`);
@@ -724,7 +753,7 @@ socket.on("room-history", (data) => {
   if (data.chats) data.chats.forEach(chat => { if(chat.name === "System" && chat.text.includes("left")) return; appendMessage(`${chat.name}: ${chat.text}`); });
   if (data.files) [...data.files].reverse().forEach(file => addFileLink(file.filename, file.url));
   
-  if (data.wbVisible) { hideAllBigPanels(); whiteboardBox.style.display = "block"; setTimeout(resizeCanvas, 100); if(isHost) toggleWbBtn.dataset.show = "true"; }
+  if (data.wbVisible) { hideAllBigPanels(); whiteboardBox.style.display = "block"; if(isHost) toggleWbBtn.dataset.show = "true"; }
   if (data.mapVisible) { hideAllBigPanels(); mapBox.style.display = "block"; setTimeout(() => geoMap.invalidateSize(), 100); if(isHost) toggleMapBtn.dataset.show = "true"; }
   if (data.presVisible) { hideAllBigPanels(); presentationBox.style.display = "block"; if(isHost) togglePresBtn.dataset.show = "true"; }
   
