@@ -7,6 +7,8 @@
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -16,7 +18,6 @@
   <header>
     <div style="display: flex; justify-content: center; align-items: center; gap: 20px;">
       <img src="assets/Copilot_20260527_213114.png" alt="VYDEX Logo" style="width: 80px; height: 80px; object-fit: contain;">
-      
       <h1>VYDEX<sup style="font-size: 0.4em; vertical-align: top; margin-left: 5px;">™</sup></h1>
     </div>
     <h2>Advanced Collaboration & Communication</h2>
@@ -33,25 +34,35 @@
       
       <audio id="remoteMusicPlayer" style="display: none;" crossorigin="anonymous"></audio>
 
+      <div id="math-modal" class="card" style="display: none; position: fixed; top: 20%; left: 50%; transform: translateX(-50%); z-index: 9999; width: 450px; background: rgba(20,30,48,0.95); border: 2px solid var(--primary); box-shadow: 0 20px 50px rgba(0,0,0,0.8);">
+        <h3 style="margin-top: 0; color: var(--accent);">∑ Mathematics Board</h3>
+        <p style="font-size: 12px; color: var(--text-muted);">Type your equation (e.g., a^2 + b^2 = c^2)</p>
+        <input id="mathInput" placeholder="Type math formula here..." style="width: 100%; padding: 10px; border-radius: 8px; margin-bottom: 10px; box-sizing: border-box;">
+        <button id="broadcastMathBtn" style="background: var(--primary); color: white; border: none; padding: 10px; border-radius: 8px; width: 100%; cursor: pointer; font-weight: bold;">Broadcast Equation</button>
+        
+        <div id="mathDisplay" style="margin-top: 15px; background: white; color: black; padding: 15px; border-radius: 8px; min-height: 50px; text-align: center; font-size: 1.5rem; overflow-x: auto;">
+          </div>
+        <button id="closeMathBtn" style="background: var(--danger); color: white; border: none; padding: 8px; border-radius: 8px; width: 100%; cursor: pointer; margin-top: 10px;">Close Board</button>
+      </div>
+
       <section id="controls" class="card entry-animation delay-controls">
         <div class="control-row">
-          
           <button id="cameraBtn" title="Toggle Camera">📹</button>
           <button id="muteBtn" title="Toggle Microphone">🎙️</button>
-          
           <button id="shareBtn" title="Share Screen">Share Screen</button>
           
-          <button id="localMusicMuteBtn" title="Mute Host Music Locally" style="display: none; background: #9b59b6;">🎵🔇</button>
+          <button id="openMathBtn" title="Open Math Board" style="background: linear-gradient(135deg, #8e44ad, #9b59b6); color: white;">∑ Math</button>
           
+          <button id="localMusicMuteBtn" title="Mute Host Music Locally" style="display: none; background: #9b59b6;">🎵🔇</button>
           <button id="leaveBtn" title="Leave Room" style="background: linear-gradient(135deg, #e74c3c, #c0392b); color: white;">🚪➔</button>
           
           <button id="muteAllBtn" class="host-only-btn" title="Mute All Users" style="background: linear-gradient(135deg, #e67e22, #d35400); color: white; display: none;">🤫 All</button>
           <button id="unmuteAllBtn" class="host-only-btn" title="Unmute All Users" style="background: linear-gradient(135deg, #2ecc71, #27ae60); color: white; display: none;">🔊 All</button>
           
-          <button id="toggleMapBtn" class="host-only-btn" title="Show/Hide Interactive World Map" style="background: linear-gradient(135deg, #27ae60, #2ecc71); color: white; display: none;" data-show="false">🌍 Map</button>
+          <button id="toggleMapBtn" class="host-only-btn" title="Show/Hide Map" style="background: linear-gradient(135deg, #27ae60, #2ecc71); color: white; display: none;" data-show="false">🌍 Map</button>
+          <button id="toggleWbBtn" class="host-only-btn" title="Show/Hide Whiteboard" style="background: linear-gradient(135deg, #3498db, #2980b9); color: white; display: none;" data-show="false">🎨 Board</button>
           
-          <button id="toggleWbBtn" class="host-only-btn" title="Show/Hide Whiteboard for Everyone" style="background: linear-gradient(135deg, #3498db, #2980b9); color: white; display: none;" data-show="false">🎨 Board</button>
-          
+          <button id="togglePresBtn" class="host-only-btn" title="Show/Hide Presentation" style="background: linear-gradient(135deg, #f1c40f, #f39c12); color: white; display: none;" data-show="false">📊 Present</button>
         </div>
 
         <div id="hostAudioContainer" style="display: none; width: 100%; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
@@ -84,33 +95,46 @@
         </div>
       </section>
 
+      <section id="presentation-box" class="card" style="grid-column: 1 / -1; height: auto; min-height: 550px; display: none; position: relative;">
+        <h3>📊 VYDEX Business & Growth Presentation</h3>
+        
+        <div id="pres-input-form" class="host-only-btn" style="display: none; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 12px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center;">
+          <input id="presIndustry" placeholder="Industry (e.g. IT, Medical)" style="padding: 8px; border-radius: 6px; border: none; flex: 1; min-width: 150px;">
+          <input id="presBaseYear" type="number" placeholder="Base Year (e.g. 2024)" style="padding: 8px; border-radius: 6px; border: none; flex: 1; min-width: 120px;">
+          <input id="presBaseValue" type="number" placeholder="Current Value/Revenue" style="padding: 8px; border-radius: 6px; border: none; flex: 1; min-width: 150px;">
+          <input id="presGrowth" type="number" placeholder="Expected Growth %" style="padding: 8px; border-radius: 6px; border: none; flex: 1; min-width: 120px;">
+          <input id="presForecast" type="number" placeholder="Forecast Years" style="padding: 8px; border-radius: 6px; border: none; flex: 1; min-width: 120px;">
+          <button id="generateGraphBtn" style="background: var(--accent); color: #000; font-weight: bold; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">Generate & Broadcast</button>
+        </div>
+
+        <h4 id="pres-title" style="text-align: center; color: var(--accent); margin: 0 0 10px 0;">Awaiting Data...</h4>
+        
+        <div id="presentation-container" style="position: relative; width: 100%; height: 400px; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: inset 0 5px 15px rgba(0,0,0,0.1); cursor: crosshair;">
+          <canvas id="presentationCanvas"></canvas>
+          
+          <div id="laser-pointer" style="position: absolute; width: 18px; height: 18px; background: red; border-radius: 50%; box-shadow: 0 0 10px red, 0 0 20px red; pointer-events: none; display: none; transform: translate(-50%, -50%); z-index: 100;"></div>
+        </div>
+      </section>
+
       <section id="whiteboard-box" class="card" style="grid-column: 1 / -1; height: 550px; display: none;">
         <h3>🎨 VYDEX Whiteboard <span id="wb-status" style="font-size:12px; color:var(--accent); font-weight:400; margin-left: 10px;">(View Only)</span></h3>
-        
         <div id="whiteboard-container" style="position: relative; width: 100%; height: 450px; background: #fdfdfd; border-radius: 12px; overflow: hidden; box-shadow: inset 0 5px 15px rgba(0,0,0,0.1);">
           <canvas id="whiteboard" style="width: 100%; height: 100%; cursor: not-allowed; display: block;"></canvas>
-          
-          <div id="wb-toolbar" style="display: none; position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); background: rgba(20, 20, 20, 0.9); padding: 12px 25px; border-radius: 30px; gap: 15px; align-items: center; z-index: 20; box-shadow: 0 15px 30px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2);">
-            <input type="color" id="wb-color" value="#000000" style="cursor: pointer; width: 35px; height: 35px; border: 2px solid white; border-radius: 50%; padding:0; background:transparent;" title="Choose Color">
-            <input type="range" id="wb-size" min="1" max="20" value="3" style="width: 100px; cursor: pointer;" title="Brush Size">
-            <button id="wb-eraser" class="icon-btn" style="font-size: 18px; padding: 6px 12px;" title="Eraser">🧽</button>
-            <button id="wb-clear" class="icon-btn" style="background: var(--danger); font-size: 18px; padding: 6px 12px;" title="Clear Board">🗑️</button>
+          <div id="wb-toolbar" style="display: none; position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); background: rgba(20, 20, 20, 0.9); padding: 12px 25px; border-radius: 30px; gap: 15px; align-items: center; z-index: 20;">
+            <input type="color" id="wb-color" value="#000000" style="cursor: pointer; width: 35px; height: 35px; border: 2px solid white; border-radius: 50%; padding:0; background:transparent;">
+            <input type="range" id="wb-size" min="1" max="20" value="3" style="width: 100px; cursor: pointer;">
+            <button id="wb-eraser" class="icon-btn" style="font-size: 18px; padding: 6px 12px;">🧽</button>
+            <button id="wb-clear" class="icon-btn" style="background: var(--danger); font-size: 18px; padding: 6px 12px;">🗑️</button>
           </div>
         </div>
       </section>
 
-      <!-- Interactive World Map Box (UPDATED ADVANCED MAP) -->
       <section id="map-box" class="card" style="grid-column: 1 / -1; height: 550px; display: none; position: relative;">
-        <h3>🌍 VYDEX Geography Explorer (Satellite Map)</h3>
-        
-        <!-- NAYA: Modern Floating Buttons for Map Controls -->
+        <h3>🌍 VYDEX Geography Explorer</h3>
         <div style="position: absolute; top: 80px; right: 30px; z-index: 1000; display: flex; flex-direction: column; gap: 15px;">
-          <button id="toggleLabelsBtn" title="Toggle Place Names (ON/OFF)" style="background: var(--primary); color: white; border: 2px solid white; border-radius: 50%; width: 50px; height: 50px; cursor: pointer; font-size: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.6); transition: transform 0.2s;">🏷️</button>
-          
-          <button id="screenshotMapBtn" title="Take Map Screenshot" style="background: var(--accent-dark); color: white; border: 2px solid white; border-radius: 50%; width: 50px; height: 50px; cursor: pointer; font-size: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.6); transition: transform 0.2s;">📸</button>
+          <button id="toggleLabelsBtn" title="Toggle Place Names (ON/OFF)" style="background: var(--primary); color: white; border: 2px solid white; border-radius: 50%; width: 50px; height: 50px; cursor: pointer; font-size: 20px;">🏷️</button>
+          <button id="screenshotMapBtn" title="Take Map Screenshot" style="background: var(--accent-dark); color: white; border: 2px solid white; border-radius: 50%; width: 50px; height: 50px; cursor: pointer; font-size: 20px;">📸</button>
         </div>
-
-        <!-- Leaflet Map Container -->
         <div id="map-container" style="width: 100%; height: 450px; border-radius: 12px; overflow: hidden; box-shadow: inset 0 5px 15px rgba(0,0,0,0.1); z-index: 1;"></div>
       </section>
 
@@ -125,18 +149,13 @@
   </footer>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.0.js"></script>
-  <script src="/socket.io/socket.io.js"></script>
-  <!-- NAYA: Interactive World Map JS (Leaflet) -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <!-- NAYA: Screenshot lene ke liye library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
 
   <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.0.js"></script>
   <script src="/socket.io/socket.io.js"></script>
-  <script src="script.js"></script>
-</body>
   <script src="script.js"></script>
 </body>
 </html>

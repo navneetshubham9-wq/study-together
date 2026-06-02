@@ -38,7 +38,9 @@ const socketUsers = new Map();
 const roomChats = new Map();
 const roomFiles = new Map();
 const roomWbState = new Map();
-const roomMapState = new Map(); // NAYA: Map ki state save rakhne ke liye
+const roomMapState = new Map();
+const roomPresState = new Map(); // Presentation window visibility
+const roomChartData = new Map(); // Latest chart data save karne ke liye
 
 // File Upload Route
 app.post("/upload", upload.single("file"), (req, res) => {
@@ -48,9 +50,7 @@ app.post("/upload", upload.single("file"), (req, res) => {
   const uploader = req.body.uploader || "Host";
   
   if (room) {
-    if (!roomFiles.has(room)) {
-      roomFiles.set(room, []);
-    }
+    if (!roomFiles.has(room)) roomFiles.set(room, []);
     roomFiles.get(room).push({ filename, url, uploader });
     io.to(room).emit("file-uploaded", { filename, url, uploader });
   }
@@ -67,7 +67,6 @@ io.on("connection", socket => {
     socketUsers.set(socket.id, { uid, name, room });
     uidToSocket.set(uid.toString(), socket.id);
 
-    // Assign Host
     if (!roomHosts.has(room) || roomHosts.get(room) === null) {
       roomHosts.set(room, socket.id);
       socket.emit("host-assignment", { isHost: true });
@@ -75,12 +74,14 @@ io.on("connection", socket => {
       socket.emit("host-assignment", { isHost: false });
     }
     
-    // Send Old History
+    // Send Old History to new joined user
     socket.emit("room-history", { 
       chats: roomChats.get(room) || [], 
       files: roomFiles.get(room) || [],
       wbVisible: roomWbState.get(room) || false,
-      mapVisible: roomMapState.get(room) || false // Naya user join karega toh use bhi map dikhega
+      mapVisible: roomMapState.get(room) || false,
+      presVisible: roomPresState.get(room) || false,
+      chartData: roomChartData.get(room) || null
     });
 
     socket.to(room).emit("user-joined", { uid, name });
@@ -89,68 +90,54 @@ io.on("connection", socket => {
     io.to(room).emit("room-update", { size: roomSize });
   });
 
-  // Global Controls
-  socket.on("control", data => {
-    io.to(data.room).emit("control", data);
-  });
-  
-  // Whiteboard Enable/Disable
-  socket.on("wb-toggle", data => {
-    roomWbState.set(data.room, data.show);
-    io.to(data.room).emit("wb-toggle", data);
+  socket.on("control", data => io.to(data.room).emit("control", data));
+  socket.on("wb-toggle", data => { roomWbState.set(data.room, data.show); io.to(data.room).emit("wb-toggle", data); });
+  socket.on("map-toggle", data => { roomMapState.set(data.room, data.show); io.to(data.room).emit("map-toggle", data); });
+  socket.on("wb-control", data => io.to(data.room).emit("wb-control", data));
+
+  // --- NAYA: Presentation & Math Logic ---
+  socket.on("pres-toggle", data => {
+    roomPresState.set(data.room, data.show);
+    io.to(data.room).emit("pres-toggle", data);
   });
 
-  // NAYA: Map Enable/Disable
-  socket.on("map-toggle", data => {
-    roomMapState.set(data.room, data.show);
-    io.to(data.room).emit("map-toggle", data);
-  });
-  
-  // Whiteboard Access Permissions
-  socket.on("wb-control", data => {
-    io.to(data.room).emit("wb-control", data);
+  socket.on("presentation-data", data => {
+    roomChartData.set(data.room, data.chartConfig);
+    io.to(data.room).emit("presentation-data", data);
   });
 
-  // Chat Sync
+  socket.on("laser-pointer", data => {
+    // Only send to others, not the host themselves
+    socket.to(data.room).emit("laser-pointer", data);
+  });
+
+  socket.on("math-equation", data => {
+    io.to(data.room).emit("math-equation", data);
+  });
+  // ---------------------------------------
+
   socket.on("chat-message", data => {
-    if (!roomChats.has(data.room)) {
-      roomChats.set(data.room, []);
-    }
+    if (!roomChats.has(data.room)) roomChats.set(data.room, []);
     roomChats.get(data.room).push({ name: data.name, text: data.text });
     io.to(data.room).emit("chat-message", data);
   });
 
-  // Whiteboard Drawing Sync
-  socket.on("drawing", (data) => {
-    socket.to(data.room).emit("drawing", data);
-  });
-  
-  socket.on("clear-whiteboard", (data) => {
-    socket.to(data.room).emit("clear-whiteboard");
-  });
+  socket.on("drawing", data => socket.to(data.room).emit("drawing", data));
+  socket.on("clear-whiteboard", data => socket.to(data.room).emit("clear-whiteboard"));
 
-  // Leave and Disconnect Handlers
   socket.on("leave-room", () => handleUserLeave(socket.id));
   socket.on("disconnecting", () => handleUserLeave(socket.id));
 
   function handleUserLeave(socketId) {
     const user = socketUsers.get(socketId);
-    
     if (user) {
       io.to(user.room).emit("user-left", { uid: user.uid, name: user.name });
-      
       const leaveMsg = { name: "System", text: `${user.name} left the room` };
-      
-      if (!roomChats.has(user.room)) {
-        roomChats.set(user.room, []);
-      }
-      
+      if (!roomChats.has(user.room)) roomChats.set(user.room, []);
       roomChats.get(user.room).push(leaveMsg);
       io.to(user.room).emit("chat-message", leaveMsg);
 
-      if (roomHosts.get(user.room) === socketId) {
-        roomHosts.set(user.room, null);
-      }
+      if (roomHosts.get(user.room) === socketId) roomHosts.set(user.room, null);
 
       socketUsers.delete(socketId);
       uidToSocket.delete(user.uid.toString());
