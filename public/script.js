@@ -387,14 +387,13 @@ const subjectAssets = {
 const subjectCategory = document.getElementById("subjectCategory");
 const subjectAssetsList = document.getElementById("subjectAssetsList");
 
-// --- TRIPLE PROXY ENGINE FOR 100% ASSET LOADING & CORS FIX ---
+// ==========================================
+// 🚀 NAYA: 100% BULLETPROOF ASSET LOADER
+// Tumhara local server proxy CORS ko hamesha ke liye bypass kar dega
+// ==========================================
 function prepareStamp(src) {
     const img = new Image();
-    
-    // YAHI THA ASLI CULPRIT! Agar Base64 hai toh Anonymous hatana padta hai.
-    if (!src.startsWith("data:")) {
-        img.crossOrigin = "Anonymous";
-    }
+    img.crossOrigin = "Anonymous";
     
     img.onload = () => {
         stampImage = img;
@@ -404,41 +403,20 @@ function prepareStamp(src) {
         currentTool = 'stamp';
         document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active-tool'));
         
-        showNotification("🖱️ Scroll to Resize. Click to Stamp!", "info");
+        showNotification("🖱️ ✅ Ready! Click anywhere on board to paste.", "join");
         canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); 
     };
-    img.onerror = () => showNotification("Image failed to load. Try again.", "danger");
+    img.onerror = () => showNotification("Error decoding image data.", "danger");
     img.src = src;
 }
 
-async function loadAssetToCanvas(url, name) {
+function loadAssetToCanvas(url, name) {
     showNotification(`Downloading ${name}...`, "info");
-    
-    // NAYA: Triple Fallback Proxy System. Ek fail hoga toh dusra chalega.
-    const proxies = [
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-        `https://wsrv.nl/?url=${encodeURIComponent(url)}&output=png`,
-        `https://corsproxy.io/?url=${encodeURIComponent(url)}`
-    ];
-
-    for (let i = 0; i < proxies.length; i++) {
-        try {
-            const response = await fetch(proxies[i]);
-            if (!response.ok) throw new Error("Proxy failed");
-            
-            const blob = await response.blob();
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                prepareStamp(reader.result); // Base64 jata hai, jo kabhi block nahi hoga
-            };
-            reader.readAsDataURL(blob);
-            return; // Success! exit loop
-        } catch (e) {
-            console.warn(`Proxy ${i+1} failed for ${name}`);
-        }
-    }
-    showNotification(`Failed to load ${name} after 3 attempts.`, "danger");
+    // Directly request from our safe server.js proxy
+    const safeProxyUrl = `/proxy-image?url=${encodeURIComponent(url)}`;
+    prepareStamp(safeProxyUrl);
 }
+// ==========================================
 
 function loadSubjectAssets(cat) {
     subjectAssetsList.innerHTML = "";
@@ -463,7 +441,6 @@ document.querySelectorAll('.tool-btn').forEach(btn => {
         currentTool = btn.id.replace('tool-', ''); 
         wbShapesMenu.style.display = "none"; 
         
-        // Cancel Stamp mode if other tool selected
         if(isStamping) {
             isStamping = false;
             if(canvasSnapshot) ctx.putImageData(canvasSnapshot, 0, 0); 
@@ -634,7 +611,7 @@ canvas.addEventListener('mousedown', (e) => {
       currentTool = 'pen';
       document.getElementById('tool-pen').classList.add('active-tool');
       canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      showNotification("Stamped successfully!", "join");
+      showNotification("Asset Stamped successfully!", "join");
       return;
   }
 
@@ -713,32 +690,6 @@ document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
   };
   fileReader.readAsArrayBuffer(file);
 });
-
-function drawWbImage(src, emit=false) {
-    const img = new Image(); 
-    if(!src.startsWith("data:")) img.crossOrigin = "Anonymous";
-    img.onload = () => {
-        let w = img.width, h = img.height;
-        let scale = Math.min(canvas.width / w, canvas.height / h) * 0.9; 
-        if(scale > 1) scale = 1; 
-        let drawW = w * scale; let drawH = h * scale;
-        let x = (canvas.width - drawW) / 2; let y = (canvas.height - drawH) / 2;
-        ctx.drawImage(img, x, y, drawW, drawH);
-        
-        if(emit) {
-            let sendSrc = src;
-            if(src.startsWith("data:")) {
-                const tc = document.createElement("canvas"); tc.width = drawW; tc.height = drawH;
-                tc.getContext("2d").drawImage(img, 0, 0, drawW, drawH);
-                sendSrc = tc.toDataURL("image/jpeg", 0.6); 
-            }
-            socket.emit("wb-image", {room: currentRoom, image: sendSrc});
-        }
-    };
-    img.onerror = () => showNotification("Failed to load image.", "danger");
-    img.src = src;
-}
-socket.on("wb-image", (data) => drawWbImage(data.image, false));
 
 // ---------- INITIALIZE LEAFLET WORLD MAP ----------
 function initWorldMap() {

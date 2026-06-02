@@ -1,17 +1,16 @@
 const express = require("express");
 const http = require("http");
+const https = require("https"); // NAYA: Secure proxy fetch ke liye
 const path = require("path");
 const multer = require("multer");
 const { Server } = require("socket.io");
 const fs = require("fs");
-const https = require("https"); // NAYA: Image Proxy ke liye
 
 const app = express();
 const server = http.createServer(app);
-// Increase Socket Payload limit from 1MB to 10MB just to be safe
+// Payload size increased to 10MB to prevent crashes
 const io = new Server(server, { maxHttpBufferSize: 1e7 }); 
 
-// Upload Directory Setup
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, "uploads");
 const PORT = process.env.PORT || 3000;
 
@@ -19,7 +18,6 @@ if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
-// Multer Storage Configuration
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename: (req, file, cb) => {
@@ -29,7 +27,6 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Express Middlewares
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(UPLOAD_DIR));
 
@@ -44,29 +41,36 @@ const roomMapState = new Map();
 const roomPresState = new Map(); 
 const roomChartData = new Map(); 
 
-// NAYA: Internal Image Proxy to bypass CORS completely
+// ==========================================
+// 🚀 NAYA: VYDEX INTERNAL IMAGE PROXY 
+// Ye kisi bhi browser CORS block ko bypass kar dega!
+// ==========================================
 app.get("/proxy-image", (req, res) => {
   const imgUrl = req.query.url;
-  if(!imgUrl) return res.status(400).send("URL required");
-  
-  const options = { headers: { 'User-Agent': 'Mozilla/5.0' } };
-  
-  const fetchImage = (url) => {
-      https.get(url, options, (response) => {
-          // Handle redirects (Wikipedia uses them often)
-          if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-              fetchImage(response.headers.location);
-          } else {
-              res.setHeader('Access-Control-Allow-Origin', '*');
-              res.setHeader('Content-Type', response.headers['content-type'] || 'image/png');
-              response.pipe(res);
-          }
-      }).on('error', () => {
-          res.status(500).send("Error fetching image");
-      });
+  if (!imgUrl) return res.status(400).send("URL required");
+
+  const fetchImage = (targetUrl) => {
+    const client = targetUrl.startsWith("https") ? https : http;
+    client.get(targetUrl, { headers: { "User-Agent": "VYDEX-App/1.0" } }, (response) => {
+      // Handle Redirects (Wikipedia karta hai aisa)
+      if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+        let redirectUrl = response.headers.location;
+        if (!redirectUrl.startsWith("http")) redirectUrl = new URL(redirectUrl, targetUrl).href;
+        fetchImage(redirectUrl);
+      } else {
+        // Bypass CORS Header
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("Content-Type", response.headers["content-type"] || "image/png");
+        response.pipe(res);
+      }
+    }).on("error", (err) => {
+      res.status(500).send("Failed to fetch image");
+    });
   };
+
   fetchImage(imgUrl);
 });
+// ==========================================
 
 // File Upload Route
 app.post("/upload", upload.single("file"), (req, res) => {
