@@ -99,9 +99,19 @@
         </div>
       </section>
 
-      <section id="map-box" class="card" style="grid-column: 1 / -1; height: 550px; display: none;">
+      <!-- Interactive World Map Box (UPDATED ADVANCED MAP) -->
+      <section id="map-box" class="card" style="grid-column: 1 / -1; height: 550px; display: none; position: relative;">
         <h3>🌍 VYDEX Geography Explorer (Satellite Map)</h3>
-        <div id="map-container" style="width: 100%; height: 450px; border-radius: 12px; overflow: hidden; box-shadow: inset 0 5px 15px rgba(0,0,0,0.1);"></div>
+        
+        <!-- NAYA: Modern Floating Buttons for Map Controls -->
+        <div style="position: absolute; top: 80px; right: 30px; z-index: 1000; display: flex; flex-direction: column; gap: 15px;">
+          <button id="toggleLabelsBtn" title="Toggle Place Names (ON/OFF)" style="background: var(--primary); color: white; border: 2px solid white; border-radius: 50%; width: 50px; height: 50px; cursor: pointer; font-size: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.6); transition: transform 0.2s;">🏷️</button>
+          
+          <button id="screenshotMapBtn" title="Take Map Screenshot" style="background: var(--accent-dark); color: white; border: 2px solid white; border-radius: 50%; width: 50px; height: 50px; cursor: pointer; font-size: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.6); transition: transform 0.2s;">📸</button>
+        </div>
+
+        <!-- Leaflet Map Container -->
+        <div id="map-container" style="width: 100%; height: 450px; border-radius: 12px; overflow: hidden; box-shadow: inset 0 5px 15px rgba(0,0,0,0.1); z-index: 1;"></div>
       </section>
 
     </div> 
@@ -118,6 +128,15 @@
 
   <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.0.js"></script>
   <script src="/socket.io/socket.io.js"></script>
+  <!-- NAYA: Interactive World Map JS (Leaflet) -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- NAYA: Screenshot lene ke liye library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.0.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="script.js"></script>
+</body>
   <script src="script.js"></script>
 </body>
 </html>

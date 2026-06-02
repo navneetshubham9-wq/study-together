@@ -65,8 +65,82 @@ const wbClear = document.getElementById('wb-clear');
 // Map Elements
 const mapBox = document.getElementById("map-box");
 const mapContainer = document.getElementById("map-container");
-let geoMap; // Leaflet map instance
+const toggleLabelsBtn = document.getElementById("toggleLabelsBtn"); // Naya Button
+const screenshotMapBtn = document.getElementById("screenshotMapBtn"); // Naya Button
+
+let geoMap; 
+let labelsLayer; // Labels (Naam) ki layer
+let labelsVisible = true; // By default naam dikhenge
 let drawing = false;
+
+// ---------- INITIALIZE LEAFLET WORLD MAP (ADVANCED) ----------
+function initWorldMap() {
+  // Map Setup karo
+  geoMap = L.map('map-container', {
+    center: [20.0, 0.0],
+    zoom: 3,
+    zoomControl: false // Default zoom buttons hide kiye
+  });
+
+  // Zoom buttons ko niche left me move kiya taaki hamare naye buttons se na takrayen
+  L.control.zoom({ position: 'bottomleft' }).addTo(geoMap);
+
+  // 1. Base Satellite Layer (Zameen, Pani, Jungle)
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: '&copy; Esri, Maxar, Earthstar Geographics',
+    crossOrigin: true
+  }).addTo(geoMap);
+
+  // 2. Labels Layer (Desh, Shehar aur Borders ke naam - Google Earth Style)
+  labelsLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+    pane: 'markerPane', // Ensures labels always stay on top
+    crossOrigin: true
+  }).addTo(geoMap);
+}
+initWorldMap();
+
+// ---------- MAP FLOATING BUTTONS LOGIC ----------
+
+// Labels (Naam) ON/OFF karne ka button
+if (toggleLabelsBtn) {
+  toggleLabelsBtn.addEventListener("click", () => {
+    labelsVisible = !labelsVisible;
+    if (labelsVisible) {
+      geoMap.addLayer(labelsLayer);
+      toggleLabelsBtn.style.background = "var(--primary)";
+      showNotification("🌍 Map Labels: ON", "info");
+    } else {
+      geoMap.removeLayer(labelsLayer);
+      toggleLabelsBtn.style.background = "var(--danger)"; // Band hone par lal ho jayega
+      showNotification("🌍 Map Labels: OFF", "danger");
+    }
+  });
+}
+
+// Map ka Screenshot lene ka button
+if (screenshotMapBtn) {
+  screenshotMapBtn.addEventListener("click", () => {
+    showNotification("📸 Capturing Map Screenshot...", "info");
+    
+    if (window.html2canvas) {
+      html2canvas(document.getElementById("map-container"), { 
+        useCORS: true, // Cross-Origin map tiles allow karne ke liye
+        allowTaint: true 
+      }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = `VYDEX_Geography_${Date.now()}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        showNotification("✅ Screenshot Downloaded!", "join");
+      }).catch(err => {
+        showNotification("❌ Screenshot Failed. Try again.", "danger");
+        console.error(err);
+      });
+    } else {
+      showNotification("❌ Screenshot Library Loading...", "danger");
+    }
+  });
+}
 
 // ---------- NOTIFICATION HELPER ----------
 function showNotification(message, type = 'info') {
