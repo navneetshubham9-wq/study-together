@@ -12,6 +12,7 @@ let isSharing = false;
 const remoteUsers = {}; 
 let currentMusicUrl = null;
 
+// DOM Elements
 const joinBtn = document.getElementById("joinBtn");
 const joinSection = document.getElementById("join-section"); 
 const workspace = document.getElementById("workspace"); 
@@ -27,12 +28,14 @@ const muteAllBtn = document.getElementById("muteAllBtn");
 const unmuteAllBtn = document.getElementById("unmuteAllBtn");
 const localMusicMuteBtn = document.getElementById("localMusicMuteBtn"); 
 
+// Panel Toggles
 const toggleWbBtn = document.getElementById("toggleWbBtn"); 
 const toggleMapBtn = document.getElementById("toggleMapBtn"); 
 const togglePresBtn = document.getElementById("togglePresBtn"); 
 const openMathBtn = document.getElementById("openMathBtn"); 
 const toggleCalcBtn = document.getElementById("toggleCalcBtn"); 
 
+// Chat & Files
 const sendMsgBtn = document.getElementById("sendMsg");
 const chatInput = document.getElementById("chatInput");
 const messages = document.getElementById("messages");
@@ -83,7 +86,7 @@ const mathDisplay = document.getElementById("mathDisplay");
 const mathCategory = document.getElementById("mathCategory");
 const formulaLibrary = document.getElementById("formulaLibrary");
 
-// Presentation
+// Presentation & Graph
 const presentationBox = document.getElementById("presentation-box");
 const presInputForm = document.getElementById("pres-input-form");
 const generateGraphBtn = document.getElementById("generateGraphBtn");
@@ -128,7 +131,7 @@ let drawing = false;
 let startX = 0; let startY = 0;
 let canvasSnapshot; 
 
-// STAMP STATE (For PDF and Assets)
+// STAMP STATE
 let stampImage = null;
 let stampScale = 1.0;
 let isStamping = false;
@@ -384,13 +387,17 @@ const subjectAssets = {
 const subjectCategory = document.getElementById("subjectCategory");
 const subjectAssetsList = document.getElementById("subjectAssetsList");
 
-// --- RESIZE AND STAMP PREVIEW LOGIC ---
+// --- TRIPLE PROXY ENGINE FOR 100% ASSET LOADING & CORS FIX ---
 function prepareStamp(src) {
     const img = new Image();
-    img.crossOrigin = "Anonymous";
+    
+    // YAHI THA ASLI CULPRIT! Agar Base64 hai toh Anonymous hatana padta hai.
+    if (!src.startsWith("data:")) {
+        img.crossOrigin = "Anonymous";
+    }
+    
     img.onload = () => {
         stampImage = img;
-        // Smart Scaling: Calculate scale to fit perfectly on canvas without being too huge
         stampScale = Math.min((canvas.width * 0.6) / img.width, (canvas.height * 0.6) / img.height);
         
         isStamping = true;
@@ -404,21 +411,33 @@ function prepareStamp(src) {
     img.src = src;
 }
 
-// Asset Loading using powerful corsproxy.io
 async function loadAssetToCanvas(url, name) {
-    try {
-        showNotification(`Downloading ${name}...`, "info");
-        const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(url)}`;
-        const response = await fetch(proxyUrl);
-        if(!response.ok) throw new Error("CORS Proxy Blocked");
-        
-        const blob = await response.blob();
-        const reader = new FileReader();
-        reader.onloadend = () => { prepareStamp(reader.result); };
-        reader.readAsDataURL(blob);
-    } catch(e) {
-        showNotification(`Failed to load ${name}.`, "danger");
+    showNotification(`Downloading ${name}...`, "info");
+    
+    // NAYA: Triple Fallback Proxy System. Ek fail hoga toh dusra chalega.
+    const proxies = [
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        `https://wsrv.nl/?url=${encodeURIComponent(url)}&output=png`,
+        `https://corsproxy.io/?url=${encodeURIComponent(url)}`
+    ];
+
+    for (let i = 0; i < proxies.length; i++) {
+        try {
+            const response = await fetch(proxies[i]);
+            if (!response.ok) throw new Error("Proxy failed");
+            
+            const blob = await response.blob();
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                prepareStamp(reader.result); // Base64 jata hai, jo kabhi block nahi hoga
+            };
+            reader.readAsDataURL(blob);
+            return; // Success! exit loop
+        } catch (e) {
+            console.warn(`Proxy ${i+1} failed for ${name}`);
+        }
     }
+    showNotification(`Failed to load ${name} after 3 attempts.`, "danger");
 }
 
 function loadSubjectAssets(cat) {
@@ -447,7 +466,7 @@ document.querySelectorAll('.tool-btn').forEach(btn => {
         // Cancel Stamp mode if other tool selected
         if(isStamping) {
             isStamping = false;
-            if(canvasSnapshot) ctx.putImageData(canvasSnapshot, 0, 0); // Remove ghost
+            if(canvasSnapshot) ctx.putImageData(canvasSnapshot, 0, 0); 
         }
     });
 });
@@ -471,7 +490,6 @@ function getCanvasPoint(e) {
     return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
 }
 
-// NAYA: Wheel to resize STAMP
 canvas.addEventListener('wheel', (e) => {
     if (isStamping && stampImage) {
         e.preventDefault(); 
@@ -601,13 +619,11 @@ canvas.addEventListener('mousedown', (e) => {
   const pt = getCanvasPoint(e);
 
   if (isStamping && stampImage) {
-      // 1. FINAL STAMPING PROCESS
       ctx.putImageData(canvasSnapshot, 0, 0); 
       let w = stampImage.width * stampScale;
       let h = stampImage.height * stampScale;
       ctx.drawImage(stampImage, pt.x - w/2, pt.y - h/2, w, h);
       
-      // Emit stamped image
       let tempCanvas = document.createElement("canvas");
       tempCanvas.width = w; tempCanvas.height = h;
       tempCanvas.getContext("2d").drawImage(stampImage, 0, 0, w, h);
@@ -633,7 +649,6 @@ canvas.addEventListener('mousemove', (e) => {
   const pt = getCanvasPoint(e);
 
   if (isStamping && stampImage) {
-      // 2. SHOW GHOST PREVIEW WHILE MOVING
       ctx.putImageData(canvasSnapshot, 0, 0);
       let w = stampImage.width * stampScale;
       let h = stampImage.height * stampScale;
@@ -691,7 +706,6 @@ document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
   const fileReader = new FileReader();
   fileReader.onload = async function() {
       const typedarray = new Uint8Array(this.result); const pdf = await pdfjsLib.getDocument(typedarray).promise; const page = await pdf.getPage(1); 
-      // Render at high resolution, let user resize before stamping
       const viewport = page.getViewport({scale: 2.0}); 
       const tc = document.createElement('canvas'); const tCtx = tc.getContext('2d'); tc.height = viewport.height; tc.width = viewport.width;
       await page.render({canvasContext: tCtx, viewport: viewport}).promise; 
@@ -700,6 +714,31 @@ document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
   fileReader.readAsArrayBuffer(file);
 });
 
+function drawWbImage(src, emit=false) {
+    const img = new Image(); 
+    if(!src.startsWith("data:")) img.crossOrigin = "Anonymous";
+    img.onload = () => {
+        let w = img.width, h = img.height;
+        let scale = Math.min(canvas.width / w, canvas.height / h) * 0.9; 
+        if(scale > 1) scale = 1; 
+        let drawW = w * scale; let drawH = h * scale;
+        let x = (canvas.width - drawW) / 2; let y = (canvas.height - drawH) / 2;
+        ctx.drawImage(img, x, y, drawW, drawH);
+        
+        if(emit) {
+            let sendSrc = src;
+            if(src.startsWith("data:")) {
+                const tc = document.createElement("canvas"); tc.width = drawW; tc.height = drawH;
+                tc.getContext("2d").drawImage(img, 0, 0, drawW, drawH);
+                sendSrc = tc.toDataURL("image/jpeg", 0.6); 
+            }
+            socket.emit("wb-image", {room: currentRoom, image: sendSrc});
+        }
+    };
+    img.onerror = () => showNotification("Failed to load image.", "danger");
+    img.src = src;
+}
+socket.on("wb-image", (data) => drawWbImage(data.image, false));
 
 // ---------- INITIALIZE LEAFLET WORLD MAP ----------
 function initWorldMap() {
