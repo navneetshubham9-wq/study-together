@@ -408,13 +408,76 @@ socket.on("laser-pointer", (data) => {
 function resizeCanvas() { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; }
 window.addEventListener('resize', () => { resizeCanvas(); if(geoMap && mapBox.style.display !== "none") geoMap.invalidateSize(); });
 
+// Modals Toggle Logic
+const toggleShapesBtn = document.getElementById("toggleShapesBtn");
+const wbShapesMenu = document.getElementById("wb-shapes-menu");
+const toggleSubjectsBtn = document.getElementById("toggleSubjectsBtn");
+const wbSubjectsMenu = document.getElementById("wb-subjects-menu");
+
+toggleShapesBtn.addEventListener("click", () => {
+    wbShapesMenu.style.display = wbShapesMenu.style.display === "none" ? "block" : "none";
+    wbSubjectsMenu.style.display = "none"; // Hide other menu
+});
+
+toggleSubjectsBtn.addEventListener("click", () => {
+    wbSubjectsMenu.style.display = wbSubjectsMenu.style.display === "none" ? "block" : "none";
+    wbShapesMenu.style.display = "none";
+});
+
+// Subject Assets Library Data
+const subjectAssets = {
+    geography: [
+        {name: "World Map (Outline)", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/World_map_-_low_resolution.svg/1024px-World_map_-_low_resolution.svg.png"},
+        {name: "India Political Map", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/India_political_map_en.svg/800px-India_political_map_en.svg.png"},
+        {name: "India Physical Map", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/India_relief_map.svg/800px-India_relief_map.svg.png"},
+        {name: "India Seismic Zones", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/India_earthquake_zone_map_en.svg/800px-India_earthquake_zone_map_en.svg.png"}
+    ],
+    biology: [
+        {name: "Human Heart (Labeled)", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Diagram_of_the_human_heart_%28cropped%29.svg/800px-Diagram_of_the_human_heart_%28cropped%29.svg.png"},
+        {name: "Human Brain", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Gehirn%2C_lateral_-_Glia_Hauptst%C3%A4mme_deutsch.svg/800px-Gehirn%2C_lateral_-_Glia_Hauptst%C3%A4mme_deutsch.svg.png"},
+        {name: "Plant Cell Structure", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Plant_cell_structure_svg.svg/800px-Plant_cell_structure_svg.svg.png"}
+    ],
+    chemistry: [
+        {name: "Periodic Table", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Periodic_table_large.svg/1024px-Periodic_table_large.svg.png"}
+    ],
+    physics: [
+        {name: "DC Motor Circuit", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/DC_motor.svg/800px-DC_motor.svg.png"}
+    ],
+    maths: [
+        {name: "Graph Paper Grid", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Graph_paper_mm_A4.svg/800px-Graph_paper_mm_A4.svg.png"}
+    ]
+};
+
+const subjectCategory = document.getElementById("subjectCategory");
+const subjectAssetsList = document.getElementById("subjectAssetsList");
+
+function loadSubjectAssets(cat) {
+    subjectAssetsList.innerHTML = "";
+    subjectAssets[cat].forEach(asset => {
+        const btn = document.createElement("button");
+        btn.textContent = "➕ Insert " + asset.name;
+        btn.style.cssText = "background: rgba(255,255,255,0.1); color: white; border: 1px solid var(--accent); padding: 8px; border-radius: 6px; cursor: pointer; text-align: left;";
+        btn.onclick = () => {
+            showNotification(`Inserting ${asset.name}...`, "info");
+            drawWbImage(asset.url, true);
+            wbSubjectsMenu.style.display = "none";
+        };
+        subjectAssetsList.appendChild(btn);
+    });
+}
+subjectCategory.addEventListener("change", (e) => loadSubjectAssets(e.target.value));
+loadSubjectAssets("geography"); // default
+
+// Tools setup
 document.querySelectorAll('.tool-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
         document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active-tool'));
         btn.classList.add('active-tool');
         currentTool = btn.id.replace('tool-', '').replace('wb-', ''); 
+        wbShapesMenu.style.display = "none"; // Hide shapes menu after selection
     });
 });
+
 document.getElementById('wb-color').addEventListener("input", (e) => { currentBrushColor = e.target.value; });
 document.getElementById('wb-size').addEventListener("input", (e) => { currentBrushSize = e.target.value; });
 document.getElementById('wb-clear').addEventListener("click", () => {
@@ -428,11 +491,56 @@ function drawFreehand(x0, y0, x1, y1, color, size, eraser, emit = false) {
   if (emit) socket.emit('drawing', { type: 'free', x0, y0, x1, y1, color, size, isEraser: eraser, room: currentRoom });
 }
 
+// ADVANCED 2D/3D SHAPES DRAWING LOGIC
 function drawShapeObj(x0, y0, x1, y1, type, color, size, emit = false) {
-  ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = size;
-  if(type === 'rect') ctx.rect(x0, y0, x1-x0, y1-y0);
-  if(type === 'circle') { let r = Math.sqrt(Math.pow(x1-x0, 2) + Math.pow(y1-y0, 2)); ctx.arc(x0, y0, r, 0, 2*Math.PI); }
-  ctx.stroke(); ctx.closePath();
+  ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = size; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  
+  let w = x1 - x0;
+  let h = y1 - y0;
+
+  if(type === 'line') {
+      ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+  }
+  else if(type === 'rect') {
+      ctx.rect(x0, y0, w, h);
+  }
+  else if(type === 'circle') {
+      let r = Math.sqrt(Math.pow(w, 2) + Math.pow(h, 2)); 
+      ctx.arc(x0, y0, r, 0, 2*Math.PI);
+  }
+  else if(type === 'triangle') {
+      ctx.moveTo(x0 + w/2, y0); 
+      ctx.lineTo(x1, y1); 
+      ctx.lineTo(x0, y1); 
+      ctx.closePath();
+  }
+  else if(type === 'cube') {
+      let d = Math.min(Math.abs(w), Math.abs(h)) * 0.4; // 3D Depth
+      // Front Face
+      ctx.rect(x0, y0+d, w-d, h-d);
+      // Back Face
+      ctx.moveTo(x0+d, y0); ctx.lineTo(x1, y0); ctx.lineTo(x1, y1-d); ctx.lineTo(x0+d, y1-d); ctx.closePath();
+      // Connecting edges
+      ctx.moveTo(x0, y0+d); ctx.lineTo(x0+d, y0);
+      ctx.moveTo(x1-d, y0+d); ctx.lineTo(x1, y0);
+      ctx.moveTo(x1-d, y1); ctx.lineTo(x1, y1-d);
+      ctx.moveTo(x0, y1); ctx.lineTo(x0+d, y1-d);
+  }
+  else if(type === 'cylinder') {
+      let rX = Math.abs(w/2);
+      let rY = Math.abs(h * 0.15); // Ellipse height
+      // Top Ellipse
+      ctx.ellipse(x0 + w/2, y0 + rY, rX, rY, 0, 0, 2 * Math.PI);
+      // Bottom Ellipse (half)
+      ctx.moveTo(x0, y1 - rY);
+      ctx.ellipse(x0 + w/2, y1 - rY, rX, rY, 0, 0, Math.PI);
+      // Sides
+      ctx.moveTo(x0, y0 + rY); ctx.lineTo(x0, y1 - rY);
+      ctx.moveTo(x1, y0 + rY); ctx.lineTo(x1, y1 - rY);
+  }
+  
+  ctx.stroke(); 
+  
   if (emit) socket.emit('drawing', { type: type, x0, y0, x1, y1, color, size, room: currentRoom });
 }
 
@@ -453,7 +561,7 @@ canvas.addEventListener('mousemove', (e) => {
 });
 canvas.addEventListener('mouseup', (e) => { 
   if (!drawing || !canDraw) return; drawing = false; 
-  if(currentTool === 'rect' || currentTool === 'circle') {
+  if(currentTool !== 'pen' && currentTool !== 'eraser') {
       drawShapeObj(startX, startY, e.offsetX, e.offsetY, currentTool, currentBrushColor, currentBrushSize, true);
   }
 });
@@ -461,41 +569,45 @@ canvas.addEventListener('mouseout', () => drawing = false);
 
 socket.on('drawing', (data) => {
   if(data.type === 'free') drawFreehand(data.x0, data.y0, data.x1, data.y1, data.color, data.size, data.isEraser, false);
-  else if (data.type === 'rect' || data.type === 'circle') drawShapeObj(data.x0, data.y0, data.x1, data.y1, data.type, data.color, data.size, false);
+  else drawShapeObj(data.x0, data.y0, data.x1, data.y1, data.type, data.color, data.size, false);
 });
 
-// PDF & Map Imports
+// PDF TO WHITEBOARD
 document.getElementById('tool-pdf').addEventListener("click", () => document.getElementById('wbPdfUpload').click());
 document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
   const file = e.target.files[0]; if(!file) return;
-  showNotification("Rendering PDF...", "info");
+  showNotification("Rendering PDF to Board...", "info");
   const fileReader = new FileReader();
   fileReader.onload = async function() {
       const typedarray = new Uint8Array(this.result);
       const pdf = await pdfjsLib.getDocument(typedarray).promise;
       const page = await pdf.getPage(1); 
       const viewport = page.getViewport({scale: 1.5});
-      const tc = document.createElement('canvas'); const tCtx = tc.getContext('2d');
-      tc.height = viewport.height; tc.width = viewport.width;
-      await page.render({canvasContext: tCtx, viewport: viewport}).promise;
-      drawWbImage(tc.toDataURL(), true);
+      const tempCanvas = document.createElement('canvas'); const tempCtx = tempCanvas.getContext('2d');
+      tempCanvas.height = viewport.height; tempCanvas.width = viewport.width;
+      await page.render({canvasContext: tempCtx, viewport: viewport}).promise;
+      const imgBase64 = tempCanvas.toDataURL();
+      drawWbImage(imgBase64, true);
   };
   fileReader.readAsArrayBuffer(file);
 });
 
-document.getElementById('tool-map').addEventListener("click", () => {
-    const mapUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/World_map_-_low_resolution.svg/1024px-World_map_-_low_resolution.svg.png";
-    showNotification("Drawing Map...", "info"); drawWbImage(mapUrl, true);
-});
-
 function drawWbImage(src, emit=false) {
-    const img = new Image(); img.crossOrigin = "Anonymous";
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
     img.onload = () => {
-        ctx.drawImage(img, 20, 20, img.width * 0.7, img.height * 0.7);
+        // Image ko center aur fit karne ka logic
+        let w = img.width, h = img.height;
+        let scale = Math.min(canvas.width / w, canvas.height / h) * 0.8; 
+        let x = (canvas.width - w * scale) / 2;
+        let y = (canvas.height - h * scale) / 2;
+        
+        ctx.drawImage(img, x, y, w * scale, h * scale);
+        
         if(emit) {
             let sendSrc = src;
             if(!src.startsWith("data:")) {
-                const tc = document.createElement("canvas"); tc.width=img.width; tc.height=img.height;
+                const tc = document.createElement("canvas"); tc.width=w; tc.height=h;
                 tc.getContext("2d").drawImage(img,0,0); sendSrc = tc.toDataURL();
             }
             socket.emit("wb-image", {room: currentRoom, image: sendSrc});
