@@ -173,11 +173,14 @@
         </div>
       </section>
 
+      <!-- ADVANCED PRO WHITEBOARD -->
       <section id="whiteboard-box" class="card big-panel" style="grid-column: 1 / -1; height: 600px; display: none; position: relative;">
         <h3>🎨 VYDEX Education Board <span id="wb-status" style="font-size:12px; color:var(--accent); font-weight:400; margin-left: 10px;">(View Only)</span></h3>
         
         <div id="whiteboard-container" style="position: relative; width: 100%; height: 500px; background: #fdfdfd; border-radius: 12px; overflow: hidden; box-shadow: inset 0 5px 15px rgba(0,0,0,0.1);">
-          <canvas id="whiteboard" width="1920" height="1080" style="width: 100%; height: 100%; cursor: crosshair; display: block; object-fit: contain;"></canvas>
+          
+          <!-- FIXED CANVAS: Ab cursor aur drawing ke beech koi gap nahi aayega -->
+          <canvas id="whiteboard" style="width: 100%; height: 100%; cursor: crosshair; display: block;"></canvas>
           
           <div id="wb-laser" style="position: absolute; width: 15px; height: 15px; background: red; border-radius: 50%; box-shadow: 0 0 10px red, 0 0 20px red; pointer-events: none; display: none; transform: translate(-50%, -50%); z-index: 10;"></div>
           
