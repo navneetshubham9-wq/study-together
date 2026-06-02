@@ -45,6 +45,7 @@ const fileList = document.getElementById("fileList");
 // Math Modal
 const mathModal = document.getElementById("math-modal");
 const mathInput = document.getElementById("mathInput");
+const mathExplanationInput = document.getElementById("mathExplanationInput");
 const broadcastMathBtn = document.getElementById("broadcastMathBtn");
 const closeMathBtn = document.getElementById("closeMathBtn");
 const mathDisplay = document.getElementById("mathDisplay");
@@ -58,11 +59,25 @@ const generateGraphBtn = document.getElementById("generateGraphBtn");
 const presTitle = document.getElementById("pres-title");
 const presentationContainer = document.getElementById("presentation-container");
 const laserPointer = document.getElementById("laser-pointer");
+
+// NAYA: Excel & Product Elements
+const presMode = document.getElementById("presMode");
+const companyInputs = document.getElementById("companyInputs");
+const productInputs = document.getElementById("productInputs");
+const presCurrency = document.getElementById("presCurrency");
+const viewGraphBtn = document.getElementById("viewGraphBtn");
+const viewExcelBtn = document.getElementById("viewExcelBtn");
+const canvasElem = document.getElementById("presentationCanvas");
+const excelContainer = document.getElementById("excel-container");
+const excelTable = document.getElementById("excelTable");
 let businessChart = null;
+let currentChartData = null; // Sync karne ke liye
 
 // Map Elements
 const mapBox = document.getElementById("map-box");
 const mapContainer = document.getElementById("map-container");
+const toggleLabelsBtn = document.getElementById("toggleLabelsBtn");
+const screenshotMapBtn = document.getElementById("screenshotMapBtn");
 let geoMap; 
 let labelsLayer; 
 let labelsVisible = true; 
@@ -73,14 +88,13 @@ const canvas = document.getElementById('whiteboard');
 const ctx = canvas.getContext('2d');
 const wbStatus = document.getElementById('wb-status');
 
-// ADVANCED WHITEBOARD STATE
 let canDraw = false; 
 let currentBrushColor = "#000000";
 let currentBrushSize = 3;
-let currentTool = 'pen'; // 'pen', 'rect', 'circle', 'eraser'
+let currentTool = 'pen'; 
 let drawing = false;
 let startX = 0; let startY = 0;
-let canvasSnapshot; // For rendering shapes properly
+let canvasSnapshot; 
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
@@ -179,11 +193,40 @@ socket.on("map-toggle", (data) => {
 
 // ---------- MATH FORMULA LIBRARY LOGIC ----------
 const formulas = {
-    algebra: [ {name: "Quadratic", eq: "x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}"}, {name: "Logarithm", eq: "\\log_b(xy) = \\log_b(x) + \\log_b(y)"}, {name: "Binomial", eq: "(a+b)^n = \\sum_{k=0}^{n} \\binom{n}{k} a^{n-k} b^k"} ],
-    calculus: [ {name: "Derivative", eq: "f'(x) = \\lim_{h \\to 0} \\frac{f(x+h)-f(x)}{h}"}, {name: "Integral", eq: "\\int x^n dx = \\frac{x^{n+1}}{n+1} + C"}, {name: "Limits", eq: "\\lim_{x \\to \\infty} \\left(1 + \\frac{1}{x}\\right)^x = e"} ],
-    trigonometry: [ {name: "Pythagorean", eq: "\\sin^2\\theta + \\cos^2\\theta = 1"}, {name: "Sine Rule", eq: "\\frac{a}{\\sin A} = \\frac{b}{\\sin B} = \\frac{c}{\\sin C}"} ],
-    physics: [ {name: "Mass-Energy", eq: "E = mc^2"}, {name: "Gravity", eq: "F = G \\frac{m_1 m_2}{r^2}"}, {name: "Schrödinger", eq: "i\\hbar \\frac{\\partial}{\\partial t} \\Psi = \\hat{H} \\Psi"} ]
+    algebra: [ 
+        {name: "Quadratic", eq: "x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}", desc: "Roots of a quadratic equation. a,b,c are coefficients."}, 
+        {name: "Logarithm", eq: "\\log_b(xy) = \\log_b(x) + \\log_b(y)", desc: "Product rule for logarithms."}, 
+        {name: "Binomial", eq: "(a+b)^n = \\sum_{k=0}^{n} \\binom{n}{k} a^{n-k} b^k", desc: "Binomial theorem expansion."} 
+    ],
+    calculus: [ 
+        {name: "Derivative", eq: "f'(x) = \\lim_{h \\to 0} \\frac{f(x+h)-f(x)}{h}", desc: "First principle of derivatives."}, 
+        {name: "Integral", eq: "\\int x^n dx = \\frac{x^{n+1}}{n+1} + C", desc: "Power rule for integration."}, 
+        {name: "Limits (e)", eq: "\\lim_{x \\to \\infty} \\left(1 + \\frac{1}{x}\\right)^x = e", desc: "Definition of Euler's number (e)."} 
+    ],
+    trigonometry: [ 
+        {name: "Pythagorean ID", eq: "\\sin^2\\theta + \\cos^2\\theta = 1", desc: "Fundamental trigonometric identity."}, 
+        {name: "Sine Rule", eq: "\\frac{a}{\\sin A} = \\frac{b}{\\sin B} = \\frac{c}{\\sin C}", desc: "Relates sides of a triangle to its angles."},
+        {name: "Double Angle", eq: "\\cos(2\\theta) = \\cos^2\\theta - \\sin^2\\theta", desc: "Double angle formula for cosine."}
+    ],
+    physics: [ 
+        {name: "Force", eq: "F = ma", desc: "Newton's 2nd Law. F = Force, m = Mass, a = Acceleration."},
+        {name: "Mass-Energy", eq: "E = mc^2", desc: "Einstein's Equation. E=Energy, m=Mass, c=Speed of light."}, 
+        {name: "Gravity", eq: "F = G \\frac{m_1 m_2}{r^2}", desc: "Newton's Law of Universal Gravitation."}, 
+        {name: "Schrödinger", eq: "i\\hbar \\frac{\\partial}{\\partial t} \\Psi = \\hat{H} \\Psi", desc: "Quantum Mechanics equation."} 
+    ],
+    financial: [
+        {name: "Compound Int.", eq: "A = P\\left(1 + \\frac{r}{n}\\right)^{nt}", desc: "A = Final Amount, P = Principal, r = Rate, n = Compounding freq, t = Time."},
+        {name: "ROI", eq: "ROI = \\frac{\\text{Net Profit}}{\\text{Cost of Investment}} \\times 100", desc: "Return on Investment percentage."},
+        {name: "Gross Margin", eq: "\\text{Margin} = \\frac{\\text{Rev} - \\text{COGS}}{\\text{Rev}}", desc: "Gross Profit Margin formula."}
+    ],
+    statistics: [
+        {name: "Mean", eq: "\\mu = \\frac{\\sum x_i}{N}", desc: "Population Mean formula."},
+        {name: "Std Deviation", eq: "\\sigma = \\sqrt{\\frac{\\sum (x_i - \\mu)^2}{N}}", desc: "Standard Deviation of a population."},
+        {name: "Normal Dist.", eq: "P(x) = \\frac{1}{\\sigma\\sqrt{2\\pi}} e^{-\\frac{1}{2}\\left(\\frac{x-\\mu}{\\sigma}\\right)^2}", desc: "Probability density function."}
+    ]
 };
+
+let currentFormulaDesc = "";
 
 function loadFormulas(category) {
     formulaLibrary.innerHTML = "";
@@ -191,48 +234,96 @@ function loadFormulas(category) {
         const btn = document.createElement("button");
         btn.textContent = f.name;
         btn.style.cssText = "background: rgba(255,255,255,0.1); color: white; border: 1px solid var(--accent); padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;";
-        btn.onclick = () => { mathInput.value = f.eq; };
+        btn.onclick = () => { 
+            mathInput.value = f.eq; 
+            currentFormulaDesc = f.desc;
+            mathExplanationInput.textContent = "ℹ️ " + f.desc;
+        };
         formulaLibrary.appendChild(btn);
     });
 }
 mathCategory.addEventListener("change", (e) => loadFormulas(e.target.value));
 loadFormulas("algebra"); // Default load
 
+mathInput.addEventListener("input", () => { currentFormulaDesc = "Custom User Equation"; mathExplanationInput.textContent = ""; });
+
 openMathBtn.addEventListener("click", () => mathModal.style.display = "block");
 closeMathBtn.addEventListener("click", () => mathModal.style.display = "none");
 broadcastMathBtn.addEventListener("click", () => {
     const eq = mathInput.value.trim();
     if(!eq) return;
-    try { katex.renderToString(eq); socket.emit("math-equation", { room: currentRoom, equation: eq, sender: usernameInput.value || "User" }); mathInput.value = ""; } 
-    catch(e) { showNotification("Invalid LaTeX Formula!", "danger"); }
+    try { 
+        katex.renderToString(eq); 
+        socket.emit("math-equation", { room: currentRoom, equation: eq, desc: currentFormulaDesc, sender: usernameInput.value || "User" }); 
+        mathInput.value = ""; 
+        mathExplanationInput.textContent = "";
+    } catch(e) { showNotification("Invalid LaTeX Formula!", "danger"); }
 });
+
 socket.on("math-equation", (data) => {
     mathModal.style.display = "block";
     try {
         const html = katex.renderToString(data.equation, { throwOnError: false, displayMode: true });
-        mathDisplay.innerHTML = `<div style="font-size:14px; color:var(--primary); margin-bottom:5px;">Shared by: ${data.sender}</div>${html}`;
+        mathDisplay.innerHTML = `
+            <div style="font-size:13px; color:var(--primary); margin-bottom:10px;">Shared by: ${data.sender}</div>
+            ${html}
+            <div style="font-size:14px; color:#555; margin-top:15px; border-top:1px dashed #ccc; padding-top:10px;"><b>ℹ️ Explanation:</b> ${data.desc}</div>
+        `;
         showNotification("New Math Formula Shared!", "info");
     } catch(e) {}
 });
 
-// ---------- PRESENTATION & GRAPH (Fixed Years 2001-2500) ----------
+// ---------- PRESENTATION & GRAPH/EXCEL LOGIC ----------
+
+// Mode Switcher
+presMode.addEventListener("change", (e) => {
+    if(e.target.value === "company") {
+        companyInputs.style.display = "flex";
+        productInputs.style.display = "none";
+    } else {
+        companyInputs.style.display = "none";
+        productInputs.style.display = "flex";
+    }
+});
+
 generateGraphBtn.addEventListener("click", () => {
-    const industry = document.getElementById("presIndustry").value || "Business";
-    const baseValue = parseFloat(document.getElementById("presBaseValue").value) || 1000;
+    const industry = document.getElementById("presIndustry").value || (presMode.value==='company'?"Business":"Product");
+    const currency = presCurrency.value;
+    const mode = presMode.value;
     const growth = parseFloat(document.getElementById("presGrowth").value) || 10;
     
     // Strict Limits enforced
-    let baseYear = parseInt(document.getElementById("presBaseYear").value) || 2024;
-    let endYear = parseInt(document.getElementById("presEndYear").value) || 2029;
+    let baseYear = parseInt(document.getElementById("presBaseYear").value) || new Date().getFullYear();
+    let endYear = parseInt(document.getElementById("presEndYear").value) || baseYear + 5;
     if(baseYear < 2001) baseYear = 2001; if(baseYear > 2500) baseYear = 2500;
     if(endYear < 2001) endYear = 2001; if(endYear > 2500) endYear = 2500;
-    if(endYear < baseYear) endYear = baseYear + 5; // Fallback
+    if(endYear < baseYear) endYear = baseYear + 5;
 
-    let labels = []; let values = []; let currentValue = baseValue;
-    for(let y = baseYear; y <= endYear; y++) {
-        labels.push(y.toString());
-        values.push(Math.round(currentValue));
-        currentValue += (currentValue * (growth / 100));
+    let labels = []; 
+    let revenues = []; 
+    let unitsArr = [];
+    
+    let currentRevenue = 0;
+    let currentUnits = 0;
+    let unitPrice = 0;
+
+    if(mode === "company") {
+        currentRevenue = parseFloat(document.getElementById("presBaseValue").value) || 1000;
+        for(let y = baseYear; y <= endYear; y++) {
+            labels.push(y.toString());
+            revenues.push(Math.round(currentRevenue));
+            currentRevenue += (currentRevenue * (growth / 100));
+        }
+    } else {
+        unitPrice = parseFloat(document.getElementById("presUnitPrice").value) || 50;
+        currentUnits = parseFloat(document.getElementById("presUnitsSold").value) || 100;
+        for(let y = baseYear; y <= endYear; y++) {
+            labels.push(y.toString());
+            let rev = unitPrice * currentUnits;
+            revenues.push(Math.round(rev));
+            unitsArr.push(Math.round(currentUnits));
+            currentUnits += (currentUnits * (growth / 100)); // Growth applies to units sold
+        }
     }
 
     const chartConfig = {
@@ -240,19 +331,61 @@ generateGraphBtn.addEventListener("click", () => {
         data: {
             labels: labels,
             datasets: [{
-                label: `${industry} Projected Growth`, data: values, borderColor: '#2ecc71', backgroundColor: 'rgba(46, 204, 113, 0.2)', borderWidth: 3, fill: true, tension: 0.4, pointBackgroundColor: '#e74c3c', pointRadius: 6
+                label: `${industry} Projected Growth (${currency})`, data: revenues, borderColor: '#2ecc71', backgroundColor: 'rgba(46, 204, 113, 0.2)', borderWidth: 3, fill: true, tension: 0.4, pointBackgroundColor: '#e74c3c', pointRadius: 6
             }]
         },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { font: { size: 16 } } } }, scales: { y: { beginAtZero: true, ticks: { font: { size: 14 } } }, x: { ticks: { font: { size: 14 } } } } }
     };
-    socket.emit("presentation-data", { room: currentRoom, chartConfig, industry });
+    
+    // Generate Excel HTML
+    let tableHTML = `<tr><th>Year</th>`;
+    if(mode === "product") tableHTML += `<th>Units Sold</th><th>Unit Price</th>`;
+    tableHTML += `<th>Revenue (${currency})</th></tr>`;
+    
+    for(let i=0; i<labels.length; i++) {
+        tableHTML += `<tr><td>${labels[i]}</td>`;
+        if(mode === "product") tableHTML += `<td>${unitsArr[i].toLocaleString()}</td><td>${currency}${unitPrice.toLocaleString()}</td>`;
+        tableHTML += `<td><strong style="color:var(--primary)">${currency}${revenues[i].toLocaleString()}</strong></td></tr>`;
+    }
+
+    const presPayload = { room: currentRoom, chartConfig, industry, tableHTML, view: 'chart' };
+    socket.emit("presentation-data", presPayload);
+});
+
+// View Toggle Handlers (Host Only triggers for all)
+viewGraphBtn.addEventListener("click", () => { socket.emit("pres-view-switch", {room: currentRoom, view: 'chart'}); });
+viewExcelBtn.addEventListener("click", () => { socket.emit("pres-view-switch", {room: currentRoom, view: 'excel'}); });
+
+socket.on("pres-view-switch", (data) => {
+    if(data.view === 'chart') {
+        excelContainer.style.display = "none";
+        canvasElem.style.display = "block";
+    } else {
+        canvasElem.style.display = "none";
+        excelContainer.style.display = "block";
+    }
 });
 
 socket.on("presentation-data", (data) => {
+    currentChartData = data;
     presTitle.textContent = `${data.industry} Growth Projection`;
-    const ctxChart = document.getElementById('presentationCanvas').getContext('2d');
+    
+    // Render Excel
+    excelTable.innerHTML = data.tableHTML;
+    
+    // Show buttons for Host
+    if(isHost) {
+        viewGraphBtn.parentElement.style.display = "flex";
+    }
+    
+    // Setup Chart
+    const ctxChart = canvasElem.getContext('2d');
     if(businessChart) businessChart.destroy();
     businessChart = new Chart(ctxChart, data.chartConfig);
+    
+    // Set view
+    if(data.view === 'chart') { excelContainer.style.display = "none"; canvasElem.style.display = "block"; }
+    else { canvasElem.style.display = "none"; excelContainer.style.display = "block"; }
 });
 
 // Laser Pointer
@@ -275,12 +408,11 @@ socket.on("laser-pointer", (data) => {
 function resizeCanvas() { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; }
 window.addEventListener('resize', () => { resizeCanvas(); if(geoMap && mapBox.style.display !== "none") geoMap.invalidateSize(); });
 
-// Tools setup
 document.querySelectorAll('.tool-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
         document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active-tool'));
         btn.classList.add('active-tool');
-        currentTool = btn.id.replace('tool-', '').replace('wb-', ''); // pen, rect, circle, eraser
+        currentTool = btn.id.replace('tool-', '').replace('wb-', ''); 
     });
 });
 document.getElementById('wb-color').addEventListener("input", (e) => { currentBrushColor = e.target.value; });
@@ -332,41 +464,35 @@ socket.on('drawing', (data) => {
   else if (data.type === 'rect' || data.type === 'circle') drawShapeObj(data.x0, data.y0, data.x1, data.y1, data.type, data.color, data.size, false);
 });
 
-// PDF TO WHITEBOARD
+// PDF & Map Imports
 document.getElementById('tool-pdf').addEventListener("click", () => document.getElementById('wbPdfUpload').click());
 document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
   const file = e.target.files[0]; if(!file) return;
-  showNotification("Rendering PDF to Board...", "info");
+  showNotification("Rendering PDF...", "info");
   const fileReader = new FileReader();
   fileReader.onload = async function() {
       const typedarray = new Uint8Array(this.result);
       const pdf = await pdfjsLib.getDocument(typedarray).promise;
-      const page = await pdf.getPage(1); // Read first page
+      const page = await pdf.getPage(1); 
       const viewport = page.getViewport({scale: 1.5});
-      const tempCanvas = document.createElement('canvas'); const tempCtx = tempCanvas.getContext('2d');
-      tempCanvas.height = viewport.height; tempCanvas.width = viewport.width;
-      await page.render({canvasContext: tempCtx, viewport: viewport}).promise;
-      const imgBase64 = tempCanvas.toDataURL();
-      drawWbImage(imgBase64, true);
+      const tc = document.createElement('canvas'); const tCtx = tc.getContext('2d');
+      tc.height = viewport.height; tc.width = viewport.width;
+      await page.render({canvasContext: tCtx, viewport: viewport}).promise;
+      drawWbImage(tc.toDataURL(), true);
   };
   fileReader.readAsArrayBuffer(file);
 });
 
-// MAP TO WHITEBOARD
 document.getElementById('tool-map').addEventListener("click", () => {
-    // Injecting a predefined world map image base64 or URL
     const mapUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/World_map_-_low_resolution.svg/1024px-World_map_-_low_resolution.svg.png";
-    showNotification("Drawing Map on Board...", "info");
-    drawWbImage(mapUrl, true);
+    showNotification("Drawing Map...", "info"); drawWbImage(mapUrl, true);
 });
 
 function drawWbImage(src, emit=false) {
-    const img = new Image();
-    img.crossOrigin = "Anonymous";
+    const img = new Image(); img.crossOrigin = "Anonymous";
     img.onload = () => {
         ctx.drawImage(img, 20, 20, img.width * 0.7, img.height * 0.7);
         if(emit) {
-            // Need base64 to emit safely over socket if it was a URL
             let sendSrc = src;
             if(!src.startsWith("data:")) {
                 const tc = document.createElement("canvas"); tc.width=img.width; tc.height=img.height;
@@ -417,7 +543,7 @@ function createRemoteWrapper(uid, labelText) {
   wrapper.appendChild(card); wrapper.appendChild(controlsDiv); addSizeControls(wrapper, card); videoArea.appendChild(wrapper); return wrapper;
 }
 
-// ---------- JOIN LOGIC (100% FIXED) ----------
+// ---------- JOIN LOGIC ----------
 joinBtn.addEventListener("click", async () => {
   if (joined) return;
   try { remoteMusicPlayer.volume = 0; let playPromise = remoteMusicPlayer.play(); if (playPromise !== undefined) { playPromise.then(() => { remoteMusicPlayer.pause(); remoteMusicPlayer.volume = 1; }).catch(e => e); } } catch(e) {}
@@ -440,10 +566,20 @@ joinBtn.addEventListener("click", async () => {
 socket.on("room-history", (data) => {
   if (data.chats) data.chats.forEach(chat => { if(chat.name === "System" && chat.text.includes("left")) return; appendMessage(`${chat.name}: ${chat.text}`); });
   if (data.files) [...data.files].reverse().forEach(file => addFileLink(file.filename, file.url));
+  
   if (data.wbVisible) { hideAllBigPanels(); whiteboardBox.style.display = "block"; setTimeout(resizeCanvas, 100); if(isHost) toggleWbBtn.dataset.show = "true"; }
   if (data.mapVisible) { hideAllBigPanels(); mapBox.style.display = "block"; setTimeout(() => geoMap.invalidateSize(), 100); if(isHost) toggleMapBtn.dataset.show = "true"; }
   if (data.presVisible) { hideAllBigPanels(); presentationBox.style.display = "block"; if(isHost) togglePresBtn.dataset.show = "true"; }
-  if (data.chartData) { presTitle.textContent = "Current Growth Projection"; const ctxChart = document.getElementById('presentationCanvas').getContext('2d'); if(businessChart) businessChart.destroy(); businessChart = new Chart(ctxChart, data.chartData); }
+  
+  if (data.chartData) { 
+      currentChartData = data.chartData;
+      presTitle.textContent = `${data.chartData.industry} Growth Projection`; 
+      excelTable.innerHTML = data.chartData.tableHTML;
+      const ctxChart = document.getElementById('presentationCanvas').getContext('2d'); 
+      if(businessChart) businessChart.destroy(); 
+      businessChart = new Chart(ctxChart, data.chartData.chartConfig); 
+      if(data.chartData.view === 'chart') { excelContainer.style.display = "none"; canvasElem.style.display = "block"; } else { canvasElem.style.display = "none"; excelContainer.style.display = "block"; }
+  }
 });
 
 socket.on("host-assignment", (data) => {
@@ -455,6 +591,7 @@ socket.on("host-assignment", (data) => {
   } else {
     hostAudioContainer.style.display = "none"; canDraw = false; document.getElementById('wb-toolbar').style.display = "none"; canvas.style.cursor = "not-allowed"; wbStatus.textContent = "(View Only)";
     presInputForm.style.display = "none"; toggleWbBtn.style.display = "none"; toggleMapBtn.style.display = "none"; togglePresBtn.style.display = "none";
+    viewGraphBtn.parentElement.style.display = "none";
   }
 });
 
