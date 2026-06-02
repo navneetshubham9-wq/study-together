@@ -154,6 +154,7 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
     targetWrapper.classList.remove("video-wrapper-small");
     targetWrapper.classList.toggle("video-wrapper-large");
     if(geoMap) setTimeout(() => geoMap.invalidateSize(), 300); 
+    if(targetWrapper.id === 'whiteboard-box') setTimeout(resizeCanvas, 300);
   };
   const shrinkBtn = document.createElement("button");
   shrinkBtn.className = "icon-btn"; shrinkBtn.innerHTML = "➖";
@@ -161,6 +162,7 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
     targetWrapper.classList.remove("video-wrapper-large");
     targetWrapper.classList.toggle("video-wrapper-small");
     if(geoMap) setTimeout(() => geoMap.invalidateSize(), 300);
+    if(targetWrapper.id === 'whiteboard-box') setTimeout(resizeCanvas, 300);
   };
   const maxBtn = document.createElement("button");
   maxBtn.className = "icon-btn"; maxBtn.innerHTML = "🖥️";
@@ -206,7 +208,7 @@ socket.on("pres-toggle", (data) => {
 });
 
 socket.on("wb-toggle", (data) => {
-  if (data.show) { hideAllBigPanels(); whiteboardBox.style.display = "block"; if(isHost){toggleWbBtn.dataset.show="true"; toggleWbBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
+  if (data.show) { hideAllBigPanels(); whiteboardBox.style.display = "block"; setTimeout(resizeCanvas, 100); if(isHost){toggleWbBtn.dataset.show="true"; toggleWbBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
   else { whiteboardBox.style.display = "none"; if(isHost){toggleWbBtn.dataset.show="false"; toggleWbBtn.style.background="linear-gradient(135deg, #3498db, #2980b9)";} }
 });
 
@@ -342,7 +344,39 @@ socket.on("laser-pointer", (data) => {
     clearTimeout(laserTimeout); laserTimeout = setTimeout(() => { laserPointer.style.display = "none"; }, 2000);
 });
 
-// ---------- ADVANCED PRO WHITEBOARD ----------
+// ---------- ADVANCED PRO WHITEBOARD (CORS & RESIZE FIX) ----------
+
+// 1. SAFE RESIZE - To Prevent Blur and Prevent Erasing
+function resizeCanvas() { 
+    const wbContainer = document.getElementById('whiteboard-container');
+    if(!wbContainer) return;
+    
+    // Save drawing state before resize
+    let tempCanvas = null;
+    if(canvas.width > 0 && canvas.height > 0) {
+        tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvas.width;
+        tempCanvas.height = canvas.height;
+        tempCanvas.getContext('2d').drawImage(canvas, 0, 0);
+    }
+    
+    // Exact 1:1 Pixel Mapping
+    canvas.width = wbContainer.offsetWidth;
+    canvas.height = wbContainer.offsetHeight;
+    
+    // Restore drawing state
+    if(tempCanvas) {
+        ctx.drawImage(tempCanvas, 0, 0);
+    }
+    
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+}
+window.addEventListener('resize', () => { 
+    if(whiteboardBox.style.display !== "none") resizeCanvas(); 
+    if(geoMap && mapBox.style.display !== "none") geoMap.invalidateSize(); 
+});
+
 const toggleShapesBtn = document.getElementById("toggleShapesBtn");
 const wbShapesMenu = document.getElementById("wb-shapes-menu");
 const toggleSubjectsBtn = document.getElementById("toggleSubjectsBtn");
@@ -379,6 +413,28 @@ const subjectAssets = {
 const subjectCategory = document.getElementById("subjectCategory");
 const subjectAssetsList = document.getElementById("subjectAssetsList");
 
+// 2. ASSET FETCH FIX - Guaranteed CORS Bypass using reliable proxy
+async function loadAssetToCanvas(url, name) {
+    try {
+        showNotification(`Downloading ${name}...`, "info");
+        // codetabs is a highly stable proxy for CORS images
+        const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`;
+        
+        const response = await fetch(proxyUrl);
+        if(!response.ok) throw new Error("Network error");
+        
+        const blob = await response.blob();
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            drawWbImage(reader.result, true);
+        };
+        reader.readAsDataURL(blob);
+    } catch(e) {
+        console.error("Asset Load Error:", e);
+        showNotification(`Failed to load ${name}.`, "danger");
+    }
+}
+
 function loadSubjectAssets(cat) {
     subjectAssetsList.innerHTML = "";
     subjectAssets[cat].forEach(asset => {
@@ -386,10 +442,7 @@ function loadSubjectAssets(cat) {
         btn.textContent = "➕ Insert " + asset.name;
         btn.style.cssText = "background: rgba(255,255,255,0.1); color: white; border: 1px solid var(--accent); padding: 8px; border-radius: 6px; cursor: pointer; text-align: left; font-size: 13px;";
         btn.onclick = () => {
-            showNotification(`Inserting ${asset.name}...`, "info");
-            // NAYA FIX: Using our own backend proxy to bypass CORS safely!
-            const proxyUrl = `/proxy-image?url=${encodeURIComponent(asset.url)}`;
-            drawWbImage(proxyUrl, true);
+            loadAssetToCanvas(asset.url, asset.name);
             wbSubjectsMenu.style.display = "none";
         };
         subjectAssetsList.appendChild(btn);
@@ -414,11 +467,16 @@ document.getElementById('wb-clear').addEventListener("click", () => {
 });
 socket.on("clear-whiteboard", () => ctx.clearRect(0, 0, canvas.width, canvas.height));
 
+// 3. PRECISE COORDINATE MAPPING (No more gap between cursor and line)
 function getCanvasPoint(e) {
     const rect = canvas.getBoundingClientRect();
+    // Since we now map 1:1 width with CSS, scale will be 1, making it perfect.
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
-    return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+    return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY
+    };
 }
 
 function floodFill(startX, startY, fillColorHex, emit=false) {
@@ -511,7 +569,7 @@ function drawShapeObj(x0, y0, x1, y1, type, color, size, emit = false) {
       ctx.moveTo(x0, y0+d); ctx.lineTo(x0+d, y0); ctx.moveTo(x1-d, y0+d); ctx.lineTo(x1, y0); ctx.moveTo(x1-d, y1); ctx.lineTo(x1, y1-d); ctx.moveTo(x0, y1); ctx.lineTo(x0+d, y1-d);
   }
   else if(type === 'cylinder') {
-      let rX = Math.abs(w/2); let rY = Math.abs(h * 0.15); 
+      let rX = Math.abs(w/2), rY = Math.abs(h * 0.15); 
       ctx.ellipse(x0 + w/2, y0 + rY, rX, rY, 0, 0, 2 * Math.PI); ctx.moveTo(x0, y1 - rY); ctx.ellipse(x0 + w/2, y1 - rY, rX, rY, 0, 0, Math.PI);
       ctx.moveTo(x0, y0 + rY); ctx.lineTo(x0, y1 - rY); ctx.moveTo(x1, y0 + rY); ctx.lineTo(x1, y1 - rY);
   }
@@ -538,6 +596,7 @@ canvas.addEventListener('mousedown', (e) => {
   drawing = true; startX = pt.x; startY = pt.y; 
   canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
 });
+
 canvas.addEventListener('mousemove', (e) => {
   if (!canDraw) return;
   const pt = getCanvasPoint(e);
@@ -554,6 +613,7 @@ canvas.addEventListener('mousemove', (e) => {
       drawShapeObj(startX, startY, pt.x, pt.y, currentTool, currentBrushColor, currentBrushSize, false);
   }
 });
+
 canvas.addEventListener('mouseup', (e) => { 
   if (!drawing || !canDraw || currentTool === 'pointer' || currentTool === 'fill') return; 
   drawing = false; 
@@ -561,6 +621,7 @@ canvas.addEventListener('mouseup', (e) => {
   if(!['pen', 'brush', 'spray', 'eraser'].includes(currentTool)) { drawShapeObj(startX, startY, pt.x, pt.y, currentTool, currentBrushColor, currentBrushSize, true); }
   ctx.shadowBlur = 0; 
 });
+
 canvas.addEventListener('mouseout', () => { drawing = false; if(currentTool === 'pointer' && canDraw) socket.emit("wb-pointer", { room: currentRoom, hide: true }); });
 
 socket.on('drawing', (data) => {
@@ -586,7 +647,7 @@ document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
   fileReader.readAsArrayBuffer(file);
 });
 
-// NAYA FIX: Emit URL if possible, otherwise compress heavy Base64 to prevent socket crash
+// Compressed Socket Emitter for Images
 function drawWbImage(src, emit=false) {
     const img = new Image(); 
     img.crossOrigin = "Anonymous";
@@ -601,9 +662,10 @@ function drawWbImage(src, emit=false) {
         if(emit) {
             let sendSrc = src;
             if(src.startsWith("data:")) {
+                // Compress image to 60% quality JPEG before emitting to prevent socket memory crash!
                 const tc = document.createElement("canvas"); tc.width = drawW; tc.height = drawH;
                 tc.getContext("2d").drawImage(img, 0, 0, drawW, drawH);
-                sendSrc = tc.toDataURL("image/jpeg", 0.5); // COMPRESSED FOR SOCKET
+                sendSrc = tc.toDataURL("image/jpeg", 0.6); 
             }
             socket.emit("wb-image", {room: currentRoom, image: sendSrc});
         }
@@ -663,7 +725,7 @@ joinBtn.addEventListener("click", async () => {
     joined = true; currentRoom = roomId; joinSection.classList.add("form-out");
     setTimeout(() => {
       joinSection.style.display = "none"; workspace.classList.remove("hidden"); workspace.classList.add("workspace-active"); 
-      setTimeout(() => { if(geoMap) geoMap.invalidateSize(); const localContainer = createLocalCard(userName); if (localTracks.videoTrack) localTracks.videoTrack.play(localContainer, { fit: "cover" }); }, 300);
+      setTimeout(() => { resizeCanvas(); if(geoMap) geoMap.invalidateSize(); const localContainer = createLocalCard(userName); if (localTracks.videoTrack) localTracks.videoTrack.play(localContainer, { fit: "cover" }); }, 300);
     }, 500); 
     socket.emit("join-room", { room: roomId, uid: localUid, name: userName });
     showNotification(`You joined room ${roomId}`, "join"); appendMessage(`System: You joined room ${roomId}`);
@@ -675,7 +737,7 @@ socket.on("room-history", (data) => {
   if (data.chats) data.chats.forEach(chat => { if(chat.name === "System" && chat.text.includes("left")) return; appendMessage(`${chat.name}: ${chat.text}`); });
   if (data.files) [...data.files].reverse().forEach(file => addFileLink(file.filename, file.url));
   
-  if (data.wbVisible) { hideAllBigPanels(); whiteboardBox.style.display = "block"; if(isHost) toggleWbBtn.dataset.show = "true"; }
+  if (data.wbVisible) { hideAllBigPanels(); whiteboardBox.style.display = "block"; setTimeout(resizeCanvas, 100); if(isHost) toggleWbBtn.dataset.show = "true"; }
   if (data.mapVisible) { hideAllBigPanels(); mapBox.style.display = "block"; setTimeout(() => geoMap.invalidateSize(), 100); if(isHost) toggleMapBtn.dataset.show = "true"; }
   if (data.presVisible) { hideAllBigPanels(); presentationBox.style.display = "block"; if(isHost) togglePresBtn.dataset.show = "true"; }
   
