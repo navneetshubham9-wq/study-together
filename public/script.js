@@ -83,7 +83,7 @@ const mathDisplay = document.getElementById("mathDisplay");
 const mathCategory = document.getElementById("mathCategory");
 const formulaLibrary = document.getElementById("formulaLibrary");
 
-// Presentation & Graph
+// Presentation
 const presentationBox = document.getElementById("presentation-box");
 const presInputForm = document.getElementById("pres-input-form");
 const generateGraphBtn = document.getElementById("generateGraphBtn");
@@ -117,7 +117,6 @@ const canvas = document.getElementById('whiteboard');
 const ctx = canvas.getContext('2d', { willReadFrequently: true }); 
 const wbStatus = document.getElementById('wb-status');
 
-// SET BACKGROUND COLOR to WHITE initially so it's not transparent
 ctx.fillStyle = "#ffffff";
 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -128,6 +127,11 @@ let currentTool = 'pen';
 let drawing = false;
 let startX = 0; let startY = 0;
 let canvasSnapshot; 
+
+// STAMP STATE (For PDF and Assets)
+let stampImage = null;
+let stampScale = 1.0;
+let isStamping = false;
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
@@ -155,7 +159,6 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
     targetWrapper.classList.remove("video-wrapper-small");
     targetWrapper.classList.toggle("video-wrapper-large");
     if(geoMap) setTimeout(() => geoMap.invalidateSize(), 300); 
-    // NAYA: No resizeCanvas call needed anymore, fixed resolution!
   };
   const shrinkBtn = document.createElement("button");
   shrinkBtn.className = "icon-btn"; shrinkBtn.innerHTML = "➖";
@@ -216,6 +219,7 @@ socket.on("map-toggle", (data) => {
   if (data.show) { hideAllBigPanels(); mapBox.style.display = "block"; setTimeout(() => { if(geoMap) geoMap.invalidateSize(); }, 100); if(isHost){toggleMapBtn.dataset.show="true"; toggleMapBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
   else { mapBox.style.display = "none"; if(isHost){toggleMapBtn.dataset.show="false"; toggleMapBtn.style.background="linear-gradient(135deg, #27ae60, #2ecc71)";} }
 });
+
 
 // ---------- MATH FORMULA LIBRARY LOGIC ----------
 const formulas = {
@@ -380,14 +384,38 @@ const subjectAssets = {
 const subjectCategory = document.getElementById("subjectCategory");
 const subjectAssetsList = document.getElementById("subjectAssetsList");
 
-// NAYA FIX: Using wsrv.nl to perfectly bypass CORS limits for all images!
+// --- RESIZE AND STAMP PREVIEW LOGIC ---
+function prepareStamp(src) {
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.onload = () => {
+        stampImage = img;
+        // Smart Scaling: Calculate scale to fit perfectly on canvas without being too huge
+        stampScale = Math.min((canvas.width * 0.6) / img.width, (canvas.height * 0.6) / img.height);
+        
+        isStamping = true;
+        currentTool = 'stamp';
+        document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active-tool'));
+        
+        showNotification("🖱️ Scroll to Resize. Click to Stamp!", "info");
+        canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); 
+    };
+    img.onerror = () => showNotification("Image failed to load. Try again.", "danger");
+    img.src = src;
+}
+
+// Asset Loading using powerful corsproxy.io
 async function loadAssetToCanvas(url, name) {
     try {
         showNotification(`Downloading ${name}...`, "info");
-        // Using highly reliable wsrv proxy
-        const proxyUrl = `https://wsrv.nl/?url=${encodeURIComponent(url)}&output=png`;
-        drawWbImage(proxyUrl, true);
-        wbSubjectsMenu.style.display = "none";
+        const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(url)}`;
+        const response = await fetch(proxyUrl);
+        if(!response.ok) throw new Error("CORS Proxy Blocked");
+        
+        const blob = await response.blob();
+        const reader = new FileReader();
+        reader.onloadend = () => { prepareStamp(reader.result); };
+        reader.readAsDataURL(blob);
     } catch(e) {
         showNotification(`Failed to load ${name}.`, "danger");
     }
@@ -399,7 +427,10 @@ function loadSubjectAssets(cat) {
         const btn = document.createElement("button");
         btn.textContent = "➕ Insert " + asset.name;
         btn.style.cssText = "background: rgba(255,255,255,0.1); color: white; border: 1px solid var(--accent); padding: 8px; border-radius: 6px; cursor: pointer; text-align: left; font-size: 13px;";
-        btn.onclick = () => { loadAssetToCanvas(asset.url, asset.name); };
+        btn.onclick = () => {
+            loadAssetToCanvas(asset.url, asset.name);
+            wbSubjectsMenu.style.display = "none";
+        };
         subjectAssetsList.appendChild(btn);
     });
 }
@@ -412,6 +443,12 @@ document.querySelectorAll('.tool-btn').forEach(btn => {
         btn.classList.add('active-tool');
         currentTool = btn.id.replace('tool-', ''); 
         wbShapesMenu.style.display = "none"; 
+        
+        // Cancel Stamp mode if other tool selected
+        if(isStamping) {
+            isStamping = false;
+            if(canvasSnapshot) ctx.putImageData(canvasSnapshot, 0, 0); // Remove ghost
+        }
     });
 });
 
@@ -419,7 +456,7 @@ document.getElementById('wb-color').addEventListener("input", (e) => { currentBr
 document.getElementById('wb-size').addEventListener("input", (e) => { currentBrushSize = e.target.value; });
 document.getElementById('wb-clear').addEventListener("click", () => {
   if (!canDraw) return; 
-  ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height); // Keep bg white
+  ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height); 
   socket.emit("clear-whiteboard", { room: currentRoom });
 });
 socket.on("clear-whiteboard", () => {
@@ -433,6 +470,23 @@ function getCanvasPoint(e) {
     const scaleY = canvas.height / rect.height;
     return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
 }
+
+// NAYA: Wheel to resize STAMP
+canvas.addEventListener('wheel', (e) => {
+    if (isStamping && stampImage) {
+        e.preventDefault(); 
+        if (e.deltaY < 0) stampScale *= 1.1; 
+        else stampScale *= 0.9; 
+        
+        const pt = getCanvasPoint(e);
+        ctx.putImageData(canvasSnapshot, 0, 0);
+        let w = stampImage.width * stampScale;
+        let h = stampImage.height * stampScale;
+        ctx.globalAlpha = 0.6;
+        ctx.drawImage(stampImage, pt.x - w/2, pt.y - h/2, w, h);
+        ctx.globalAlpha = 1.0;
+    }
+}, {passive: false});
 
 function floodFill(startX, startY, fillColorHex, emit=false) {
     const hex = fillColorHex.replace('#','');
@@ -498,8 +552,10 @@ function drawShapeObj(x0, y0, x1, y1, type, color, size, emit = false) {
 
   if(type === 'line') { ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); }
   else if(type === 'arrow') {
-      ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); let angle = Math.atan2(y1-y0, x1-x0);
-      ctx.lineTo(x1 - size*3 * Math.cos(angle - Math.PI/6), y1 - size*3 * Math.sin(angle - Math.PI/6)); ctx.moveTo(x1, y1); ctx.lineTo(x1 - size*3 * Math.cos(angle + Math.PI/6), y1 - size*3 * Math.sin(angle + Math.PI/6));
+      ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+      let angle = Math.atan2(y1-y0, x1-x0);
+      ctx.lineTo(x1 - size*3 * Math.cos(angle - Math.PI/6), y1 - size*3 * Math.sin(angle - Math.PI/6));
+      ctx.moveTo(x1, y1); ctx.lineTo(x1 - size*3 * Math.cos(angle + Math.PI/6), y1 - size*3 * Math.sin(angle + Math.PI/6));
   }
   else if(type === 'rect') { ctx.rect(x0, y0, w, h); }
   else if(type === 'circle') { let r = Math.sqrt(Math.pow(w, 2) + Math.pow(h, 2)); ctx.arc(x0, y0, r, 0, 2*Math.PI); }
@@ -542,8 +598,31 @@ let wbLaserTimeout;
 
 canvas.addEventListener('mousedown', (e) => { 
   if (!canDraw) return; 
-  if(currentTool === 'pointer') return; 
   const pt = getCanvasPoint(e);
+
+  if (isStamping && stampImage) {
+      // 1. FINAL STAMPING PROCESS
+      ctx.putImageData(canvasSnapshot, 0, 0); 
+      let w = stampImage.width * stampScale;
+      let h = stampImage.height * stampScale;
+      ctx.drawImage(stampImage, pt.x - w/2, pt.y - h/2, w, h);
+      
+      // Emit stamped image
+      let tempCanvas = document.createElement("canvas");
+      tempCanvas.width = w; tempCanvas.height = h;
+      tempCanvas.getContext("2d").drawImage(stampImage, 0, 0, w, h);
+      let sendSrc = tempCanvas.toDataURL("image/jpeg", 0.6);
+      socket.emit("wb-stamp", { room: currentRoom, image: sendSrc, x: pt.x - w/2, y: pt.y - h/2, w: w, h: h });
+      
+      isStamping = false;
+      currentTool = 'pen';
+      document.getElementById('tool-pen').classList.add('active-tool');
+      canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      showNotification("Stamped successfully!", "join");
+      return;
+  }
+
+  if(currentTool === 'pointer') return; 
   if(currentTool === 'fill') { floodFill(pt.x, pt.y, currentBrushColor, true); return; }
   drawing = true; startX = pt.x; startY = pt.y; 
   canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -552,6 +631,18 @@ canvas.addEventListener('mousedown', (e) => {
 canvas.addEventListener('mousemove', (e) => {
   if (!canDraw) return;
   const pt = getCanvasPoint(e);
+
+  if (isStamping && stampImage) {
+      // 2. SHOW GHOST PREVIEW WHILE MOVING
+      ctx.putImageData(canvasSnapshot, 0, 0);
+      let w = stampImage.width * stampScale;
+      let h = stampImage.height * stampScale;
+      ctx.globalAlpha = 0.6; 
+      ctx.drawImage(stampImage, pt.x - w/2, pt.y - h/2, w, h);
+      ctx.globalAlpha = 1.0;
+      return;
+  }
+
   if(currentTool === 'pointer') {
       socket.emit("wb-pointer", { room: currentRoom, x: pt.x / canvas.width, y: pt.y / canvas.height }); return;
   }
@@ -581,62 +672,34 @@ socket.on('drawing', (data) => {
   else drawShapeObj(data.x0, data.y0, data.x1, data.y1, data.type, data.color, data.size, false);
 });
 
+socket.on("wb-stamp", (data) => {
+    const img = new Image();
+    img.onload = () => { ctx.drawImage(img, data.x, data.y, data.w, data.h); };
+    img.src = data.image;
+});
+
 socket.on("wb-pointer", (data) => {
     if(data.hide) { wbLaser.style.display = "none"; return; }
     wbLaser.style.display = "block"; wbLaser.style.left = (data.x * 100) + "%"; wbLaser.style.top = (data.y * 100) + "%";
     clearTimeout(wbLaserTimeout); wbLaserTimeout = setTimeout(() => { wbLaser.style.display = "none"; }, 2000);
 });
 
-// NAYA PDF FIX: Smart Full-Screen Fit
+// PDF Rendering for Resizable Stamp
 document.getElementById('tool-pdf').addEventListener("click", () => document.getElementById('wbPdfUpload').click());
 document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
   const file = e.target.files[0]; if(!file) return; showNotification("Rendering PDF...", "info");
   const fileReader = new FileReader();
   fileReader.onload = async function() {
       const typedarray = new Uint8Array(this.result); const pdf = await pdfjsLib.getDocument(typedarray).promise; const page = await pdf.getPage(1); 
-      
-      // Calculate perfect scale to fit canvas
-      let unscaledViewport = page.getViewport({scale: 1});
-      let scale = Math.min((canvas.width * 0.95) / unscaledViewport.width, (canvas.height * 0.95) / unscaledViewport.height);
-      
-      const viewport = page.getViewport({scale: scale}); 
-      const tc = document.createElement('canvas'); const tCtx = tc.getContext('2d'); 
-      tc.height = viewport.height; tc.width = viewport.width;
-      
+      // Render at high resolution, let user resize before stamping
+      const viewport = page.getViewport({scale: 2.0}); 
+      const tc = document.createElement('canvas'); const tCtx = tc.getContext('2d'); tc.height = viewport.height; tc.width = viewport.width;
       await page.render({canvasContext: tCtx, viewport: viewport}).promise; 
-      drawWbImage(tc.toDataURL(), true);
+      prepareStamp(tc.toDataURL());
   };
   fileReader.readAsArrayBuffer(file);
 });
 
-function drawWbImage(src, emit=false) {
-    const img = new Image(); 
-    img.crossOrigin = "Anonymous";
-    img.onload = () => {
-        let w = img.width, h = img.height;
-        // Don't upscale small images, but scale down large ones to fit
-        let scale = Math.min(canvas.width / w, canvas.height / h) * 0.95; 
-        if(scale > 1) scale = 1; 
-        
-        let drawW = w * scale; let drawH = h * scale;
-        let x = (canvas.width - drawW) / 2; let y = (canvas.height - drawH) / 2;
-        
-        ctx.drawImage(img, x, y, drawW, drawH);
-        
-        if(emit) {
-            let sendSrc = src;
-            if(src.startsWith("data:")) {
-                const tc = document.createElement("canvas"); tc.width = drawW; tc.height = drawH;
-                tc.getContext("2d").drawImage(img, 0, 0, drawW, drawH);
-                sendSrc = tc.toDataURL("image/jpeg", 0.6); 
-            }
-            socket.emit("wb-image", {room: currentRoom, image: sendSrc});
-        }
-    };
-    img.onerror = () => showNotification("Failed to load image.", "danger");
-    img.src = src;
-}
-socket.on("wb-image", (data) => drawWbImage(data.image, false));
 
 // ---------- INITIALIZE LEAFLET WORLD MAP ----------
 function initWorldMap() {
