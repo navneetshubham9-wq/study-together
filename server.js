@@ -4,10 +4,12 @@ const path = require("path");
 const multer = require("multer");
 const { Server } = require("socket.io");
 const fs = require("fs");
+const https = require("https"); // NAYA: Image Proxy ke liye
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+// Increase Socket Payload limit from 1MB to 10MB just to be safe
+const io = new Server(server, { maxHttpBufferSize: 1e7 }); 
 
 // Upload Directory Setup
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, "uploads");
@@ -39,8 +41,32 @@ const roomChats = new Map();
 const roomFiles = new Map();
 const roomWbState = new Map();
 const roomMapState = new Map();
-const roomPresState = new Map(); // Presentation window visibility
-const roomChartData = new Map(); // Latest chart data save karne ke liye
+const roomPresState = new Map(); 
+const roomChartData = new Map(); 
+
+// NAYA: Internal Image Proxy to bypass CORS completely
+app.get("/proxy-image", (req, res) => {
+  const imgUrl = req.query.url;
+  if(!imgUrl) return res.status(400).send("URL required");
+  
+  const options = { headers: { 'User-Agent': 'Mozilla/5.0' } };
+  
+  const fetchImage = (url) => {
+      https.get(url, options, (response) => {
+          // Handle redirects (Wikipedia uses them often)
+          if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+              fetchImage(response.headers.location);
+          } else {
+              res.setHeader('Access-Control-Allow-Origin', '*');
+              res.setHeader('Content-Type', response.headers['content-type'] || 'image/png');
+              response.pipe(res);
+          }
+      }).on('error', () => {
+          res.status(500).send("Error fetching image");
+      });
+  };
+  fetchImage(imgUrl);
+});
 
 // File Upload Route
 app.post("/upload", upload.single("file"), (req, res) => {
@@ -74,7 +100,6 @@ io.on("connection", socket => {
       socket.emit("host-assignment", { isHost: false });
     }
     
-    // Send Old History to new joined user
     socket.emit("room-history", { 
       chats: roomChats.get(room) || [], 
       files: roomFiles.get(room) || [],
@@ -94,27 +119,17 @@ io.on("connection", socket => {
   socket.on("wb-toggle", data => { roomWbState.set(data.room, data.show); io.to(data.room).emit("wb-toggle", data); });
   socket.on("map-toggle", data => { roomMapState.set(data.room, data.show); io.to(data.room).emit("map-toggle", data); });
   socket.on("wb-control", data => io.to(data.room).emit("wb-control", data));
-
-  // --- NAYA: Presentation & Math Logic ---
-  socket.on("pres-toggle", data => {
-    roomPresState.set(data.room, data.show);
-    io.to(data.room).emit("pres-toggle", data);
-  });
-
+  socket.on("pres-toggle", data => { roomPresState.set(data.room, data.show); io.to(data.room).emit("pres-toggle", data); });
+  socket.on("pres-view-switch", data => io.to(data.room).emit("pres-view-switch", data));
+  
   socket.on("presentation-data", data => {
-    roomChartData.set(data.room, data.chartConfig);
+    roomChartData.set(data.room, data);
     io.to(data.room).emit("presentation-data", data);
   });
 
-  socket.on("laser-pointer", data => {
-    // Only send to others, not the host themselves
-    socket.to(data.room).emit("laser-pointer", data);
-  });
-
-  socket.on("math-equation", data => {
-    io.to(data.room).emit("math-equation", data);
-  });
-  // ---------------------------------------
+  socket.on("laser-pointer", data => socket.to(data.room).emit("laser-pointer", data));
+  socket.on("wb-pointer", data => socket.to(data.room).emit("wb-pointer", data));
+  socket.on("math-equation", data => io.to(data.room).emit("math-equation", data));
 
   socket.on("chat-message", data => {
     if (!roomChats.has(data.room)) roomChats.set(data.room, []);
@@ -123,6 +138,8 @@ io.on("connection", socket => {
   });
 
   socket.on("drawing", data => socket.to(data.room).emit("drawing", data));
+  socket.on("wb-fill", data => socket.to(data.room).emit("wb-fill", data));
+  socket.on("wb-image", data => socket.to(data.room).emit("wb-image", data));
   socket.on("clear-whiteboard", data => socket.to(data.room).emit("clear-whiteboard"));
 
   socket.on("leave-room", () => handleUserLeave(socket.id));

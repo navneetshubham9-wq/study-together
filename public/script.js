@@ -43,7 +43,7 @@ const uploadBtn = document.getElementById("uploadBtn");
 const fileUpload = document.getElementById("fileUpload");
 const fileList = document.getElementById("fileList");
 
-// NAYA: Draggable Personal Calculator Logic
+// Draggable Personal Calculator
 const calcModal = document.getElementById("calc-modal");
 const calcDisplay = document.getElementById("calc-display");
 const calcHeader = document.getElementById("calc-header");
@@ -58,7 +58,6 @@ window.calcCalculate = () => {
     catch(e) { calcDisplay.value = "Error"; setTimeout(calcClear, 1000); } 
 };
 
-// Drag Logic for Calculator
 let isCalcDragging = false;
 let calcStartX, calcStartY, calcInitialX, calcInitialY;
 calcHeader.addEventListener("mousedown", (e) => {
@@ -66,7 +65,7 @@ calcHeader.addEventListener("mousedown", (e) => {
     calcStartX = e.clientX; calcStartY = e.clientY;
     const rect = calcModal.getBoundingClientRect();
     calcInitialX = rect.left; calcInitialY = rect.top;
-    calcModal.style.right = "auto"; // Unlock right positioning
+    calcModal.style.right = "auto"; 
     calcModal.style.left = calcInitialX + "px";
     calcModal.style.top = calcInitialY + "px";
 });
@@ -76,7 +75,6 @@ document.addEventListener("mousemove", (e) => {
     calcModal.style.top = (calcInitialY + e.clientY - calcStartY) + "px";
 });
 document.addEventListener("mouseup", () => isCalcDragging = false);
-
 
 // Math Modal
 const mathModal = document.getElementById("math-modal");
@@ -132,7 +130,6 @@ let canvasSnapshot;
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-// ---------- NOTIFICATIONS ----------
 function showNotification(message, type = 'info') {
   const container = document.getElementById('notification-container');
   if (!container) return;
@@ -148,11 +145,9 @@ function appendMessage(text) {
   messages.appendChild(d); messages.scrollTop = messages.scrollHeight;
 }
 
-// ---------- SIZE CONTROLS ----------
 function addSizeControls(targetWrapper, elementToFullscreen) {
   const controlsDiv = document.createElement("div");
   controlsDiv.className = "local-controls";
-
   const enlargeBtn = document.createElement("button");
   enlargeBtn.className = "icon-btn"; enlargeBtn.innerHTML = "➕";
   enlargeBtn.onclick = () => {
@@ -160,7 +155,6 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
     targetWrapper.classList.toggle("video-wrapper-large");
     if(geoMap) setTimeout(() => geoMap.invalidateSize(), 300); 
   };
-
   const shrinkBtn = document.createElement("button");
   shrinkBtn.className = "icon-btn"; shrinkBtn.innerHTML = "➖";
   shrinkBtn.onclick = () => {
@@ -168,14 +162,12 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
     targetWrapper.classList.toggle("video-wrapper-small");
     if(geoMap) setTimeout(() => geoMap.invalidateSize(), 300);
   };
-
   const maxBtn = document.createElement("button");
   maxBtn.className = "icon-btn"; maxBtn.innerHTML = "🖥️";
   maxBtn.onclick = () => {
     if (!document.fullscreenElement) { elementToFullscreen.requestFullscreen().catch(e => e); } 
     else { document.exitFullscreen(); }
   };
-
   controlsDiv.appendChild(enlargeBtn); controlsDiv.appendChild(shrinkBtn); controlsDiv.appendChild(maxBtn);
   elementToFullscreen.appendChild(controlsDiv);
 }
@@ -184,7 +176,6 @@ addSizeControls(whiteboardBox, document.getElementById('whiteboard-container'));
 addSizeControls(mapBox, mapContainer); 
 addSizeControls(presentationBox, presentationContainer); 
 
-// ---------- SMART PANEL TOGGLE LOGIC ----------
 function hideAllBigPanels() {
     whiteboardBox.style.display = "none";
     mapBox.style.display = "none";
@@ -351,8 +342,7 @@ socket.on("laser-pointer", (data) => {
     clearTimeout(laserTimeout); laserTimeout = setTimeout(() => { laserPointer.style.display = "none"; }, 2000);
 });
 
-// ---------- ADVANCED PRO WHITEBOARD (CORS & RESIZE FIX) ----------
-
+// ---------- ADVANCED PRO WHITEBOARD ----------
 const toggleShapesBtn = document.getElementById("toggleShapesBtn");
 const wbShapesMenu = document.getElementById("wb-shapes-menu");
 const toggleSubjectsBtn = document.getElementById("toggleSubjectsBtn");
@@ -397,8 +387,9 @@ function loadSubjectAssets(cat) {
         btn.style.cssText = "background: rgba(255,255,255,0.1); color: white; border: 1px solid var(--accent); padding: 8px; border-radius: 6px; cursor: pointer; text-align: left; font-size: 13px;";
         btn.onclick = () => {
             showNotification(`Inserting ${asset.name}...`, "info");
-            // Direct URL Emit (Fixes CORS issue)
-            drawWbImage(asset.url, true);
+            // NAYA FIX: Using our own backend proxy to bypass CORS safely!
+            const proxyUrl = `/proxy-image?url=${encodeURIComponent(asset.url)}`;
+            drawWbImage(proxyUrl, true);
             wbSubjectsMenu.style.display = "none";
         };
         subjectAssetsList.appendChild(btn);
@@ -423,66 +414,39 @@ document.getElementById('wb-clear').addEventListener("click", () => {
 });
 socket.on("clear-whiteboard", () => ctx.clearRect(0, 0, canvas.width, canvas.height));
 
-// NAYA: Precise Coordinate Calculation
 function getCanvasPoint(e) {
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
-    return {
-        x: (e.clientX - rect.left) * scaleX,
-        y: (e.clientY - rect.top) * scaleY
-    };
+    return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
 }
 
-// NAYA: FLOOD FILL ALGORITHM (Color Bucket)
 function floodFill(startX, startY, fillColorHex, emit=false) {
     const hex = fillColorHex.replace('#','');
-    const fillR = parseInt(hex.substring(0,2), 16);
-    const fillG = parseInt(hex.substring(2,4), 16);
-    const fillB = parseInt(hex.substring(4,6), 16);
-    const fillA = 255;
-
+    const fillR = parseInt(hex.substring(0,2), 16); const fillG = parseInt(hex.substring(2,4), 16); const fillB = parseInt(hex.substring(4,6), 16); const fillA = 255;
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imageData.data;
-    const width = canvas.width;
-    const height = canvas.height;
-    
+    const data = imageData.data; const width = canvas.width; const height = canvas.height;
     const sx = Math.floor(startX); const sy = Math.floor(startY);
     if(sx < 0 || sx >= width || sy < 0 || sy >= height) return;
-
     const startPos = (sy * width + sx) * 4;
     const startR = data[startPos]; const startG = data[startPos + 1]; const startB = data[startPos + 2]; const startA = data[startPos + 3];
-
     if (startR === fillR && startG === fillG && startB === fillB && startA === fillA) return; 
 
-    const matchColor = (pos) => {
-        return data[pos] === startR && data[pos+1] === startG && data[pos+2] === startB && data[pos+3] === startA;
-    };
-    const colorPixel = (pos) => {
-        data[pos] = fillR; data[pos+1] = fillG; data[pos+2] = fillB; data[pos+3] = fillA;
-    };
-
+    const matchColor = (pos) => { return data[pos] === startR && data[pos+1] === startG && data[pos+2] === startB && data[pos+3] === startA; };
+    const colorPixel = (pos) => { data[pos] = fillR; data[pos+1] = fillG; data[pos+2] = fillB; data[pos+3] = fillA; };
     const pixelStack = [[sx, sy]];
 
     while (pixelStack.length) {
         const newPos = pixelStack.pop();
         const x = newPos[0]; let y = newPos[1];
         let pixelPos = (y * width + x) * 4;
-        
         while (y-- >= 0 && matchColor(pixelPos)) { pixelPos -= width * 4; }
         pixelPos += width * 4; ++y;
-
         let reachLeft = false; let reachRight = false;
         while (y++ < height - 1 && matchColor(pixelPos)) {
             colorPixel(pixelPos);
-            if (x > 0) {
-                if (matchColor(pixelPos - 4)) { if (!reachLeft) { pixelStack.push([x - 1, y]); reachLeft = true; } } 
-                else if (reachLeft) { reachLeft = false; }
-            }
-            if (x < width - 1) {
-                if (matchColor(pixelPos + 4)) { if (!reachRight) { pixelStack.push([x + 1, y]); reachRight = true; } } 
-                else if (reachRight) { reachRight = false; }
-            }
+            if (x > 0) { if (matchColor(pixelPos - 4)) { if (!reachLeft) { pixelStack.push([x - 1, y]); reachLeft = true; } } else if (reachLeft) { reachLeft = false; } }
+            if (x < width - 1) { if (matchColor(pixelPos + 4)) { if (!reachRight) { pixelStack.push([x + 1, y]); reachRight = true; } } else if (reachRight) { reachRight = false; } }
             pixelPos += width * 4;
         }
     }
@@ -501,8 +465,7 @@ function drawFreehand(x0, y0, x1, y1, color, size, toolType, emit = false) {
   else if (toolType === 'spray') {
       ctx.fillStyle = color;
       for (let i = 0; i < size * 2; i++) {
-          const offsetX = x1 + (Math.random() * size - size/2);
-          const offsetY = y1 + (Math.random() * size - size/2);
+          const offsetX = x1 + (Math.random() * size - size/2); const offsetY = y1 + (Math.random() * size - size/2);
           ctx.fillRect(offsetX, offsetY, 2, 2);
       }
   }
@@ -513,47 +476,31 @@ function drawFreehand(x0, y0, x1, y1, color, size, toolType, emit = false) {
       else { ctx.shadowBlur = 0; }
       ctx.stroke(); ctx.closePath();
   }
-
   if (emit) socket.emit('drawing', { type: 'free', x0, y0, x1, y1, color, size, toolType: toolType, room: currentRoom });
 }
 
 function drawShapeObj(x0, y0, x1, y1, type, color, size, emit = false) {
   ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = size; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.shadowBlur = 0;
-  
-  let w = x1 - x0;
-  let h = y1 - y0;
+  let w = x1 - x0; let h = y1 - y0;
 
   if(type === 'line') { ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); }
   else if(type === 'arrow') {
       ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
       let angle = Math.atan2(y1-y0, x1-x0);
       ctx.lineTo(x1 - size*3 * Math.cos(angle - Math.PI/6), y1 - size*3 * Math.sin(angle - Math.PI/6));
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x1 - size*3 * Math.cos(angle + Math.PI/6), y1 - size*3 * Math.sin(angle + Math.PI/6));
+      ctx.moveTo(x1, y1); ctx.lineTo(x1 - size*3 * Math.cos(angle + Math.PI/6), y1 - size*3 * Math.sin(angle + Math.PI/6));
   }
   else if(type === 'rect') { ctx.rect(x0, y0, w, h); }
-  else if(type === 'circle') {
-      let r = Math.sqrt(Math.pow(w, 2) + Math.pow(h, 2)); 
-      ctx.arc(x0, y0, r, 0, 2*Math.PI);
-  }
-  else if(type === 'triangle') {
-      ctx.moveTo(x0 + w/2, y0); ctx.lineTo(x1, y1); ctx.lineTo(x0, y1); ctx.closePath();
-  }
+  else if(type === 'circle') { let r = Math.sqrt(Math.pow(w, 2) + Math.pow(h, 2)); ctx.arc(x0, y0, r, 0, 2*Math.PI); }
+  else if(type === 'triangle') { ctx.moveTo(x0 + w/2, y0); ctx.lineTo(x1, y1); ctx.lineTo(x0, y1); ctx.closePath(); }
   else if(type === 'pentagon' || type === 'hexagon' || type === 'star') {
-      let r = Math.sqrt(w*w + h*h);
-      let sides = type === 'pentagon' ? 5 : (type === 'hexagon' ? 6 : 5);
-      let step = (Math.PI * 2) / sides;
+      let r = Math.sqrt(w*w + h*h); let sides = type === 'pentagon' ? 5 : (type === 'hexagon' ? 6 : 5); let step = (Math.PI * 2) / sides;
       for(let i=0; i<=sides; i++) {
-          let cx = x0 + r * Math.cos(i * step - Math.PI/2);
-          let cy = y0 + r * Math.sin(i * step - Math.PI/2);
+          let cx = x0 + r * Math.cos(i * step - Math.PI/2); let cy = y0 + r * Math.sin(i * step - Math.PI/2);
           if(type === 'star' && i<sides) {
-              let ix = x0 + (r/2.5) * Math.cos((i+0.5) * step - Math.PI/2);
-              let iy = y0 + (r/2.5) * Math.sin((i+0.5) * step - Math.PI/2);
-              if(i===0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
-              ctx.lineTo(ix, iy);
-          } else {
-              if(i===0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
-          }
+              let ix = x0 + (r/2.5) * Math.cos((i+0.5) * step - Math.PI/2); let iy = y0 + (r/2.5) * Math.sin((i+0.5) * step - Math.PI/2);
+              if(i===0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy); ctx.lineTo(ix, iy);
+          } else { if(i===0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy); }
       }
       ctx.closePath();
   }
@@ -561,30 +508,19 @@ function drawShapeObj(x0, y0, x1, y1, type, color, size, emit = false) {
       let d = Math.min(Math.abs(w), Math.abs(h)) * 0.4; 
       ctx.rect(x0, y0+d, w-d, h-d);
       ctx.moveTo(x0+d, y0); ctx.lineTo(x1, y0); ctx.lineTo(x1, y1-d); ctx.lineTo(x0+d, y1-d); ctx.closePath();
-      ctx.moveTo(x0, y0+d); ctx.lineTo(x0+d, y0);
-      ctx.moveTo(x1-d, y0+d); ctx.lineTo(x1, y0);
-      ctx.moveTo(x1-d, y1); ctx.lineTo(x1, y1-d);
-      ctx.moveTo(x0, y1); ctx.lineTo(x0+d, y1-d);
+      ctx.moveTo(x0, y0+d); ctx.lineTo(x0+d, y0); ctx.moveTo(x1-d, y0+d); ctx.lineTo(x1, y0); ctx.moveTo(x1-d, y1); ctx.lineTo(x1, y1-d); ctx.moveTo(x0, y1); ctx.lineTo(x0+d, y1-d);
   }
   else if(type === 'cylinder') {
-      let rX = Math.abs(w/2);
-      let rY = Math.abs(h * 0.15); 
-      ctx.ellipse(x0 + w/2, y0 + rY, rX, rY, 0, 0, 2 * Math.PI);
-      ctx.moveTo(x0, y1 - rY);
-      ctx.ellipse(x0 + w/2, y1 - rY, rX, rY, 0, 0, Math.PI);
-      ctx.moveTo(x0, y0 + rY); ctx.lineTo(x0, y1 - rY);
-      ctx.moveTo(x1, y0 + rY); ctx.lineTo(x1, y1 - rY);
+      let rX = Math.abs(w/2); let rY = Math.abs(h * 0.15); 
+      ctx.ellipse(x0 + w/2, y0 + rY, rX, rY, 0, 0, 2 * Math.PI); ctx.moveTo(x0, y1 - rY); ctx.ellipse(x0 + w/2, y1 - rY, rX, rY, 0, 0, Math.PI);
+      ctx.moveTo(x0, y0 + rY); ctx.lineTo(x0, y1 - rY); ctx.moveTo(x1, y0 + rY); ctx.lineTo(x1, y1 - rY);
   }
   else if(type === 'cone') {
       let rX = Math.abs(w/2), rY = Math.abs(h * 0.15);
-      ctx.ellipse(x0 + w/2, y1 - rY, rX, rY, 0, 0, 2 * Math.PI);
-      ctx.moveTo(x0 + w/2, y0); ctx.lineTo(x0, y1 - rY);
-      ctx.moveTo(x0 + w/2, y0); ctx.lineTo(x1, y1 - rY);
+      ctx.ellipse(x0 + w/2, y1 - rY, rX, rY, 0, 0, 2 * Math.PI); ctx.moveTo(x0 + w/2, y0); ctx.lineTo(x0, y1 - rY); ctx.moveTo(x0 + w/2, y0); ctx.lineTo(x1, y1 - rY);
   }
   else if(type === 'sphere') {
-      let r = Math.sqrt(w*w + h*h);
-      ctx.arc(x0, y0, r, 0, 2*Math.PI);
-      ctx.moveTo(x0-r, y0); ctx.ellipse(x0, y0, r, r*0.3, 0, 0, 2*Math.PI); 
+      let r = Math.sqrt(w*w + h*h); ctx.arc(x0, y0, r, 0, 2*Math.PI); ctx.moveTo(x0-r, y0); ctx.ellipse(x0, y0, r, r*0.3, 0, 0, 2*Math.PI); 
   }
   
   ctx.stroke(); 
@@ -597,23 +533,16 @@ let wbLaserTimeout;
 canvas.addEventListener('mousedown', (e) => { 
   if (!canDraw) return; 
   if(currentTool === 'pointer') return; 
-  
   const pt = getCanvasPoint(e);
-  
-  if(currentTool === 'fill') {
-      floodFill(pt.x, pt.y, currentBrushColor, true);
-      return;
-  }
+  if(currentTool === 'fill') { floodFill(pt.x, pt.y, currentBrushColor, true); return; }
   drawing = true; startX = pt.x; startY = pt.y; 
   canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
 });
 canvas.addEventListener('mousemove', (e) => {
   if (!canDraw) return;
   const pt = getCanvasPoint(e);
-  
   if(currentTool === 'pointer') {
-      socket.emit("wb-pointer", { room: currentRoom, x: pt.x / canvas.width, y: pt.y / canvas.height });
-      return;
+      socket.emit("wb-pointer", { room: currentRoom, x: pt.x / canvas.width, y: pt.y / canvas.height }); return;
   }
   if (!drawing || currentTool === 'fill') return;
 
@@ -629,15 +558,10 @@ canvas.addEventListener('mouseup', (e) => {
   if (!drawing || !canDraw || currentTool === 'pointer' || currentTool === 'fill') return; 
   drawing = false; 
   const pt = getCanvasPoint(e);
-  if(!['pen', 'brush', 'spray', 'eraser'].includes(currentTool)) {
-      drawShapeObj(startX, startY, pt.x, pt.y, currentTool, currentBrushColor, currentBrushSize, true);
-  }
+  if(!['pen', 'brush', 'spray', 'eraser'].includes(currentTool)) { drawShapeObj(startX, startY, pt.x, pt.y, currentTool, currentBrushColor, currentBrushSize, true); }
   ctx.shadowBlur = 0; 
 });
-canvas.addEventListener('mouseout', () => {
-    drawing = false;
-    if(currentTool === 'pointer' && canDraw) socket.emit("wb-pointer", { room: currentRoom, hide: true });
-});
+canvas.addEventListener('mouseout', () => { drawing = false; if(currentTool === 'pointer' && canDraw) socket.emit("wb-pointer", { room: currentRoom, hide: true }); });
 
 socket.on('drawing', (data) => {
   if(data.type === 'free') drawFreehand(data.x0, data.y0, data.x1, data.y1, data.color, data.size, data.toolType, false);
@@ -646,47 +570,45 @@ socket.on('drawing', (data) => {
 
 socket.on("wb-pointer", (data) => {
     if(data.hide) { wbLaser.style.display = "none"; return; }
-    wbLaser.style.display = "block";
-    wbLaser.style.left = (data.x * 100) + "%";
-    wbLaser.style.top = (data.y * 100) + "%";
-    clearTimeout(wbLaserTimeout); 
-    wbLaserTimeout = setTimeout(() => { wbLaser.style.display = "none"; }, 2000);
+    wbLaser.style.display = "block"; wbLaser.style.left = (data.x * 100) + "%"; wbLaser.style.top = (data.y * 100) + "%";
+    clearTimeout(wbLaserTimeout); wbLaserTimeout = setTimeout(() => { wbLaser.style.display = "none"; }, 2000);
 });
 
 document.getElementById('tool-pdf').addEventListener("click", () => document.getElementById('wbPdfUpload').click());
 document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
-  const file = e.target.files[0]; if(!file) return;
-  showNotification("Rendering PDF...", "info");
+  const file = e.target.files[0]; if(!file) return; showNotification("Rendering PDF...", "info");
   const fileReader = new FileReader();
   fileReader.onload = async function() {
-      const typedarray = new Uint8Array(this.result);
-      const pdf = await pdfjsLib.getDocument(typedarray).promise;
-      const page = await pdf.getPage(1); 
-      const viewport = page.getViewport({scale: 1.5});
-      const tc = document.createElement('canvas'); const tCtx = tc.getContext('2d');
-      tc.height = viewport.height; tc.width = viewport.width;
-      await page.render({canvasContext: tCtx, viewport: viewport}).promise;
-      drawWbImage(tc.toDataURL(), true);
+      const typedarray = new Uint8Array(this.result); const pdf = await pdfjsLib.getDocument(typedarray).promise; const page = await pdf.getPage(1); 
+      const viewport = page.getViewport({scale: 1.5}); const tc = document.createElement('canvas'); const tCtx = tc.getContext('2d'); tc.height = viewport.height; tc.width = viewport.width;
+      await page.render({canvasContext: tCtx, viewport: viewport}).promise; drawWbImage(tc.toDataURL(), true);
   };
   fileReader.readAsArrayBuffer(file);
 });
 
+// NAYA FIX: Emit URL if possible, otherwise compress heavy Base64 to prevent socket crash
 function drawWbImage(src, emit=false) {
     const img = new Image(); 
     img.crossOrigin = "Anonymous";
     img.onload = () => {
         let w = img.width, h = img.height;
         let scale = Math.min(canvas.width / w, canvas.height / h) * 0.9; 
-        let x = (canvas.width - w * scale) / 2;
-        let y = (canvas.height - h * scale) / 2;
+        let drawW = w * scale; let drawH = h * scale;
+        let x = (canvas.width - drawW) / 2; let y = (canvas.height - drawH) / 2;
         
-        ctx.drawImage(img, x, y, w * scale, h * scale);
+        ctx.drawImage(img, x, y, drawW, drawH);
         
         if(emit) {
-            socket.emit("wb-image", {room: currentRoom, image: src});
+            let sendSrc = src;
+            if(src.startsWith("data:")) {
+                const tc = document.createElement("canvas"); tc.width = drawW; tc.height = drawH;
+                tc.getContext("2d").drawImage(img, 0, 0, drawW, drawH);
+                sendSrc = tc.toDataURL("image/jpeg", 0.5); // COMPRESSED FOR SOCKET
+            }
+            socket.emit("wb-image", {room: currentRoom, image: sendSrc});
         }
     };
-    img.onerror = () => showNotification("Failed to load image.", "danger");
+    img.onerror = () => showNotification("Failed to load image. Try different asset.", "danger");
     img.src = src;
 }
 socket.on("wb-image", (data) => drawWbImage(data.image, false));

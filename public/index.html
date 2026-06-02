@@ -16,6 +16,7 @@
   <header>
     <div style="display: flex; justify-content: center; align-items: center; gap: 20px;">
       <img src="assets/Copilot_20260527_213114.png" alt="VYDEX Logo" style="width: 80px; height: 80px; object-fit: contain;">
+      
       <h1>VYDEX<sup style="font-size: 0.4em; vertical-align: top; margin-left: 5px;">™</sup></h1>
     </div>
     <h2>Advanced Collaboration & Communication</h2>
@@ -173,14 +174,12 @@
         </div>
       </section>
 
-      <!-- ADVANCED PRO WHITEBOARD -->
       <section id="whiteboard-box" class="card big-panel" style="grid-column: 1 / -1; height: 600px; display: none; position: relative;">
         <h3>🎨 VYDEX Education Board <span id="wb-status" style="font-size:12px; color:var(--accent); font-weight:400; margin-left: 10px;">(View Only)</span></h3>
         
         <div id="whiteboard-container" style="position: relative; width: 100%; height: 500px; background: #fdfdfd; border-radius: 12px; overflow: hidden; box-shadow: inset 0 5px 15px rgba(0,0,0,0.1);">
           
-          <!-- FIXED CANVAS: Ab cursor aur drawing ke beech koi gap nahi aayega -->
-          <canvas id="whiteboard" style="width: 100%; height: 100%; cursor: crosshair; display: block;"></canvas>
+          <canvas id="whiteboard" style="width: 100%; height: 100%; cursor: crosshair; display: block; touch-action: none;"></canvas>
           
           <div id="wb-laser" style="position: absolute; width: 15px; height: 15px; background: red; border-radius: 50%; box-shadow: 0 0 10px red, 0 0 20px red; pointer-events: none; display: none; transform: translate(-50%, -50%); z-index: 10;"></div>
           
@@ -212,8 +211,8 @@
                 <option value="biology">🧬 Biology (Anatomy & Cells)</option>
                 <option value="chemistry">🧪 Chemistry</option>
                 <option value="physics">🧲 Physics</option>
-                <option value="maths">📐 Mathematics</option>
-                <option value="commerce">📈 Commerce</option>
+                <option value="maths">📐 Mathematics (Graphs & Tools)</option>
+                <option value="commerce">📈 Commerce & Economics</option>
             </select>
             <div id="subjectAssetsList" style="display: flex; flex-direction: column; gap: 8px;"></div>
           </div>
@@ -260,7 +259,7 @@
   <footer>
     <p>Powered by VYDEX Collaboration Engine</p>
     <p style="margin-top: 5px; font-weight: 600; color: var(--accent);">
-      📧 navneetshubham9@gmail.com | 📞 +91 8839339013
+      📧 navneetshubham9@gmail.com | 📞 +918839339013
     </p>
   </footer>
 
