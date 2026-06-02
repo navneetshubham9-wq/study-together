@@ -171,67 +171,69 @@
         <div id="whiteboard-container" style="position: relative; width: 100%; height: 450px; background: #fdfdfd; border-radius: 12px; overflow: hidden; box-shadow: inset 0 5px 15px rgba(0,0,0,0.1);">
           <canvas id="whiteboard" style="width: 100%; height: 100%; cursor: crosshair; display: block;"></canvas>
           
-          <div id="wb-shapes-menu" style="display: none; position: absolute; bottom: 70px; left: 50%; transform: translateX(-50%); background: rgba(20,30,48,0.95); padding: 10px; border-radius: 12px; border: 1px solid var(--primary); z-index: 25; width: 250px;">
-            <div style="color: var(--accent); font-size: 12px; margin-bottom: 8px; font-weight: bold; text-align: center;">Choose Shape</div>
-            <div style="display: flex; gap: 5px; justify-content: center; margin-bottom: 5px;">
-                <button class="icon-btn tool-btn" id="tool-line" title="Straight Line">📏</button>
+          <div id="wb-laser" style="position: absolute; width: 15px; height: 15px; background: red; border-radius: 50%; box-shadow: 0 0 10px red, 0 0 20px red; pointer-events: none; display: none; transform: translate(-50%, -50%); z-index: 10;"></div>
+          
+          <div id="wb-shapes-menu" style="display: none; position: absolute; bottom: 75px; left: 20%; background: rgba(20,30,48,0.95); padding: 15px; border-radius: 12px; border: 1px solid var(--primary); z-index: 25; width: 300px;">
+            <div style="color: var(--accent); font-size: 12px; margin-bottom: 8px; font-weight: bold;">2D Shapes</div>
+            <div style="display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px;">
+                <button class="icon-btn tool-btn" id="tool-line" title="Line">📏</button>
+                <button class="icon-btn tool-btn" id="tool-arrow" title="Arrow">➡️</button>
                 <button class="icon-btn tool-btn" id="tool-triangle" title="Triangle">🔺</button>
                 <button class="icon-btn tool-btn" id="tool-rect" title="Rectangle">⬜</button>
                 <button class="icon-btn tool-btn" id="tool-circle" title="Circle">⭕</button>
+                <button class="icon-btn tool-btn" id="tool-pentagon" title="Pentagon">⬠</button>
+                <button class="icon-btn tool-btn" id="tool-hexagon" title="Hexagon">⬡</button>
+                <button class="icon-btn tool-btn" id="tool-star" title="Star">⭐</button>
             </div>
-            <div style="display: flex; gap: 5px; justify-content: center;">
-                <button class="icon-btn tool-btn" id="tool-cube" title="3D Cube" style="font-size:11px;">Cube</button>
-                <button class="icon-btn tool-btn" id="tool-cylinder" title="3D Cylinder" style="font-size:11px;">Cylinder</button>
+            <div style="color: var(--accent); font-size: 12px; margin-bottom: 8px; font-weight: bold;">3D Shapes</div>
+            <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                <button class="icon-btn tool-btn" id="tool-cube" title="Cube" style="font-size:11px; padding: 4px 8px;">Cube</button>
+                <button class="icon-btn tool-btn" id="tool-cylinder" title="Cylinder" style="font-size:11px; padding: 4px 8px;">Cyl.</button>
+                <button class="icon-btn tool-btn" id="tool-cone" title="Cone" style="font-size:11px; padding: 4px 8px;">Cone</button>
+                <button class="icon-btn tool-btn" id="tool-sphere" title="Sphere" style="font-size:11px; padding: 4px 8px;">Sphere</button>
             </div>
           </div>
 
-          <div id="wb-subjects-menu" style="display: none; position: absolute; bottom: 70px; left: 50%; transform: translateX(-50%); background: rgba(20,30,48,0.95); padding: 15px; border-radius: 12px; border: 1px solid var(--primary); z-index: 25; width: 350px; max-height: 300px; overflow-y: auto;">
+          <div id="wb-subjects-menu" style="display: none; position: absolute; bottom: 75px; left: 30%; background: rgba(20,30,48,0.95); padding: 15px; border-radius: 12px; border: 1px solid var(--primary); z-index: 25; width: 380px; max-height: 350px; overflow-y: auto;">
             <h4 style="color: var(--accent); margin: 0 0 10px 0; text-align: center;">🎒 Subject Assets Library</h4>
             
             <select id="subjectCategory" style="width: 100%; padding: 8px; background: rgba(0,0,0,0.5); color: white; border: 1px solid var(--primary); border-radius: 6px; margin-bottom: 10px;">
                 <option value="geography">🌍 Geography (Maps)</option>
-                <option value="biology">🧬 Biology (Organs/Cells)</option>
+                <option value="biology">🧬 Biology (Anatomy & Cells)</option>
                 <option value="chemistry">🧪 Chemistry</option>
                 <option value="physics">🧲 Physics</option>
-                <option value="maths">📐 Mathematics</option>
+                <option value="maths">📐 Mathematics (Graphs & Tools)</option>
+                <option value="commerce">📈 Commerce & Economics</option>
             </select>
             
             <div id="subjectAssetsList" style="display: flex; flex-direction: column; gap: 8px;">
                 </div>
           </div>
 
-          <div id="wb-toolbar" style="display: none; position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); background: rgba(20, 20, 20, 0.95); padding: 10px 20px; border-radius: 30px; gap: 12px; align-items: center; z-index: 20; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 10px 20px rgba(0,0,0,0.5);">
-            
-            <button id="tool-pen" class="icon-btn tool-btn active-tool" title="Pen" style="background: var(--primary);">✏️</button>
+          <div id="wb-toolbar" style="display: none; position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); background: rgba(20, 20, 20, 0.95); padding: 10px 20px; border-radius: 30px; gap: 12px; align-items: center; z-index: 20; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 10px 20px rgba(0,0,0,0.5); width: max-content;">
             
             <button id="toggleShapesBtn" class="icon-btn" title="2D/3D Shapes">▱ Shapes</button>
             <button id="toggleSubjectsBtn" class="icon-btn" title="Subject Diagrams & Maps">🎒 Subjects</button>
             
             <span style="border-left: 1px solid rgba(255,255,255,0.3); height: 20px; margin: 0 5px;"></span>
             
-            <input type="color" id="wb-color" value="#000000" style="cursor: pointer; width: 30px; height: 30px; border: 2px solid white; border-radius: 50%; padding:0; background:transparent;">
-            <input type="range" id="wb-size" min="1" max="20" value="3" style="width: 80px; cursor: pointer;">
+            <button id="tool-pen" class="icon-btn tool-btn active-tool" title="Normal Pen" style="background: var(--primary);">✏️</button>
+            <button id="tool-brush" class="icon-btn tool-btn" title="Paint Brush">🖌️</button>
+            <button id="tool-spray" class="icon-btn tool-btn" title="Spray Can">💨</button>
+            <button id="tool-pointer" class="icon-btn tool-btn" title="Laser Pointer">🔴</button>
+            
+            <input type="color" id="wb-color" value="#000000" style="cursor: pointer; width: 30px; height: 30px; border: 2px solid white; border-radius: 50%; padding:0; background:transparent;" title="Color">
+            <input type="range" id="wb-size" min="1" max="40" value="3" style="width: 80px; cursor: pointer;" title="Thickness">
             
             <span style="border-left: 1px solid rgba(255,255,255,0.3); height: 20px; margin: 0 5px;"></span>
             
             <input type="file" id="wbPdfUpload" accept="application/pdf" style="display: none;">
             <button id="tool-pdf" class="icon-btn" title="Upload PDF to Board">📄 PDF</button>
             
-            <button id="wb-eraser" class="icon-btn tool-btn" title="Eraser">🧽</button>
+            <button id="tool-eraser" class="icon-btn tool-btn" title="Eraser">🧽</button>
             <button id="wb-clear" class="icon-btn" style="background: var(--danger);" title="Clear Board">🗑️</button>
           </div>
         </div>
-      </section>
-
-      <section id="map-box" class="card big-panel" style="grid-column: 1 / -1; height: 550px; display: none; position: relative;">
-        <h3>🌍 VYDEX Geography Explorer</h3>
-        
-        <div style="position: absolute; top: 80px; left: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 15px;">
-          <button id="toggleLabelsBtn" title="Toggle Place Names (ON/OFF)" style="background: var(--primary); color: white; border: 2px solid white; border-radius: 50%; width: 50px; height: 50px; cursor: pointer; font-size: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);">🏷️</button>
-          <button id="screenshotMapBtn" title="Take Map Screenshot" style="background: var(--accent-dark); color: white; border: 2px solid white; border-radius: 50%; width: 50px; height: 50px; cursor: pointer; font-size: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);">📸</button>
-        </div>
-        
-        <div id="map-container" style="width: 100%; height: 450px; border-radius: 12px; overflow: hidden; box-shadow: inset 0 5px 15px rgba(0,0,0,0.1); z-index: 1;"></div>
       </section>
 
     </div> 

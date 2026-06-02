@@ -404,7 +404,7 @@ socket.on("laser-pointer", (data) => {
     clearTimeout(laserTimeout); laserTimeout = setTimeout(() => { laserPointer.style.display = "none"; }, 2000);
 });
 
-// ---------- ADVANCED PRO WHITEBOARD ----------
+/// ---------- ADVANCED PRO WHITEBOARD ----------
 function resizeCanvas() { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; }
 window.addEventListener('resize', () => { resizeCanvas(); if(geoMap && mapBox.style.display !== "none") geoMap.invalidateSize(); });
 
@@ -416,7 +416,7 @@ const wbSubjectsMenu = document.getElementById("wb-subjects-menu");
 
 toggleShapesBtn.addEventListener("click", () => {
     wbShapesMenu.style.display = wbShapesMenu.style.display === "none" ? "block" : "none";
-    wbSubjectsMenu.style.display = "none"; // Hide other menu
+    wbSubjectsMenu.style.display = "none"; 
 });
 
 toggleSubjectsBtn.addEventListener("click", () => {
@@ -424,27 +424,45 @@ toggleSubjectsBtn.addEventListener("click", () => {
     wbShapesMenu.style.display = "none";
 });
 
-// Subject Assets Library Data
+// VERY LARGE EDUCATIONAL ASSETS LIBRARY
 const subjectAssets = {
     geography: [
-        {name: "World Map (Outline)", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/World_map_-_low_resolution.svg/1024px-World_map_-_low_resolution.svg.png"},
+        {name: "World Map (Political)", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/World_map_-_low_resolution.svg/1024px-World_map_-_low_resolution.svg.png"},
+        {name: "World Map (Physical)", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Earth_elevation_map_large.jpg/800px-Earth_elevation_map_large.jpg"},
         {name: "India Political Map", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/India_political_map_en.svg/800px-India_political_map_en.svg.png"},
         {name: "India Physical Map", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/India_relief_map.svg/800px-India_relief_map.svg.png"},
-        {name: "India Seismic Zones", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/India_earthquake_zone_map_en.svg/800px-India_earthquake_zone_map_en.svg.png"}
+        {name: "India Seismic Zones", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/India_earthquake_zone_map_en.svg/800px-India_earthquake_zone_map_en.svg.png"},
+        {name: "India Rivers & Lakes", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/India_rivers_and_lakes_map.svg/800px-India_rivers_and_lakes_map.svg.png"}
     ],
     biology: [
-        {name: "Human Heart (Labeled)", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Diagram_of_the_human_heart_%28cropped%29.svg/800px-Diagram_of_the_human_heart_%28cropped%29.svg.png"},
+        {name: "Human Skeleton", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Human_skeleton_front_en.svg/600px-Human_skeleton_front_en.svg.png"},
+        {name: "Respiratory System", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Respiratory_system_complete_en.svg/600px-Respiratory_system_complete_en.svg.png"},
+        {name: "Digestive System", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Digestive_system_diagram_en.svg/600px-Digestive_system_diagram_en.svg.png"},
+        {name: "Human Heart", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Diagram_of_the_human_heart_%28cropped%29.svg/800px-Diagram_of_the_human_heart_%28cropped%29.svg.png"},
         {name: "Human Brain", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Gehirn%2C_lateral_-_Glia_Hauptst%C3%A4mme_deutsch.svg/800px-Gehirn%2C_lateral_-_Glia_Hauptst%C3%A4mme_deutsch.svg.png"},
-        {name: "Plant Cell Structure", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Plant_cell_structure_svg.svg/800px-Plant_cell_structure_svg.svg.png"}
+        {name: "Plant Cell", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Plant_cell_structure_svg.svg/800px-Plant_cell_structure_svg.svg.png"},
+        {name: "Animal Cell", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/Animal_cell_structure_en.svg/800px-Animal_cell_structure_en.svg.png"}
     ],
     chemistry: [
-        {name: "Periodic Table", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Periodic_table_large.svg/1024px-Periodic_table_large.svg.png"}
+        {name: "Periodic Table", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Periodic_table_large.svg/1024px-Periodic_table_large.svg.png"},
+        {name: "Atom Structure", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Atom_diagram.png/800px-Atom_diagram.png"},
+        {name: "Lab Beaker/Flask", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Conical_flask.svg/600px-Conical_flask.svg.png"}
     ],
     physics: [
-        {name: "DC Motor Circuit", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/DC_motor.svg/800px-DC_motor.svg.png"}
+        {name: "Electric Circuit", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Simple_circuit.svg/600px-Simple_circuit.svg.png"},
+        {name: "Optical Prism", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Light_dispersion_conceptual_waves.gif/800px-Light_dispersion_conceptual_waves.gif"},
+        {name: "Magnetic Field", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/VFPt_bar_magnet.svg/800px-VFPt_bar_magnet.svg.png"},
+        {name: "Simple Pendulum", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Simple_gravity_pendulum.svg/600px-Simple_gravity_pendulum.svg.png"}
     ],
     maths: [
-        {name: "Graph Paper Grid", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Graph_paper_mm_A4.svg/800px-Graph_paper_mm_A4.svg.png"}
+        {name: "Graph Paper Grid", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Graph_paper_mm_A4.svg/800px-Graph_paper_mm_A4.svg.png"},
+        {name: "3D Cartesian Plane", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/3D_coordinate_system.svg/800px-3D_coordinate_system.svg.png"},
+        {name: "Protractor", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Protractor.svg/800px-Protractor.svg.png"},
+        {name: "Unit Circle", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Unit_circle_angles_color.svg/800px-Unit_circle_angles_color.svg.png"}
+    ],
+    commerce: [
+        {name: "Supply & Demand Curve", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Supply-and-demand.svg/800px-Supply-and-demand.svg.png"},
+        {name: "Business Cycle", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Business_Cycle.svg/800px-Business_Cycle.svg.png"}
     ]
 };
 
@@ -456,25 +474,27 @@ function loadSubjectAssets(cat) {
     subjectAssets[cat].forEach(asset => {
         const btn = document.createElement("button");
         btn.textContent = "➕ Insert " + asset.name;
-        btn.style.cssText = "background: rgba(255,255,255,0.1); color: white; border: 1px solid var(--accent); padding: 8px; border-radius: 6px; cursor: pointer; text-align: left;";
+        btn.style.cssText = "background: rgba(255,255,255,0.1); color: white; border: 1px solid var(--accent); padding: 8px; border-radius: 6px; cursor: pointer; text-align: left; font-size: 13px;";
         btn.onclick = () => {
             showNotification(`Inserting ${asset.name}...`, "info");
-            drawWbImage(asset.url, true);
+            // NAYA CORS FIX: Using allorigins to bypass canvas blocking
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(asset.url)}`;
+            drawWbImage(proxyUrl, true);
             wbSubjectsMenu.style.display = "none";
         };
         subjectAssetsList.appendChild(btn);
     });
 }
 subjectCategory.addEventListener("change", (e) => loadSubjectAssets(e.target.value));
-loadSubjectAssets("geography"); // default
+loadSubjectAssets("geography");
 
-// Tools setup
+// ALL DRAWING TOOLS SETUP
 document.querySelectorAll('.tool-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
         document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active-tool'));
         btn.classList.add('active-tool');
-        currentTool = btn.id.replace('tool-', '').replace('wb-', ''); 
-        wbShapesMenu.style.display = "none"; // Hide shapes menu after selection
+        currentTool = btn.id.replace('tool-', ''); 
+        wbShapesMenu.style.display = "none"; 
     });
 });
 
@@ -485,21 +505,52 @@ document.getElementById('wb-clear').addEventListener("click", () => {
 });
 socket.on("clear-whiteboard", () => ctx.clearRect(0, 0, canvas.width, canvas.height));
 
-function drawFreehand(x0, y0, x1, y1, color, size, eraser, emit = false) {
-  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
-  ctx.strokeStyle = eraser ? "#ffffff" : color; ctx.lineWidth = eraser ? 30 : size; ctx.lineCap = 'round'; ctx.stroke(); ctx.closePath();
-  if (emit) socket.emit('drawing', { type: 'free', x0, y0, x1, y1, color, size, isEraser: eraser, room: currentRoom });
+// FREEHAND, BRUSH, SPRAY LOGIC
+function drawFreehand(x0, y0, x1, y1, color, size, toolType, emit = false) {
+  if(toolType === 'eraser') {
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = size * 3; ctx.lineCap = 'round'; 
+      ctx.shadowBlur = 0; ctx.stroke(); ctx.closePath();
+  } 
+  else if (toolType === 'spray') {
+      ctx.fillStyle = color;
+      for (let i = 0; i < size * 2; i++) {
+          const offsetX = x1 + (Math.random() * size - size/2);
+          const offsetY = y1 + (Math.random() * size - size/2);
+          ctx.fillRect(offsetX, offsetY, 2, 2);
+      }
+  }
+  else {
+      // Pen and Brush
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+      ctx.strokeStyle = color; ctx.lineWidth = size; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      if(toolType === 'brush') {
+          ctx.shadowBlur = size * 1.5; ctx.shadowColor = color;
+      } else {
+          ctx.shadowBlur = 0;
+      }
+      ctx.stroke(); ctx.closePath();
+  }
+
+  if (emit) socket.emit('drawing', { type: 'free', x0, y0, x1, y1, color, size, toolType: toolType, room: currentRoom });
 }
 
 // ADVANCED 2D/3D SHAPES DRAWING LOGIC
 function drawShapeObj(x0, y0, x1, y1, type, color, size, emit = false) {
-  ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = size; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = size; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.shadowBlur = 0;
   
   let w = x1 - x0;
   let h = y1 - y0;
 
   if(type === 'line') {
       ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+  }
+  else if(type === 'arrow') {
+      ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+      let angle = Math.atan2(y1-y0, x1-x0);
+      ctx.lineTo(x1 - size*3 * Math.cos(angle - Math.PI/6), y1 - size*3 * Math.sin(angle - Math.PI/6));
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x1 - size*3 * Math.cos(angle + Math.PI/6), y1 - size*3 * Math.sin(angle + Math.PI/6));
   }
   else if(type === 'rect') {
       ctx.rect(x0, y0, w, h);
@@ -509,50 +560,84 @@ function drawShapeObj(x0, y0, x1, y1, type, color, size, emit = false) {
       ctx.arc(x0, y0, r, 0, 2*Math.PI);
   }
   else if(type === 'triangle') {
-      ctx.moveTo(x0 + w/2, y0); 
-      ctx.lineTo(x1, y1); 
-      ctx.lineTo(x0, y1); 
+      ctx.moveTo(x0 + w/2, y0); ctx.lineTo(x1, y1); ctx.lineTo(x0, y1); ctx.closePath();
+  }
+  else if(type === 'pentagon' || type === 'hexagon' || type === 'star') {
+      let r = Math.sqrt(w*w + h*h);
+      let sides = type === 'pentagon' ? 5 : (type === 'hexagon' ? 6 : 5);
+      let step = (Math.PI * 2) / sides;
+      for(let i=0; i<=sides; i++) {
+          let cx = x0 + r * Math.cos(i * step - Math.PI/2);
+          let cy = y0 + r * Math.sin(i * step - Math.PI/2);
+          if(type === 'star' && i<sides) {
+              let ix = x0 + (r/2.5) * Math.cos((i+0.5) * step - Math.PI/2);
+              let iy = y0 + (r/2.5) * Math.sin((i+0.5) * step - Math.PI/2);
+              if(i===0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+              ctx.lineTo(ix, iy);
+          } else {
+              if(i===0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+          }
+      }
       ctx.closePath();
   }
   else if(type === 'cube') {
-      let d = Math.min(Math.abs(w), Math.abs(h)) * 0.4; // 3D Depth
-      // Front Face
+      let d = Math.min(Math.abs(w), Math.abs(h)) * 0.4;
       ctx.rect(x0, y0+d, w-d, h-d);
-      // Back Face
       ctx.moveTo(x0+d, y0); ctx.lineTo(x1, y0); ctx.lineTo(x1, y1-d); ctx.lineTo(x0+d, y1-d); ctx.closePath();
-      // Connecting edges
       ctx.moveTo(x0, y0+d); ctx.lineTo(x0+d, y0);
       ctx.moveTo(x1-d, y0+d); ctx.lineTo(x1, y0);
       ctx.moveTo(x1-d, y1); ctx.lineTo(x1, y1-d);
       ctx.moveTo(x0, y1); ctx.lineTo(x0+d, y1-d);
   }
   else if(type === 'cylinder') {
-      let rX = Math.abs(w/2);
-      let rY = Math.abs(h * 0.15); // Ellipse height
-      // Top Ellipse
+      let rX = Math.abs(w/2), rY = Math.abs(h * 0.15);
       ctx.ellipse(x0 + w/2, y0 + rY, rX, rY, 0, 0, 2 * Math.PI);
-      // Bottom Ellipse (half)
-      ctx.moveTo(x0, y1 - rY);
-      ctx.ellipse(x0 + w/2, y1 - rY, rX, rY, 0, 0, Math.PI);
-      // Sides
+      ctx.moveTo(x0, y1 - rY); ctx.ellipse(x0 + w/2, y1 - rY, rX, rY, 0, 0, Math.PI);
       ctx.moveTo(x0, y0 + rY); ctx.lineTo(x0, y1 - rY);
       ctx.moveTo(x1, y0 + rY); ctx.lineTo(x1, y1 - rY);
   }
+  else if(type === 'cone') {
+      let rX = Math.abs(w/2), rY = Math.abs(h * 0.15);
+      ctx.ellipse(x0 + w/2, y1 - rY, rX, rY, 0, 0, 2 * Math.PI);
+      ctx.moveTo(x0 + w/2, y0); ctx.lineTo(x0, y1 - rY);
+      ctx.moveTo(x0 + w/2, y0); ctx.lineTo(x1, y1 - rY);
+  }
+  else if(type === 'sphere') {
+      let r = Math.sqrt(w*w + h*h);
+      ctx.arc(x0, y0, r, 0, 2*Math.PI);
+      ctx.moveTo(x0-r, y0); ctx.ellipse(x0, y0, r, r*0.3, 0, 0, 2*Math.PI); // Equator ring for 3D feel
+  }
   
   ctx.stroke(); 
-  
   if (emit) socket.emit('drawing', { type: type, x0, y0, x1, y1, color, size, room: currentRoom });
 }
 
+// Laser Pointer on Whiteboard
+const wbLaser = document.getElementById("wb-laser");
+let wbLaserTimeout;
+
 canvas.addEventListener('mousedown', (e) => { 
   if (!canDraw) return; 
+  if(currentTool === 'pointer') return; // Don't draw
   drawing = true; startX = e.offsetX; startY = e.offsetY; 
   canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
 });
 canvas.addEventListener('mousemove', (e) => {
-  if (!drawing || !canDraw) return;
-  if(currentTool === 'pen' || currentTool === 'eraser') {
-      drawFreehand(startX, startY, e.offsetX, e.offsetY, currentBrushColor, currentBrushSize, currentTool==='eraser', true);
+  if (!canDraw) return;
+  
+  if(currentTool === 'pointer') {
+      // Whiteboard Pointer Broadcast
+      const rect = canvas.getBoundingClientRect();
+      const xP = e.offsetX / rect.width;
+      const yP = e.offsetY / rect.height;
+      socket.emit("wb-pointer", { room: currentRoom, x: xP, y: yP });
+      return;
+  }
+  
+  if (!drawing) return;
+
+  if(['pen', 'brush', 'spray', 'eraser'].includes(currentTool)) {
+      drawFreehand(startX, startY, e.offsetX, e.offsetY, currentBrushColor, currentBrushSize, currentTool, true);
       startX = e.offsetX; startY = e.offsetY;
   } else {
       ctx.putImageData(canvasSnapshot, 0, 0);
@@ -560,45 +645,57 @@ canvas.addEventListener('mousemove', (e) => {
   }
 });
 canvas.addEventListener('mouseup', (e) => { 
-  if (!drawing || !canDraw) return; drawing = false; 
-  if(currentTool !== 'pen' && currentTool !== 'eraser') {
+  if (!drawing || !canDraw || currentTool === 'pointer') return; drawing = false; 
+  if(!['pen', 'brush', 'spray', 'eraser'].includes(currentTool)) {
       drawShapeObj(startX, startY, e.offsetX, e.offsetY, currentTool, currentBrushColor, currentBrushSize, true);
   }
+  ctx.shadowBlur = 0; // Reset shadow
 });
-canvas.addEventListener('mouseout', () => drawing = false);
+canvas.addEventListener('mouseout', () => {
+    drawing = false;
+    if(currentTool === 'pointer' && canDraw) socket.emit("wb-pointer", { room: currentRoom, hide: true });
+});
 
 socket.on('drawing', (data) => {
-  if(data.type === 'free') drawFreehand(data.x0, data.y0, data.x1, data.y1, data.color, data.size, data.isEraser, false);
+  if(data.type === 'free') drawFreehand(data.x0, data.y0, data.x1, data.y1, data.color, data.size, data.toolType, false);
   else drawShapeObj(data.x0, data.y0, data.x1, data.y1, data.type, data.color, data.size, false);
+});
+
+// Receive Whiteboard Pointer
+socket.on("wb-pointer", (data) => {
+    if(data.hide) { wbLaser.style.display = "none"; return; }
+    wbLaser.style.display = "block";
+    wbLaser.style.left = (data.x * 100) + "%";
+    wbLaser.style.top = (data.y * 100) + "%";
+    clearTimeout(wbLaserTimeout); 
+    wbLaserTimeout = setTimeout(() => { wbLaser.style.display = "none"; }, 2000);
 });
 
 // PDF TO WHITEBOARD
 document.getElementById('tool-pdf').addEventListener("click", () => document.getElementById('wbPdfUpload').click());
 document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
   const file = e.target.files[0]; if(!file) return;
-  showNotification("Rendering PDF to Board...", "info");
+  showNotification("Rendering PDF...", "info");
   const fileReader = new FileReader();
   fileReader.onload = async function() {
       const typedarray = new Uint8Array(this.result);
       const pdf = await pdfjsLib.getDocument(typedarray).promise;
       const page = await pdf.getPage(1); 
       const viewport = page.getViewport({scale: 1.5});
-      const tempCanvas = document.createElement('canvas'); const tempCtx = tempCanvas.getContext('2d');
-      tempCanvas.height = viewport.height; tempCanvas.width = viewport.width;
-      await page.render({canvasContext: tempCtx, viewport: viewport}).promise;
-      const imgBase64 = tempCanvas.toDataURL();
-      drawWbImage(imgBase64, true);
+      const tc = document.createElement('canvas'); const tCtx = tc.getContext('2d');
+      tc.height = viewport.height; tc.width = viewport.width;
+      await page.render({canvasContext: tCtx, viewport: viewport}).promise;
+      drawWbImage(tc.toDataURL(), true);
   };
   fileReader.readAsArrayBuffer(file);
 });
 
 function drawWbImage(src, emit=false) {
-    const img = new Image();
+    const img = new Image(); 
     img.crossOrigin = "Anonymous";
     img.onload = () => {
-        // Image ko center aur fit karne ka logic
         let w = img.width, h = img.height;
-        let scale = Math.min(canvas.width / w, canvas.height / h) * 0.8; 
+        let scale = Math.min(canvas.width / w, canvas.height / h) * 0.9; 
         let x = (canvas.width - w * scale) / 2;
         let y = (canvas.height - h * scale) / 2;
         
@@ -613,6 +710,7 @@ function drawWbImage(src, emit=false) {
             socket.emit("wb-image", {room: currentRoom, image: sendSrc});
         }
     };
+    img.onerror = () => showNotification("Failed to load image. Try different asset.", "danger");
     img.src = src;
 }
 socket.on("wb-image", (data) => drawWbImage(data.image, false));
@@ -684,12 +782,9 @@ socket.on("room-history", (data) => {
   if (data.presVisible) { hideAllBigPanels(); presentationBox.style.display = "block"; if(isHost) togglePresBtn.dataset.show = "true"; }
   
   if (data.chartData) { 
-      currentChartData = data.chartData;
-      presTitle.textContent = `${data.chartData.industry} Growth Projection`; 
-      excelTable.innerHTML = data.chartData.tableHTML;
+      currentChartData = data.chartData; presTitle.textContent = `${data.chartData.industry} Growth Projection`; excelTable.innerHTML = data.chartData.tableHTML;
       const ctxChart = document.getElementById('presentationCanvas').getContext('2d'); 
-      if(businessChart) businessChart.destroy(); 
-      businessChart = new Chart(ctxChart, data.chartData.chartConfig); 
+      if(businessChart) businessChart.destroy(); businessChart = new Chart(ctxChart, data.chartData.chartConfig); 
       if(data.chartData.view === 'chart') { excelContainer.style.display = "none"; canvasElem.style.display = "block"; } else { canvasElem.style.display = "none"; excelContainer.style.display = "block"; }
   }
 });
