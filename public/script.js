@@ -12,7 +12,6 @@ let isSharing = false;
 const remoteUsers = {}; 
 let currentMusicUrl = null;
 
-// DOM Elements
 const joinBtn = document.getElementById("joinBtn");
 const joinSection = document.getElementById("join-section"); 
 const workspace = document.getElementById("workspace"); 
@@ -28,19 +27,31 @@ const muteAllBtn = document.getElementById("muteAllBtn");
 const unmuteAllBtn = document.getElementById("unmuteAllBtn");
 const localMusicMuteBtn = document.getElementById("localMusicMuteBtn"); 
 
-// Panel Toggles
 const toggleWbBtn = document.getElementById("toggleWbBtn"); 
 const toggleMapBtn = document.getElementById("toggleMapBtn"); 
 const togglePresBtn = document.getElementById("togglePresBtn"); 
 const openMathBtn = document.getElementById("openMathBtn"); 
+const toggleCalcBtn = document.getElementById("toggleCalcBtn"); // NAYA
 
-// Chat & Files
 const sendMsgBtn = document.getElementById("sendMsg");
 const chatInput = document.getElementById("chatInput");
 const messages = document.getElementById("messages");
 const uploadBtn = document.getElementById("uploadBtn");
 const fileUpload = document.getElementById("fileUpload");
 const fileList = document.getElementById("fileList");
+
+// Personal Calculator Logic
+const calcModal = document.getElementById("calc-modal");
+const calcDisplay = document.getElementById("calc-display");
+toggleCalcBtn.addEventListener("click", () => {
+    calcModal.style.display = calcModal.style.display === "none" || calcModal.style.display === "" ? "block" : "none";
+});
+window.calcAppend = (val) => { calcDisplay.value += val; };
+window.calcClear = () => { calcDisplay.value = ""; };
+window.calcCalculate = () => { 
+    try { calcDisplay.value = eval(calcDisplay.value); } 
+    catch(e) { calcDisplay.value = "Error"; setTimeout(calcClear, 1000); } 
+};
 
 // Math Modal
 const mathModal = document.getElementById("math-modal");
@@ -59,7 +70,6 @@ const generateGraphBtn = document.getElementById("generateGraphBtn");
 const presTitle = document.getElementById("pres-title");
 const presentationContainer = document.getElementById("presentation-container");
 const laserPointer = document.getElementById("laser-pointer");
-
 const presMode = document.getElementById("presMode");
 const companyInputs = document.getElementById("companyInputs");
 const productInputs = document.getElementById("productInputs");
@@ -84,7 +94,7 @@ let labelsVisible = true;
 // Whiteboard Elements
 const whiteboardBox = document.getElementById("whiteboard-box");
 const canvas = document.getElementById('whiteboard');
-const ctx = canvas.getContext('2d');
+const ctx = canvas.getContext('2d', { willReadFrequently: true }); // Important for getImageData speed
 const wbStatus = document.getElementById('wb-status');
 
 let canDraw = false; 
@@ -97,7 +107,6 @@ let canvasSnapshot;
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-// ---------- NOTIFICATIONS ----------
 function showNotification(message, type = 'info') {
   const container = document.getElementById('notification-container');
   if (!container) return;
@@ -113,7 +122,6 @@ function appendMessage(text) {
   messages.appendChild(d); messages.scrollTop = messages.scrollHeight;
 }
 
-// ---------- SIZE CONTROLS ----------
 function addSizeControls(targetWrapper, elementToFullscreen) {
   const controlsDiv = document.createElement("div");
   controlsDiv.className = "local-controls";
@@ -124,6 +132,7 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
     targetWrapper.classList.remove("video-wrapper-small");
     targetWrapper.classList.toggle("video-wrapper-large");
     if(geoMap) setTimeout(() => geoMap.invalidateSize(), 300); 
+    if(targetWrapper.id === 'whiteboard-box') setTimeout(resizeCanvas, 300); // Trigger safe resize
   };
 
   const shrinkBtn = document.createElement("button");
@@ -132,6 +141,7 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
     targetWrapper.classList.remove("video-wrapper-large");
     targetWrapper.classList.toggle("video-wrapper-small");
     if(geoMap) setTimeout(() => geoMap.invalidateSize(), 300);
+    if(targetWrapper.id === 'whiteboard-box') setTimeout(resizeCanvas, 300); // Trigger safe resize
   };
 
   const maxBtn = document.createElement("button");
@@ -149,7 +159,6 @@ addSizeControls(whiteboardBox, document.getElementById('whiteboard-container'));
 addSizeControls(mapBox, mapContainer); 
 addSizeControls(presentationBox, presentationContainer); 
 
-// ---------- SMART PANEL TOGGLE LOGIC ----------
 function hideAllBigPanels() {
     whiteboardBox.style.display = "none";
     mapBox.style.display = "none";
@@ -189,40 +198,14 @@ socket.on("map-toggle", (data) => {
   else { mapBox.style.display = "none"; if(isHost){toggleMapBtn.dataset.show="false"; toggleMapBtn.style.background="linear-gradient(135deg, #27ae60, #2ecc71)";} }
 });
 
-
 // ---------- MATH FORMULA LIBRARY LOGIC ----------
 const formulas = {
-    algebra: [ 
-        {name: "Quadratic", eq: "x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}", desc: "Roots of a quadratic equation. a,b,c are coefficients."}, 
-        {name: "Logarithm", eq: "\\log_b(xy) = \\log_b(x) + \\log_b(y)", desc: "Product rule for logarithms."}, 
-        {name: "Binomial", eq: "(a+b)^n = \\sum_{k=0}^{n} \\binom{n}{k} a^{n-k} b^k", desc: "Binomial theorem expansion."} 
-    ],
-    calculus: [ 
-        {name: "Derivative", eq: "f'(x) = \\lim_{h \\to 0} \\frac{f(x+h)-f(x)}{h}", desc: "First principle of derivatives."}, 
-        {name: "Integral", eq: "\\int x^n dx = \\frac{x^{n+1}}{n+1} + C", desc: "Power rule for integration."}, 
-        {name: "Limits (e)", eq: "\\lim_{x \\to \\infty} \\left(1 + \\frac{1}{x}\\right)^x = e", desc: "Definition of Euler's number (e)."} 
-    ],
-    trigonometry: [ 
-        {name: "Pythagorean ID", eq: "\\sin^2\\theta + \\cos^2\\theta = 1", desc: "Fundamental trigonometric identity."}, 
-        {name: "Sine Rule", eq: "\\frac{a}{\\sin A} = \\frac{b}{\\sin B} = \\frac{c}{\\sin C}", desc: "Relates sides of a triangle to its angles."},
-        {name: "Double Angle", eq: "\\cos(2\\theta) = \\cos^2\\theta - \\sin^2\\theta", desc: "Double angle formula for cosine."}
-    ],
-    physics: [ 
-        {name: "Force", eq: "F = ma", desc: "Newton's 2nd Law. F = Force, m = Mass, a = Acceleration."},
-        {name: "Mass-Energy", eq: "E = mc^2", desc: "Einstein's Equation. E=Energy, m=Mass, c=Speed of light."}, 
-        {name: "Gravity", eq: "F = G \\frac{m_1 m_2}{r^2}", desc: "Newton's Law of Universal Gravitation."}, 
-        {name: "Schrödinger", eq: "i\\hbar \\frac{\\partial}{\\partial t} \\Psi = \\hat{H} \\Psi", desc: "Quantum Mechanics equation."} 
-    ],
-    financial: [
-        {name: "Compound Int.", eq: "A = P\\left(1 + \\frac{r}{n}\\right)^{nt}", desc: "A = Final Amount, P = Principal, r = Rate, n = Compounding freq, t = Time."},
-        {name: "ROI", eq: "ROI = \\frac{\\text{Net Profit}}{\\text{Cost of Investment}} \\times 100", desc: "Return on Investment percentage."},
-        {name: "Gross Margin", eq: "\\text{Margin} = \\frac{\\text{Rev} - \\text{COGS}}{\\text{Rev}}", desc: "Gross Profit Margin formula."}
-    ],
-    statistics: [
-        {name: "Mean", eq: "\\mu = \\frac{\\sum x_i}{N}", desc: "Population Mean formula."},
-        {name: "Std Deviation", eq: "\\sigma = \\sqrt{\\frac{\\sum (x_i - \\mu)^2}{N}}", desc: "Standard Deviation of a population."},
-        {name: "Normal Dist.", eq: "P(x) = \\frac{1}{\\sigma\\sqrt{2\\pi}} e^{-\\frac{1}{2}\\left(\\frac{x-\\mu}{\\sigma}\\right)^2}", desc: "Probability density function."}
-    ]
+    algebra: [ {name: "Quadratic", eq: "x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}", desc: "Roots of a quadratic eq."}, {name: "Logarithm", eq: "\\log_b(xy) = \\log_b(x) + \\log_b(y)", desc: "Log product rule."}, {name: "Binomial", eq: "(a+b)^n = \\sum_{k=0}^{n} \\binom{n}{k} a^{n-k} b^k", desc: "Binomial theorem expansion."} ],
+    calculus: [ {name: "Derivative", eq: "f'(x) = \\lim_{h \\to 0} \\frac{f(x+h)-f(x)}{h}", desc: "First principle of derivatives."}, {name: "Integral", eq: "\\int x^n dx = \\frac{x^{n+1}}{n+1} + C", desc: "Power rule for integration."}, {name: "Limits (e)", eq: "\\lim_{x \\to \\infty} \\left(1 + \\frac{1}{x}\\right)^x = e", desc: "Euler's number limit."} ],
+    trigonometry: [ {name: "Pythagorean ID", eq: "\\sin^2\\theta + \\cos^2\\theta = 1", desc: "Fundamental trig identity."}, {name: "Sine Rule", eq: "\\frac{a}{\\sin A} = \\frac{b}{\\sin B} = \\frac{c}{\\sin C}", desc: "Triangle sine rule."} ],
+    physics: [ {name: "Force", eq: "F = ma", desc: "Newton's 2nd Law. F=Force, m=Mass, a=Acceleration."}, {name: "Mass-Energy", eq: "E = mc^2", desc: "Einstein's Equation."}, {name: "Gravity", eq: "F = G \\frac{m_1 m_2}{r^2}", desc: "Newton's Law of Gravitation."} ],
+    financial: [ {name: "Compound Int.", eq: "A = P\\left(1 + \\frac{r}{n}\\right)^{nt}", desc: "A=Final, P=Principal, r=Rate, n=Freq, t=Time."}, {name: "ROI", eq: "ROI = \\frac{\\text{Net Profit}}{\\text{Cost}} \\times 100", desc: "Return on Investment."} ],
+    statistics: [ {name: "Mean", eq: "\\mu = \\frac{\\sum x_i}{N}", desc: "Population Mean."}, {name: "Std Deviation", eq: "\\sigma = \\sqrt{\\frac{\\sum (x_i - \\mu)^2}{N}}", desc: "Standard Deviation."} ]
 };
 
 let currentFormulaDesc = "";
@@ -230,14 +213,9 @@ let currentFormulaDesc = "";
 function loadFormulas(category) {
     formulaLibrary.innerHTML = "";
     formulas[category].forEach(f => {
-        const btn = document.createElement("button");
-        btn.textContent = f.name;
+        const btn = document.createElement("button"); btn.textContent = f.name;
         btn.style.cssText = "background: rgba(255,255,255,0.1); color: white; border: 1px solid var(--accent); padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;";
-        btn.onclick = () => { 
-            mathInput.value = f.eq; 
-            currentFormulaDesc = f.desc;
-            mathExplanationInput.textContent = "ℹ️ " + f.desc;
-        };
+        btn.onclick = () => { mathInput.value = f.eq; currentFormulaDesc = f.desc; mathExplanationInput.textContent = "ℹ️ " + f.desc; };
         formulaLibrary.appendChild(btn);
     });
 }
@@ -245,43 +223,27 @@ mathCategory.addEventListener("change", (e) => loadFormulas(e.target.value));
 loadFormulas("algebra"); 
 
 mathInput.addEventListener("input", () => { currentFormulaDesc = "Custom User Equation"; mathExplanationInput.textContent = ""; });
-
 openMathBtn.addEventListener("click", () => mathModal.style.display = "block");
 closeMathBtn.addEventListener("click", () => mathModal.style.display = "none");
 broadcastMathBtn.addEventListener("click", () => {
-    const eq = mathInput.value.trim();
-    if(!eq) return;
-    try { 
-        katex.renderToString(eq); 
-        socket.emit("math-equation", { room: currentRoom, equation: eq, desc: currentFormulaDesc, sender: usernameInput.value || "User" }); 
-        mathInput.value = ""; 
-        mathExplanationInput.textContent = "";
-    } catch(e) { showNotification("Invalid LaTeX Formula!", "danger"); }
+    const eq = mathInput.value.trim(); if(!eq) return;
+    try { katex.renderToString(eq); socket.emit("math-equation", { room: currentRoom, equation: eq, desc: currentFormulaDesc, sender: usernameInput.value || "User" }); mathInput.value = ""; mathExplanationInput.textContent = ""; } 
+    catch(e) { showNotification("Invalid LaTeX Formula!", "danger"); }
 });
 
 socket.on("math-equation", (data) => {
     mathModal.style.display = "block";
     try {
         const html = katex.renderToString(data.equation, { throwOnError: false, displayMode: true });
-        mathDisplay.innerHTML = `
-            <div style="font-size:13px; color:var(--primary); margin-bottom:10px;">Shared by: ${data.sender}</div>
-            ${html}
-            <div style="font-size:14px; color:#555; margin-top:15px; border-top:1px dashed #ccc; padding-top:10px;"><b>ℹ️ Explanation:</b> ${data.desc}</div>
-        `;
+        mathDisplay.innerHTML = `<div style="font-size:13px; color:var(--primary); margin-bottom:10px;">Shared by: ${data.sender}</div>${html}<div style="font-size:14px; color:#555; margin-top:15px; border-top:1px dashed #ccc; padding-top:10px;"><b>ℹ️ Explanation:</b> ${data.desc}</div>`;
         showNotification("New Math Formula Shared!", "info");
     } catch(e) {}
 });
 
-
-// ---------- PRESENTATION & GRAPH/EXCEL LOGIC ----------
+// ---------- PRESENTATION LOGIC ----------
 presMode.addEventListener("change", (e) => {
-    if(e.target.value === "company") {
-        companyInputs.style.display = "flex";
-        productInputs.style.display = "none";
-    } else {
-        companyInputs.style.display = "none";
-        productInputs.style.display = "flex";
-    }
+    if(e.target.value === "company") { companyInputs.style.display = "flex"; productInputs.style.display = "none"; } 
+    else { companyInputs.style.display = "none"; productInputs.style.display = "flex"; }
 });
 
 generateGraphBtn.addEventListener("click", () => {
@@ -296,95 +258,64 @@ generateGraphBtn.addEventListener("click", () => {
     if(endYear < 2001) endYear = 2001; if(endYear > 2500) endYear = 2500;
     if(endYear < baseYear) endYear = baseYear + 5;
 
-    let labels = []; 
-    let revenues = []; 
-    let unitsArr = [];
-    
-    let currentRevenue = 0;
-    let currentUnits = 0;
-    let unitPrice = 0;
+    let labels = []; let revenues = []; let unitsArr = [];
+    let currentRevenue = 0; let currentUnits = 0; let unitPrice = 0;
 
     if(mode === "company") {
         currentRevenue = parseFloat(document.getElementById("presBaseValue").value) || 1000;
         for(let y = baseYear; y <= endYear; y++) {
-            labels.push(y.toString());
-            revenues.push(Math.round(currentRevenue));
-            currentRevenue += (currentRevenue * (growth / 100));
+            labels.push(y.toString()); revenues.push(Math.round(currentRevenue)); currentRevenue += (currentRevenue * (growth / 100));
         }
     } else {
         unitPrice = parseFloat(document.getElementById("presUnitPrice").value) || 50;
         currentUnits = parseFloat(document.getElementById("presUnitsSold").value) || 100;
         for(let y = baseYear; y <= endYear; y++) {
             labels.push(y.toString());
-            let rev = unitPrice * currentUnits;
-            revenues.push(Math.round(rev));
-            unitsArr.push(Math.round(currentUnits));
+            let rev = unitPrice * currentUnits; revenues.push(Math.round(rev)); unitsArr.push(Math.round(currentUnits));
             currentUnits += (currentUnits * (growth / 100)); 
         }
     }
 
     const chartConfig = {
         type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: `${industry} Projected Growth (${currency})`, data: revenues, borderColor: '#2ecc71', backgroundColor: 'rgba(46, 204, 113, 0.2)', borderWidth: 3, fill: true, tension: 0.4, pointBackgroundColor: '#e74c3c', pointRadius: 6
-            }]
-        },
+        data: { labels: labels, datasets: [{ label: `${industry} Projected Growth (${currency})`, data: revenues, borderColor: '#2ecc71', backgroundColor: 'rgba(46, 204, 113, 0.2)', borderWidth: 3, fill: true, tension: 0.4, pointBackgroundColor: '#e74c3c', pointRadius: 6 }] },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { font: { size: 16 } } } }, scales: { y: { beginAtZero: true, ticks: { font: { size: 14 } } }, x: { ticks: { font: { size: 14 } } } } }
     };
     
     let tableHTML = `<tr><th>Year</th>`;
     if(mode === "product") tableHTML += `<th>Units Sold</th><th>Unit Price</th>`;
     tableHTML += `<th>Revenue (${currency})</th></tr>`;
-    
     for(let i=0; i<labels.length; i++) {
         tableHTML += `<tr><td>${labels[i]}</td>`;
         if(mode === "product") tableHTML += `<td>${unitsArr[i].toLocaleString()}</td><td>${currency}${unitPrice.toLocaleString()}</td>`;
         tableHTML += `<td><strong style="color:var(--primary)">${currency}${revenues[i].toLocaleString()}</strong></td></tr>`;
     }
 
-    const presPayload = { room: currentRoom, chartConfig, industry, tableHTML, view: 'chart' };
-    socket.emit("presentation-data", presPayload);
+    socket.emit("presentation-data", { room: currentRoom, chartConfig, industry, tableHTML, view: 'chart' });
 });
 
 viewGraphBtn.addEventListener("click", () => { socket.emit("pres-view-switch", {room: currentRoom, view: 'chart'}); });
 viewExcelBtn.addEventListener("click", () => { socket.emit("pres-view-switch", {room: currentRoom, view: 'excel'}); });
 
 socket.on("pres-view-switch", (data) => {
-    if(data.view === 'chart') {
-        excelContainer.style.display = "none";
-        canvasElem.style.display = "block";
-    } else {
-        canvasElem.style.display = "none";
-        excelContainer.style.display = "block";
-    }
+    if(data.view === 'chart') { excelContainer.style.display = "none"; canvasElem.style.display = "block"; } 
+    else { canvasElem.style.display = "none"; excelContainer.style.display = "block"; }
 });
 
 socket.on("presentation-data", (data) => {
-    currentChartData = data;
-    presTitle.textContent = `${data.industry} Growth Projection`;
-    excelTable.innerHTML = data.tableHTML;
-    
-    if(isHost) {
-        viewGraphBtn.parentElement.style.display = "flex";
-    }
-    
+    currentChartData = data; presTitle.textContent = `${data.industry} Growth Projection`; excelTable.innerHTML = data.tableHTML;
+    if(isHost) viewGraphBtn.parentElement.style.display = "flex";
     const ctxChart = canvasElem.getContext('2d');
     if(businessChart) businessChart.destroy();
     businessChart = new Chart(ctxChart, data.chartConfig);
-    
-    if(data.view === 'chart') { excelContainer.style.display = "none"; canvasElem.style.display = "block"; }
-    else { canvasElem.style.display = "none"; excelContainer.style.display = "block"; }
+    if(data.view === 'chart') { excelContainer.style.display = "none"; canvasElem.style.display = "block"; } else { canvasElem.style.display = "none"; excelContainer.style.display = "block"; }
 });
 
 let laserTimeout;
 presentationContainer.addEventListener("mousemove", (e) => {
     if(!isHost || presentationBox.style.display === "none") return;
     const rect = presentationContainer.getBoundingClientRect();
-    const xPercent = (e.clientX - rect.left) / rect.width;
-    const yPercent = (e.clientY - rect.top) / rect.height;
-    socket.emit("laser-pointer", { room: currentRoom, x: xPercent, y: yPercent });
+    socket.emit("laser-pointer", { room: currentRoom, x: (e.clientX - rect.left) / rect.width, y: (e.clientY - rect.top) / rect.height });
 });
 presentationContainer.addEventListener("mouseleave", () => { if(isHost) socket.emit("laser-pointer", { room: currentRoom, hide: true }); });
 socket.on("laser-pointer", (data) => {
@@ -393,11 +324,26 @@ socket.on("laser-pointer", (data) => {
     clearTimeout(laserTimeout); laserTimeout = setTimeout(() => { laserPointer.style.display = "none"; }, 2000);
 });
 
-// ---------- ADVANCED PRO WHITEBOARD ----------
-function resizeCanvas() { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; }
-window.addEventListener('resize', () => { resizeCanvas(); if(geoMap && mapBox.style.display !== "none") geoMap.invalidateSize(); });
+// ---------- ADVANCED PRO WHITEBOARD (WITH SAFE RESIZE & FETCH FIX) ----------
+function resizeCanvas() { 
+  if(!canvas.width || !canvas.height) {
+      canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; return;
+  }
+  // NAYA: SAFE RESIZE - Pehle content save karo, phir resize karo, phir wapas dalo
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = canvas.width; tempCanvas.height = canvas.height;
+  tempCanvas.getContext('2d').drawImage(canvas, 0, 0);
+  
+  canvas.width = canvas.offsetWidth; 
+  canvas.height = canvas.offsetHeight; 
+  
+  ctx.drawImage(tempCanvas, 0, 0);
+}
+window.addEventListener('resize', () => { 
+  resizeCanvas(); 
+  if(geoMap && mapBox.style.display !== "none") geoMap.invalidateSize(); 
+});
 
-// Modals Toggle Logic
 const toggleShapesBtn = document.getElementById("toggleShapesBtn");
 const wbShapesMenu = document.getElementById("wb-shapes-menu");
 const toggleSubjectsBtn = document.getElementById("toggleSubjectsBtn");
@@ -413,50 +359,43 @@ toggleSubjectsBtn.addEventListener("click", () => {
     wbShapesMenu.style.display = "none";
 });
 
-// VERY LARGE EDUCATIONAL ASSETS LIBRARY
 const subjectAssets = {
     geography: [
-        {name: "World Map (Political)", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/World_map_-_low_resolution.svg/1024px-World_map_-_low_resolution.svg.png"},
-        {name: "World Map (Physical)", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Earth_elevation_map_large.jpg/800px-Earth_elevation_map_large.jpg"},
-        {name: "India Political Map", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/India_political_map_en.svg/800px-India_political_map_en.svg.png"},
-        {name: "India Physical Map", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/India_relief_map.svg/800px-India_relief_map.svg.png"},
-        {name: "India Seismic Zones", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/India_earthquake_zone_map_en.svg/800px-India_earthquake_zone_map_en.svg.png"},
-        {name: "India Rivers & Lakes", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/India_rivers_and_lakes_map.svg/800px-India_rivers_and_lakes_map.svg.png"}
+        {name: "World Map", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/World_map_-_low_resolution.svg/1024px-World_map_-_low_resolution.svg.png"},
+        {name: "India Political", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/India_political_map_en.svg/800px-India_political_map_en.svg.png"},
+        {name: "India Physical", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/India_relief_map.svg/800px-India_relief_map.svg.png"}
     ],
     biology: [
         {name: "Human Skeleton", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Human_skeleton_front_en.svg/600px-Human_skeleton_front_en.svg.png"},
         {name: "Respiratory System", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Respiratory_system_complete_en.svg/600px-Respiratory_system_complete_en.svg.png"},
-        {name: "Digestive System", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Digestive_system_diagram_en.svg/600px-Digestive_system_diagram_en.svg.png"},
         {name: "Human Heart", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Diagram_of_the_human_heart_%28cropped%29.svg/800px-Diagram_of_the_human_heart_%28cropped%29.svg.png"},
-        {name: "Human Brain", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Gehirn%2C_lateral_-_Glia_Hauptst%C3%A4mme_deutsch.svg/800px-Gehirn%2C_lateral_-_Glia_Hauptst%C3%A4mme_deutsch.svg.png"},
-        {name: "Plant Cell", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Plant_cell_structure_svg.svg/800px-Plant_cell_structure_svg.svg.png"},
-        {name: "Animal Cell", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/Animal_cell_structure_en.svg/800px-Animal_cell_structure_en.svg.png"}
+        {name: "Plant Cell", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Plant_cell_structure_svg.svg/800px-Plant_cell_structure_svg.svg.png"}
     ],
-    chemistry: [
-        {name: "Periodic Table", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Periodic_table_large.svg/1024px-Periodic_table_large.svg.png"},
-        {name: "Atom Structure", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Atom_diagram.png/800px-Atom_diagram.png"},
-        {name: "Lab Beaker/Flask", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Conical_flask.svg/600px-Conical_flask.svg.png"}
-    ],
-    physics: [
-        {name: "Electric Circuit", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Simple_circuit.svg/600px-Simple_circuit.svg.png"},
-        {name: "Optical Prism", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Light_dispersion_conceptual_waves.gif/800px-Light_dispersion_conceptual_waves.gif"},
-        {name: "Magnetic Field", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/VFPt_bar_magnet.svg/800px-VFPt_bar_magnet.svg.png"},
-        {name: "Simple Pendulum", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Simple_gravity_pendulum.svg/600px-Simple_gravity_pendulum.svg.png"}
-    ],
-    maths: [
-        {name: "Graph Paper Grid", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Graph_paper_mm_A4.svg/800px-Graph_paper_mm_A4.svg.png"},
-        {name: "3D Cartesian Plane", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/3D_coordinate_system.svg/800px-3D_coordinate_system.svg.png"},
-        {name: "Protractor", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Protractor.svg/800px-Protractor.svg.png"},
-        {name: "Unit Circle", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Unit_circle_angles_color.svg/800px-Unit_circle_angles_color.svg.png"}
-    ],
-    commerce: [
-        {name: "Supply & Demand Curve", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Supply-and-demand.svg/800px-Supply-and-demand.svg.png"},
-        {name: "Business Cycle", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Business_Cycle.svg/800px-Business_Cycle.svg.png"}
-    ]
+    chemistry: [ {name: "Periodic Table", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Periodic_table_large.svg/1024px-Periodic_table_large.svg.png"} ],
+    physics: [ {name: "Electric Circuit", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Simple_circuit.svg/600px-Simple_circuit.svg.png"} ],
+    maths: [ {name: "Graph Paper", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Graph_paper_mm_A4.svg/800px-Graph_paper_mm_A4.svg.png"} ],
+    commerce: [ {name: "Supply & Demand", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Supply-and-demand.svg/800px-Supply-and-demand.svg.png"} ]
 };
 
 const subjectCategory = document.getElementById("subjectCategory");
 const subjectAssetsList = document.getElementById("subjectAssetsList");
+
+// NAYA: CORS FETCH FIX - Directly getting Blob so Canvas doesn't get blocked
+async function loadAssetToCanvas(url, name) {
+    try {
+        showNotification(`Downloading ${name}...`, "info");
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+        const response = await fetch(proxyUrl);
+        const blob = await response.blob();
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            drawWbImage(reader.result, true);
+        };
+        reader.readAsDataURL(blob);
+    } catch(e) {
+        showNotification(`Failed to load ${name}`, "danger");
+    }
+}
 
 function loadSubjectAssets(cat) {
     subjectAssetsList.innerHTML = "";
@@ -465,9 +404,7 @@ function loadSubjectAssets(cat) {
         btn.textContent = "➕ Insert " + asset.name;
         btn.style.cssText = "background: rgba(255,255,255,0.1); color: white; border: 1px solid var(--accent); padding: 8px; border-radius: 6px; cursor: pointer; text-align: left; font-size: 13px;";
         btn.onclick = () => {
-            showNotification(`Inserting ${asset.name}...`, "info");
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(asset.url)}`;
-            drawWbImage(proxyUrl, true);
+            loadAssetToCanvas(asset.url, asset.name);
             wbSubjectsMenu.style.display = "none";
         };
         subjectAssetsList.appendChild(btn);
@@ -492,42 +429,98 @@ document.getElementById('wb-clear').addEventListener("click", () => {
 });
 socket.on("clear-whiteboard", () => ctx.clearRect(0, 0, canvas.width, canvas.height));
 
+// NAYA: FLOOD FILL ALGORITHM (Color Bucket)
+function floodFill(startX, startY, fillColorHex, emit=false) {
+    const hex = fillColorHex.replace('#','');
+    const fillR = parseInt(hex.substring(0,2), 16);
+    const fillG = parseInt(hex.substring(2,4), 16);
+    const fillB = parseInt(hex.substring(4,6), 16);
+    const fillA = 255;
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+    const width = canvas.width;
+    const height = canvas.height;
+    
+    // Exact coordinates
+    const sx = Math.floor(startX); const sy = Math.floor(startY);
+    if(sx < 0 || sx >= width || sy < 0 || sy >= height) return;
+
+    const startPos = (sy * width + sx) * 4;
+    const startR = data[startPos]; const startG = data[startPos + 1]; const startB = data[startPos + 2]; const startA = data[startPos + 3];
+
+    if (startR === fillR && startG === fillG && startB === fillB && startA === fillA) return; // Same color
+
+    const matchColor = (pos) => {
+        return data[pos] === startR && data[pos+1] === startG && data[pos+2] === startB && data[pos+3] === startA;
+    };
+
+    const colorPixel = (pos) => {
+        data[pos] = fillR; data[pos+1] = fillG; data[pos+2] = fillB; data[pos+3] = fillA;
+    };
+
+    const pixelStack = [[sx, sy]];
+
+    while (pixelStack.length) {
+        const newPos = pixelStack.pop();
+        const x = newPos[0]; let y = newPos[1];
+        let pixelPos = (y * width + x) * 4;
+        
+        while (y-- >= 0 && matchColor(pixelPos)) { pixelPos -= width * 4; }
+        pixelPos += width * 4; ++y;
+
+        let reachLeft = false; let reachRight = false;
+        while (y++ < height - 1 && matchColor(pixelPos)) {
+            colorPixel(pixelPos);
+            if (x > 0) {
+                if (matchColor(pixelPos - 4)) { if (!reachLeft) { pixelStack.push([x - 1, y]); reachLeft = true; } } 
+                else if (reachLeft) { reachLeft = false; }
+            }
+            if (x < width - 1) {
+                if (matchColor(pixelPos + 4)) { if (!reachRight) { pixelStack.push([x + 1, y]); reachRight = true; } } 
+                else if (reachRight) { reachRight = false; }
+            }
+            pixelPos += width * 4;
+        }
+    }
+    ctx.putImageData(imageData, 0, 0);
+    if(emit) socket.emit("wb-fill", {room: currentRoom, x: sx, y: sy, color: fillColorHex});
+}
+
+socket.on("wb-fill", (data) => {
+    floodFill(data.x, data.y, data.color, false);
+});
+
 function drawFreehand(x0, y0, x1, y1, color, size, toolType, emit = false) {
   if(toolType === 'eraser') {
       ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
-      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = size * 3; ctx.lineCap = 'round'; 
-      ctx.shadowBlur = 0; ctx.stroke(); ctx.closePath();
+      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = size * 3; ctx.lineCap = 'round'; ctx.shadowBlur = 0; ctx.stroke(); ctx.closePath();
   } 
   else if (toolType === 'spray') {
       ctx.fillStyle = color;
       for (let i = 0; i < size * 2; i++) {
-          const offsetX = x1 + (Math.random() * size - size/2);
-          const offsetY = y1 + (Math.random() * size - size/2);
+          const offsetX = x1 + (Math.random() * size - size/2); const offsetY = y1 + (Math.random() * size - size/2);
           ctx.fillRect(offsetX, offsetY, 2, 2);
       }
   }
   else {
       ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
       ctx.strokeStyle = color; ctx.lineWidth = size; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-      if(toolType === 'brush') { ctx.shadowBlur = size * 1.5; ctx.shadowColor = color; } 
-      else { ctx.shadowBlur = 0; }
+      if(toolType === 'brush') { ctx.shadowBlur = size * 1.5; ctx.shadowColor = color; } else { ctx.shadowBlur = 0; }
       ctx.stroke(); ctx.closePath();
   }
-
   if (emit) socket.emit('drawing', { type: 'free', x0, y0, x1, y1, color, size, toolType: toolType, room: currentRoom });
 }
 
 function drawShapeObj(x0, y0, x1, y1, type, color, size, emit = false) {
   ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = size; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.shadowBlur = 0;
-  
   let w = x1 - x0; let h = y1 - y0;
 
   if(type === 'line') { ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); }
   else if(type === 'arrow') {
       ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
       let angle = Math.atan2(y1-y0, x1-x0);
-      ctx.lineTo(x1 - size*3 * Math.cos(angle - Math.PI/6), y1 - size*3 * Math.sin(angle - Math.PI/6));
-      ctx.moveTo(x1, y1); ctx.lineTo(x1 - size*3 * Math.cos(angle + Math.PI/6), y1 - size*3 * Math.sin(angle + Math.PI/6));
+      ctx.lineTo(x1 - size*3 * Math.cos(angle - Math.PI/6), y1 - size*3 * Math.sin(angle - Math.PI/6)); ctx.moveTo(x1, y1); ctx.lineTo(x1 - size*3 * Math.cos(angle + Math.PI/6), y1 - size*3 * Math.sin(angle + Math.PI/6));
   }
   else if(type === 'rect') { ctx.rect(x0, y0, w, h); }
   else if(type === 'circle') { let r = Math.sqrt(Math.pow(w, 2) + Math.pow(h, 2)); ctx.arc(x0, y0, r, 0, 2*Math.PI); }
@@ -547,10 +540,7 @@ function drawShapeObj(x0, y0, x1, y1, type, color, size, emit = false) {
       let d = Math.min(Math.abs(w), Math.abs(h)) * 0.4;
       ctx.rect(x0, y0+d, w-d, h-d);
       ctx.moveTo(x0+d, y0); ctx.lineTo(x1, y0); ctx.lineTo(x1, y1-d); ctx.lineTo(x0+d, y1-d); ctx.closePath();
-      ctx.moveTo(x0, y0+d); ctx.lineTo(x0+d, y0);
-      ctx.moveTo(x1-d, y0+d); ctx.lineTo(x1, y0);
-      ctx.moveTo(x1-d, y1); ctx.lineTo(x1, y1-d);
-      ctx.moveTo(x0, y1); ctx.lineTo(x0+d, y1-d);
+      ctx.moveTo(x0, y0+d); ctx.lineTo(x0+d, y0); ctx.moveTo(x1-d, y0+d); ctx.lineTo(x1, y0); ctx.moveTo(x1-d, y1); ctx.lineTo(x1, y1-d); ctx.moveTo(x0, y1); ctx.lineTo(x0+d, y1-d);
   }
   else if(type === 'cylinder') {
       let rX = Math.abs(w/2), rY = Math.abs(h * 0.15);
@@ -572,16 +562,20 @@ function drawShapeObj(x0, y0, x1, y1, type, color, size, emit = false) {
   if (emit) socket.emit('drawing', { type: type, x0, y0, x1, y1, color, size, room: currentRoom });
 }
 
-// Laser Pointer on Whiteboard
 const wbLaser = document.getElementById("wb-laser");
 let wbLaserTimeout;
 
 canvas.addEventListener('mousedown', (e) => { 
   if (!canDraw) return; 
   if(currentTool === 'pointer') return; 
+  if(currentTool === 'fill') {
+      floodFill(e.offsetX, e.offsetY, currentBrushColor, true);
+      return;
+  }
   drawing = true; startX = e.offsetX; startY = e.offsetY; 
   canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
 });
+
 canvas.addEventListener('mousemove', (e) => {
   if (!canDraw) return;
   if(currentTool === 'pointer') {
@@ -589,7 +583,7 @@ canvas.addEventListener('mousemove', (e) => {
       socket.emit("wb-pointer", { room: currentRoom, x: e.offsetX / rect.width, y: e.offsetY / rect.height });
       return;
   }
-  if (!drawing) return;
+  if (!drawing || currentTool === 'fill') return;
 
   if(['pen', 'brush', 'spray', 'eraser'].includes(currentTool)) {
       drawFreehand(startX, startY, e.offsetX, e.offsetY, currentBrushColor, currentBrushSize, currentTool, true);
@@ -599,13 +593,16 @@ canvas.addEventListener('mousemove', (e) => {
       drawShapeObj(startX, startY, e.offsetX, e.offsetY, currentTool, currentBrushColor, currentBrushSize, false);
   }
 });
+
 canvas.addEventListener('mouseup', (e) => { 
-  if (!drawing || !canDraw || currentTool === 'pointer') return; drawing = false; 
+  if (!drawing || !canDraw || currentTool === 'pointer' || currentTool === 'fill') return; 
+  drawing = false; 
   if(!['pen', 'brush', 'spray', 'eraser'].includes(currentTool)) {
       drawShapeObj(startX, startY, e.offsetX, e.offsetY, currentTool, currentBrushColor, currentBrushSize, true);
   }
   ctx.shadowBlur = 0; 
 });
+
 canvas.addEventListener('mouseout', () => {
     drawing = false;
     if(currentTool === 'pointer' && canDraw) socket.emit("wb-pointer", { room: currentRoom, hide: true });
@@ -618,14 +615,10 @@ socket.on('drawing', (data) => {
 
 socket.on("wb-pointer", (data) => {
     if(data.hide) { wbLaser.style.display = "none"; return; }
-    wbLaser.style.display = "block";
-    wbLaser.style.left = (data.x * 100) + "%";
-    wbLaser.style.top = (data.y * 100) + "%";
-    clearTimeout(wbLaserTimeout); 
-    wbLaserTimeout = setTimeout(() => { wbLaser.style.display = "none"; }, 2000);
+    wbLaser.style.display = "block"; wbLaser.style.left = (data.x * 100) + "%"; wbLaser.style.top = (data.y * 100) + "%";
+    clearTimeout(wbLaserTimeout); wbLaserTimeout = setTimeout(() => { wbLaser.style.display = "none"; }, 2000);
 });
 
-// PDF TO WHITEBOARD
 document.getElementById('tool-pdf').addEventListener("click", () => document.getElementById('wbPdfUpload').click());
 document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
   const file = e.target.files[0]; if(!file) return;
