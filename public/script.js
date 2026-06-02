@@ -12,7 +12,6 @@ let isSharing = false;
 const remoteUsers = {}; 
 let currentMusicUrl = null;
 
-// DOM Elements
 const joinBtn = document.getElementById("joinBtn");
 const joinSection = document.getElementById("join-section"); 
 const workspace = document.getElementById("workspace"); 
@@ -28,14 +27,12 @@ const muteAllBtn = document.getElementById("muteAllBtn");
 const unmuteAllBtn = document.getElementById("unmuteAllBtn");
 const localMusicMuteBtn = document.getElementById("localMusicMuteBtn"); 
 
-// Panel Toggles
 const toggleWbBtn = document.getElementById("toggleWbBtn"); 
 const toggleMapBtn = document.getElementById("toggleMapBtn"); 
 const togglePresBtn = document.getElementById("togglePresBtn"); 
 const openMathBtn = document.getElementById("openMathBtn"); 
 const toggleCalcBtn = document.getElementById("toggleCalcBtn"); 
 
-// Chat & Files
 const sendMsgBtn = document.getElementById("sendMsg");
 const chatInput = document.getElementById("chatInput");
 const messages = document.getElementById("messages");
@@ -120,9 +117,13 @@ const canvas = document.getElementById('whiteboard');
 const ctx = canvas.getContext('2d', { willReadFrequently: true }); 
 const wbStatus = document.getElementById('wb-status');
 
+// SET BACKGROUND COLOR to WHITE initially so it's not transparent
+ctx.fillStyle = "#ffffff";
+ctx.fillRect(0, 0, canvas.width, canvas.height);
+
 let canDraw = false; 
 let currentBrushColor = "#000000";
-let currentBrushSize = 3;
+let currentBrushSize = 5;
 let currentTool = 'pen'; 
 let drawing = false;
 let startX = 0; let startY = 0;
@@ -154,7 +155,7 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
     targetWrapper.classList.remove("video-wrapper-small");
     targetWrapper.classList.toggle("video-wrapper-large");
     if(geoMap) setTimeout(() => geoMap.invalidateSize(), 300); 
-    if(targetWrapper.id === 'whiteboard-box') setTimeout(resizeCanvas, 300);
+    // NAYA: No resizeCanvas call needed anymore, fixed resolution!
   };
   const shrinkBtn = document.createElement("button");
   shrinkBtn.className = "icon-btn"; shrinkBtn.innerHTML = "➖";
@@ -162,7 +163,6 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
     targetWrapper.classList.remove("video-wrapper-large");
     targetWrapper.classList.toggle("video-wrapper-small");
     if(geoMap) setTimeout(() => geoMap.invalidateSize(), 300);
-    if(targetWrapper.id === 'whiteboard-box') setTimeout(resizeCanvas, 300);
   };
   const maxBtn = document.createElement("button");
   maxBtn.className = "icon-btn"; maxBtn.innerHTML = "🖥️";
@@ -208,7 +208,7 @@ socket.on("pres-toggle", (data) => {
 });
 
 socket.on("wb-toggle", (data) => {
-  if (data.show) { hideAllBigPanels(); whiteboardBox.style.display = "block"; setTimeout(resizeCanvas, 100); if(isHost){toggleWbBtn.dataset.show="true"; toggleWbBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
+  if (data.show) { hideAllBigPanels(); whiteboardBox.style.display = "block"; if(isHost){toggleWbBtn.dataset.show="true"; toggleWbBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
   else { whiteboardBox.style.display = "none"; if(isHost){toggleWbBtn.dataset.show="false"; toggleWbBtn.style.background="linear-gradient(135deg, #3498db, #2980b9)";} }
 });
 
@@ -216,7 +216,6 @@ socket.on("map-toggle", (data) => {
   if (data.show) { hideAllBigPanels(); mapBox.style.display = "block"; setTimeout(() => { if(geoMap) geoMap.invalidateSize(); }, 100); if(isHost){toggleMapBtn.dataset.show="true"; toggleMapBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
   else { mapBox.style.display = "none"; if(isHost){toggleMapBtn.dataset.show="false"; toggleMapBtn.style.background="linear-gradient(135deg, #27ae60, #2ecc71)";} }
 });
-
 
 // ---------- MATH FORMULA LIBRARY LOGIC ----------
 const formulas = {
@@ -229,7 +228,6 @@ const formulas = {
 };
 
 let currentFormulaDesc = "";
-
 function loadFormulas(category) {
     formulaLibrary.innerHTML = "";
     formulas[category].forEach(f => {
@@ -344,38 +342,7 @@ socket.on("laser-pointer", (data) => {
     clearTimeout(laserTimeout); laserTimeout = setTimeout(() => { laserPointer.style.display = "none"; }, 2000);
 });
 
-// ---------- ADVANCED PRO WHITEBOARD (CORS & RESIZE FIX) ----------
-
-// 1. SAFE RESIZE - To Prevent Blur and Prevent Erasing
-function resizeCanvas() { 
-    const wbContainer = document.getElementById('whiteboard-container');
-    if(!wbContainer) return;
-    
-    // Save drawing state before resize
-    let tempCanvas = null;
-    if(canvas.width > 0 && canvas.height > 0) {
-        tempCanvas = document.createElement('canvas');
-        tempCanvas.width = canvas.width;
-        tempCanvas.height = canvas.height;
-        tempCanvas.getContext('2d').drawImage(canvas, 0, 0);
-    }
-    
-    // Exact 1:1 Pixel Mapping
-    canvas.width = wbContainer.offsetWidth;
-    canvas.height = wbContainer.offsetHeight;
-    
-    // Restore drawing state
-    if(tempCanvas) {
-        ctx.drawImage(tempCanvas, 0, 0);
-    }
-    
-    ctx.lineJoin = 'round';
-    ctx.lineCap = 'round';
-}
-window.addEventListener('resize', () => { 
-    if(whiteboardBox.style.display !== "none") resizeCanvas(); 
-    if(geoMap && mapBox.style.display !== "none") geoMap.invalidateSize(); 
-});
+// ---------- ADVANCED PRO WHITEBOARD ----------
 
 const toggleShapesBtn = document.getElementById("toggleShapesBtn");
 const wbShapesMenu = document.getElementById("wb-shapes-menu");
@@ -413,24 +380,15 @@ const subjectAssets = {
 const subjectCategory = document.getElementById("subjectCategory");
 const subjectAssetsList = document.getElementById("subjectAssetsList");
 
-// 2. ASSET FETCH FIX - Guaranteed CORS Bypass using reliable proxy
+// NAYA FIX: Using wsrv.nl to perfectly bypass CORS limits for all images!
 async function loadAssetToCanvas(url, name) {
     try {
         showNotification(`Downloading ${name}...`, "info");
-        // codetabs is a highly stable proxy for CORS images
-        const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`;
-        
-        const response = await fetch(proxyUrl);
-        if(!response.ok) throw new Error("Network error");
-        
-        const blob = await response.blob();
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            drawWbImage(reader.result, true);
-        };
-        reader.readAsDataURL(blob);
+        // Using highly reliable wsrv proxy
+        const proxyUrl = `https://wsrv.nl/?url=${encodeURIComponent(url)}&output=png`;
+        drawWbImage(proxyUrl, true);
+        wbSubjectsMenu.style.display = "none";
     } catch(e) {
-        console.error("Asset Load Error:", e);
         showNotification(`Failed to load ${name}.`, "danger");
     }
 }
@@ -441,10 +399,7 @@ function loadSubjectAssets(cat) {
         const btn = document.createElement("button");
         btn.textContent = "➕ Insert " + asset.name;
         btn.style.cssText = "background: rgba(255,255,255,0.1); color: white; border: 1px solid var(--accent); padding: 8px; border-radius: 6px; cursor: pointer; text-align: left; font-size: 13px;";
-        btn.onclick = () => {
-            loadAssetToCanvas(asset.url, asset.name);
-            wbSubjectsMenu.style.display = "none";
-        };
+        btn.onclick = () => { loadAssetToCanvas(asset.url, asset.name); };
         subjectAssetsList.appendChild(btn);
     });
 }
@@ -463,20 +418,20 @@ document.querySelectorAll('.tool-btn').forEach(btn => {
 document.getElementById('wb-color').addEventListener("input", (e) => { currentBrushColor = e.target.value; });
 document.getElementById('wb-size').addEventListener("input", (e) => { currentBrushSize = e.target.value; });
 document.getElementById('wb-clear').addEventListener("click", () => {
-  if (!canDraw) return; ctx.clearRect(0, 0, canvas.width, canvas.height); socket.emit("clear-whiteboard", { room: currentRoom });
+  if (!canDraw) return; 
+  ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height); // Keep bg white
+  socket.emit("clear-whiteboard", { room: currentRoom });
 });
-socket.on("clear-whiteboard", () => ctx.clearRect(0, 0, canvas.width, canvas.height));
+socket.on("clear-whiteboard", () => {
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+});
 
-// 3. PRECISE COORDINATE MAPPING (No more gap between cursor and line)
+// Precise mapping for 1920x1080 fixed canvas resolution
 function getCanvasPoint(e) {
     const rect = canvas.getBoundingClientRect();
-    // Since we now map 1:1 width with CSS, scale will be 1, making it perfect.
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
-    return {
-        x: (e.clientX - rect.left) * scaleX,
-        y: (e.clientY - rect.top) * scaleY
-    };
+    return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
 }
 
 function floodFill(startX, startY, fillColorHex, emit=false) {
@@ -543,10 +498,8 @@ function drawShapeObj(x0, y0, x1, y1, type, color, size, emit = false) {
 
   if(type === 'line') { ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); }
   else if(type === 'arrow') {
-      ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
-      let angle = Math.atan2(y1-y0, x1-x0);
-      ctx.lineTo(x1 - size*3 * Math.cos(angle - Math.PI/6), y1 - size*3 * Math.sin(angle - Math.PI/6));
-      ctx.moveTo(x1, y1); ctx.lineTo(x1 - size*3 * Math.cos(angle + Math.PI/6), y1 - size*3 * Math.sin(angle + Math.PI/6));
+      ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); let angle = Math.atan2(y1-y0, x1-x0);
+      ctx.lineTo(x1 - size*3 * Math.cos(angle - Math.PI/6), y1 - size*3 * Math.sin(angle - Math.PI/6)); ctx.moveTo(x1, y1); ctx.lineTo(x1 - size*3 * Math.cos(angle + Math.PI/6), y1 - size*3 * Math.sin(angle + Math.PI/6));
   }
   else if(type === 'rect') { ctx.rect(x0, y0, w, h); }
   else if(type === 'circle') { let r = Math.sqrt(Math.pow(w, 2) + Math.pow(h, 2)); ctx.arc(x0, y0, r, 0, 2*Math.PI); }
@@ -564,8 +517,7 @@ function drawShapeObj(x0, y0, x1, y1, type, color, size, emit = false) {
   }
   else if(type === 'cube') {
       let d = Math.min(Math.abs(w), Math.abs(h)) * 0.4; 
-      ctx.rect(x0, y0+d, w-d, h-d);
-      ctx.moveTo(x0+d, y0); ctx.lineTo(x1, y0); ctx.lineTo(x1, y1-d); ctx.lineTo(x0+d, y1-d); ctx.closePath();
+      ctx.rect(x0, y0+d, w-d, h-d); ctx.moveTo(x0+d, y0); ctx.lineTo(x1, y0); ctx.lineTo(x1, y1-d); ctx.lineTo(x0+d, y1-d); ctx.closePath();
       ctx.moveTo(x0, y0+d); ctx.lineTo(x0+d, y0); ctx.moveTo(x1-d, y0+d); ctx.lineTo(x1, y0); ctx.moveTo(x1-d, y1); ctx.lineTo(x1, y1-d); ctx.moveTo(x0, y1); ctx.lineTo(x0+d, y1-d);
   }
   else if(type === 'cylinder') {
@@ -635,25 +587,37 @@ socket.on("wb-pointer", (data) => {
     clearTimeout(wbLaserTimeout); wbLaserTimeout = setTimeout(() => { wbLaser.style.display = "none"; }, 2000);
 });
 
+// NAYA PDF FIX: Smart Full-Screen Fit
 document.getElementById('tool-pdf').addEventListener("click", () => document.getElementById('wbPdfUpload').click());
 document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
   const file = e.target.files[0]; if(!file) return; showNotification("Rendering PDF...", "info");
   const fileReader = new FileReader();
   fileReader.onload = async function() {
       const typedarray = new Uint8Array(this.result); const pdf = await pdfjsLib.getDocument(typedarray).promise; const page = await pdf.getPage(1); 
-      const viewport = page.getViewport({scale: 1.5}); const tc = document.createElement('canvas'); const tCtx = tc.getContext('2d'); tc.height = viewport.height; tc.width = viewport.width;
-      await page.render({canvasContext: tCtx, viewport: viewport}).promise; drawWbImage(tc.toDataURL(), true);
+      
+      // Calculate perfect scale to fit canvas
+      let unscaledViewport = page.getViewport({scale: 1});
+      let scale = Math.min((canvas.width * 0.95) / unscaledViewport.width, (canvas.height * 0.95) / unscaledViewport.height);
+      
+      const viewport = page.getViewport({scale: scale}); 
+      const tc = document.createElement('canvas'); const tCtx = tc.getContext('2d'); 
+      tc.height = viewport.height; tc.width = viewport.width;
+      
+      await page.render({canvasContext: tCtx, viewport: viewport}).promise; 
+      drawWbImage(tc.toDataURL(), true);
   };
   fileReader.readAsArrayBuffer(file);
 });
 
-// Compressed Socket Emitter for Images
 function drawWbImage(src, emit=false) {
     const img = new Image(); 
     img.crossOrigin = "Anonymous";
     img.onload = () => {
         let w = img.width, h = img.height;
-        let scale = Math.min(canvas.width / w, canvas.height / h) * 0.9; 
+        // Don't upscale small images, but scale down large ones to fit
+        let scale = Math.min(canvas.width / w, canvas.height / h) * 0.95; 
+        if(scale > 1) scale = 1; 
+        
         let drawW = w * scale; let drawH = h * scale;
         let x = (canvas.width - drawW) / 2; let y = (canvas.height - drawH) / 2;
         
@@ -662,7 +626,6 @@ function drawWbImage(src, emit=false) {
         if(emit) {
             let sendSrc = src;
             if(src.startsWith("data:")) {
-                // Compress image to 60% quality JPEG before emitting to prevent socket memory crash!
                 const tc = document.createElement("canvas"); tc.width = drawW; tc.height = drawH;
                 tc.getContext("2d").drawImage(img, 0, 0, drawW, drawH);
                 sendSrc = tc.toDataURL("image/jpeg", 0.6); 
@@ -670,7 +633,7 @@ function drawWbImage(src, emit=false) {
             socket.emit("wb-image", {room: currentRoom, image: sendSrc});
         }
     };
-    img.onerror = () => showNotification("Failed to load image. Try different asset.", "danger");
+    img.onerror = () => showNotification("Failed to load image.", "danger");
     img.src = src;
 }
 socket.on("wb-image", (data) => drawWbImage(data.image, false));
@@ -725,7 +688,7 @@ joinBtn.addEventListener("click", async () => {
     joined = true; currentRoom = roomId; joinSection.classList.add("form-out");
     setTimeout(() => {
       joinSection.style.display = "none"; workspace.classList.remove("hidden"); workspace.classList.add("workspace-active"); 
-      setTimeout(() => { resizeCanvas(); if(geoMap) geoMap.invalidateSize(); const localContainer = createLocalCard(userName); if (localTracks.videoTrack) localTracks.videoTrack.play(localContainer, { fit: "cover" }); }, 300);
+      setTimeout(() => { if(geoMap) geoMap.invalidateSize(); const localContainer = createLocalCard(userName); if (localTracks.videoTrack) localTracks.videoTrack.play(localContainer, { fit: "cover" }); }, 300);
     }, 500); 
     socket.emit("join-room", { room: roomId, uid: localUid, name: userName });
     showNotification(`You joined room ${roomId}`, "join"); appendMessage(`System: You joined room ${roomId}`);
@@ -737,7 +700,7 @@ socket.on("room-history", (data) => {
   if (data.chats) data.chats.forEach(chat => { if(chat.name === "System" && chat.text.includes("left")) return; appendMessage(`${chat.name}: ${chat.text}`); });
   if (data.files) [...data.files].reverse().forEach(file => addFileLink(file.filename, file.url));
   
-  if (data.wbVisible) { hideAllBigPanels(); whiteboardBox.style.display = "block"; setTimeout(resizeCanvas, 100); if(isHost) toggleWbBtn.dataset.show = "true"; }
+  if (data.wbVisible) { hideAllBigPanels(); whiteboardBox.style.display = "block"; if(isHost) toggleWbBtn.dataset.show = "true"; }
   if (data.mapVisible) { hideAllBigPanels(); mapBox.style.display = "block"; setTimeout(() => geoMap.invalidateSize(), 100); if(isHost) toggleMapBtn.dataset.show = "true"; }
   if (data.presVisible) { hideAllBigPanels(); presentationBox.style.display = "block"; if(isHost) togglePresBtn.dataset.show = "true"; }
   
