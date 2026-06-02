@@ -60,7 +60,6 @@ const presTitle = document.getElementById("pres-title");
 const presentationContainer = document.getElementById("presentation-container");
 const laserPointer = document.getElementById("laser-pointer");
 
-// NAYA: Excel & Product Elements
 const presMode = document.getElementById("presMode");
 const companyInputs = document.getElementById("companyInputs");
 const productInputs = document.getElementById("productInputs");
@@ -71,7 +70,7 @@ const canvasElem = document.getElementById("presentationCanvas");
 const excelContainer = document.getElementById("excel-container");
 const excelTable = document.getElementById("excelTable");
 let businessChart = null;
-let currentChartData = null; // Sync karne ke liye
+let currentChartData = null;
 
 // Map Elements
 const mapBox = document.getElementById("map-box");
@@ -243,7 +242,7 @@ function loadFormulas(category) {
     });
 }
 mathCategory.addEventListener("change", (e) => loadFormulas(e.target.value));
-loadFormulas("algebra"); // Default load
+loadFormulas("algebra"); 
 
 mathInput.addEventListener("input", () => { currentFormulaDesc = "Custom User Equation"; mathExplanationInput.textContent = ""; });
 
@@ -273,9 +272,8 @@ socket.on("math-equation", (data) => {
     } catch(e) {}
 });
 
-// ---------- PRESENTATION & GRAPH/EXCEL LOGIC ----------
 
-// Mode Switcher
+// ---------- PRESENTATION & GRAPH/EXCEL LOGIC ----------
 presMode.addEventListener("change", (e) => {
     if(e.target.value === "company") {
         companyInputs.style.display = "flex";
@@ -292,7 +290,6 @@ generateGraphBtn.addEventListener("click", () => {
     const mode = presMode.value;
     const growth = parseFloat(document.getElementById("presGrowth").value) || 10;
     
-    // Strict Limits enforced
     let baseYear = parseInt(document.getElementById("presBaseYear").value) || new Date().getFullYear();
     let endYear = parseInt(document.getElementById("presEndYear").value) || baseYear + 5;
     if(baseYear < 2001) baseYear = 2001; if(baseYear > 2500) baseYear = 2500;
@@ -322,7 +319,7 @@ generateGraphBtn.addEventListener("click", () => {
             let rev = unitPrice * currentUnits;
             revenues.push(Math.round(rev));
             unitsArr.push(Math.round(currentUnits));
-            currentUnits += (currentUnits * (growth / 100)); // Growth applies to units sold
+            currentUnits += (currentUnits * (growth / 100)); 
         }
     }
 
@@ -337,7 +334,6 @@ generateGraphBtn.addEventListener("click", () => {
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { font: { size: 16 } } } }, scales: { y: { beginAtZero: true, ticks: { font: { size: 14 } } }, x: { ticks: { font: { size: 14 } } } } }
     };
     
-    // Generate Excel HTML
     let tableHTML = `<tr><th>Year</th>`;
     if(mode === "product") tableHTML += `<th>Units Sold</th><th>Unit Price</th>`;
     tableHTML += `<th>Revenue (${currency})</th></tr>`;
@@ -352,7 +348,6 @@ generateGraphBtn.addEventListener("click", () => {
     socket.emit("presentation-data", presPayload);
 });
 
-// View Toggle Handlers (Host Only triggers for all)
 viewGraphBtn.addEventListener("click", () => { socket.emit("pres-view-switch", {room: currentRoom, view: 'chart'}); });
 viewExcelBtn.addEventListener("click", () => { socket.emit("pres-view-switch", {room: currentRoom, view: 'excel'}); });
 
@@ -369,26 +364,20 @@ socket.on("pres-view-switch", (data) => {
 socket.on("presentation-data", (data) => {
     currentChartData = data;
     presTitle.textContent = `${data.industry} Growth Projection`;
-    
-    // Render Excel
     excelTable.innerHTML = data.tableHTML;
     
-    // Show buttons for Host
     if(isHost) {
         viewGraphBtn.parentElement.style.display = "flex";
     }
     
-    // Setup Chart
     const ctxChart = canvasElem.getContext('2d');
     if(businessChart) businessChart.destroy();
     businessChart = new Chart(ctxChart, data.chartConfig);
     
-    // Set view
     if(data.view === 'chart') { excelContainer.style.display = "none"; canvasElem.style.display = "block"; }
     else { canvasElem.style.display = "none"; excelContainer.style.display = "block"; }
 });
 
-// Laser Pointer
 let laserTimeout;
 presentationContainer.addEventListener("mousemove", (e) => {
     if(!isHost || presentationBox.style.display === "none") return;
@@ -404,7 +393,7 @@ socket.on("laser-pointer", (data) => {
     clearTimeout(laserTimeout); laserTimeout = setTimeout(() => { laserPointer.style.display = "none"; }, 2000);
 });
 
-/// ---------- ADVANCED PRO WHITEBOARD ----------
+// ---------- ADVANCED PRO WHITEBOARD ----------
 function resizeCanvas() { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; }
 window.addEventListener('resize', () => { resizeCanvas(); if(geoMap && mapBox.style.display !== "none") geoMap.invalidateSize(); });
 
@@ -477,7 +466,6 @@ function loadSubjectAssets(cat) {
         btn.style.cssText = "background: rgba(255,255,255,0.1); color: white; border: 1px solid var(--accent); padding: 8px; border-radius: 6px; cursor: pointer; text-align: left; font-size: 13px;";
         btn.onclick = () => {
             showNotification(`Inserting ${asset.name}...`, "info");
-            // NAYA CORS FIX: Using allorigins to bypass canvas blocking
             const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(asset.url)}`;
             drawWbImage(proxyUrl, true);
             wbSubjectsMenu.style.display = "none";
@@ -488,7 +476,6 @@ function loadSubjectAssets(cat) {
 subjectCategory.addEventListener("change", (e) => loadSubjectAssets(e.target.value));
 loadSubjectAssets("geography");
 
-// ALL DRAWING TOOLS SETUP
 document.querySelectorAll('.tool-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
         document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active-tool'));
@@ -505,7 +492,6 @@ document.getElementById('wb-clear').addEventListener("click", () => {
 });
 socket.on("clear-whiteboard", () => ctx.clearRect(0, 0, canvas.width, canvas.height));
 
-// FREEHAND, BRUSH, SPRAY LOGIC
 function drawFreehand(x0, y0, x1, y1, color, size, toolType, emit = false) {
   if(toolType === 'eraser') {
       ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
@@ -521,62 +507,39 @@ function drawFreehand(x0, y0, x1, y1, color, size, toolType, emit = false) {
       }
   }
   else {
-      // Pen and Brush
       ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
       ctx.strokeStyle = color; ctx.lineWidth = size; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-      if(toolType === 'brush') {
-          ctx.shadowBlur = size * 1.5; ctx.shadowColor = color;
-      } else {
-          ctx.shadowBlur = 0;
-      }
+      if(toolType === 'brush') { ctx.shadowBlur = size * 1.5; ctx.shadowColor = color; } 
+      else { ctx.shadowBlur = 0; }
       ctx.stroke(); ctx.closePath();
   }
 
   if (emit) socket.emit('drawing', { type: 'free', x0, y0, x1, y1, color, size, toolType: toolType, room: currentRoom });
 }
 
-// ADVANCED 2D/3D SHAPES DRAWING LOGIC
 function drawShapeObj(x0, y0, x1, y1, type, color, size, emit = false) {
   ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = size; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.shadowBlur = 0;
   
-  let w = x1 - x0;
-  let h = y1 - y0;
+  let w = x1 - x0; let h = y1 - y0;
 
-  if(type === 'line') {
-      ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
-  }
+  if(type === 'line') { ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); }
   else if(type === 'arrow') {
       ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
       let angle = Math.atan2(y1-y0, x1-x0);
       ctx.lineTo(x1 - size*3 * Math.cos(angle - Math.PI/6), y1 - size*3 * Math.sin(angle - Math.PI/6));
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x1 - size*3 * Math.cos(angle + Math.PI/6), y1 - size*3 * Math.sin(angle + Math.PI/6));
+      ctx.moveTo(x1, y1); ctx.lineTo(x1 - size*3 * Math.cos(angle + Math.PI/6), y1 - size*3 * Math.sin(angle + Math.PI/6));
   }
-  else if(type === 'rect') {
-      ctx.rect(x0, y0, w, h);
-  }
-  else if(type === 'circle') {
-      let r = Math.sqrt(Math.pow(w, 2) + Math.pow(h, 2)); 
-      ctx.arc(x0, y0, r, 0, 2*Math.PI);
-  }
-  else if(type === 'triangle') {
-      ctx.moveTo(x0 + w/2, y0); ctx.lineTo(x1, y1); ctx.lineTo(x0, y1); ctx.closePath();
-  }
+  else if(type === 'rect') { ctx.rect(x0, y0, w, h); }
+  else if(type === 'circle') { let r = Math.sqrt(Math.pow(w, 2) + Math.pow(h, 2)); ctx.arc(x0, y0, r, 0, 2*Math.PI); }
+  else if(type === 'triangle') { ctx.moveTo(x0 + w/2, y0); ctx.lineTo(x1, y1); ctx.lineTo(x0, y1); ctx.closePath(); }
   else if(type === 'pentagon' || type === 'hexagon' || type === 'star') {
-      let r = Math.sqrt(w*w + h*h);
-      let sides = type === 'pentagon' ? 5 : (type === 'hexagon' ? 6 : 5);
-      let step = (Math.PI * 2) / sides;
+      let r = Math.sqrt(w*w + h*h); let sides = type === 'pentagon' ? 5 : (type === 'hexagon' ? 6 : 5); let step = (Math.PI * 2) / sides;
       for(let i=0; i<=sides; i++) {
-          let cx = x0 + r * Math.cos(i * step - Math.PI/2);
-          let cy = y0 + r * Math.sin(i * step - Math.PI/2);
+          let cx = x0 + r * Math.cos(i * step - Math.PI/2); let cy = y0 + r * Math.sin(i * step - Math.PI/2);
           if(type === 'star' && i<sides) {
-              let ix = x0 + (r/2.5) * Math.cos((i+0.5) * step - Math.PI/2);
-              let iy = y0 + (r/2.5) * Math.sin((i+0.5) * step - Math.PI/2);
-              if(i===0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
-              ctx.lineTo(ix, iy);
-          } else {
-              if(i===0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
-          }
+              let ix = x0 + (r/2.5) * Math.cos((i+0.5) * step - Math.PI/2); let iy = y0 + (r/2.5) * Math.sin((i+0.5) * step - Math.PI/2);
+              if(i===0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy); ctx.lineTo(ix, iy);
+          } else { if(i===0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy); }
       }
       ctx.closePath();
   }
@@ -593,19 +556,16 @@ function drawShapeObj(x0, y0, x1, y1, type, color, size, emit = false) {
       let rX = Math.abs(w/2), rY = Math.abs(h * 0.15);
       ctx.ellipse(x0 + w/2, y0 + rY, rX, rY, 0, 0, 2 * Math.PI);
       ctx.moveTo(x0, y1 - rY); ctx.ellipse(x0 + w/2, y1 - rY, rX, rY, 0, 0, Math.PI);
-      ctx.moveTo(x0, y0 + rY); ctx.lineTo(x0, y1 - rY);
-      ctx.moveTo(x1, y0 + rY); ctx.lineTo(x1, y1 - rY);
+      ctx.moveTo(x0, y0 + rY); ctx.lineTo(x0, y1 - rY); ctx.moveTo(x1, y0 + rY); ctx.lineTo(x1, y1 - rY);
   }
   else if(type === 'cone') {
       let rX = Math.abs(w/2), rY = Math.abs(h * 0.15);
       ctx.ellipse(x0 + w/2, y1 - rY, rX, rY, 0, 0, 2 * Math.PI);
-      ctx.moveTo(x0 + w/2, y0); ctx.lineTo(x0, y1 - rY);
-      ctx.moveTo(x0 + w/2, y0); ctx.lineTo(x1, y1 - rY);
+      ctx.moveTo(x0 + w/2, y0); ctx.lineTo(x0, y1 - rY); ctx.moveTo(x0 + w/2, y0); ctx.lineTo(x1, y1 - rY);
   }
   else if(type === 'sphere') {
-      let r = Math.sqrt(w*w + h*h);
-      ctx.arc(x0, y0, r, 0, 2*Math.PI);
-      ctx.moveTo(x0-r, y0); ctx.ellipse(x0, y0, r, r*0.3, 0, 0, 2*Math.PI); // Equator ring for 3D feel
+      let r = Math.sqrt(w*w + h*h); ctx.arc(x0, y0, r, 0, 2*Math.PI);
+      ctx.moveTo(x0-r, y0); ctx.ellipse(x0, y0, r, r*0.3, 0, 0, 2*Math.PI); 
   }
   
   ctx.stroke(); 
@@ -618,22 +578,17 @@ let wbLaserTimeout;
 
 canvas.addEventListener('mousedown', (e) => { 
   if (!canDraw) return; 
-  if(currentTool === 'pointer') return; // Don't draw
+  if(currentTool === 'pointer') return; 
   drawing = true; startX = e.offsetX; startY = e.offsetY; 
   canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
 });
 canvas.addEventListener('mousemove', (e) => {
   if (!canDraw) return;
-  
   if(currentTool === 'pointer') {
-      // Whiteboard Pointer Broadcast
       const rect = canvas.getBoundingClientRect();
-      const xP = e.offsetX / rect.width;
-      const yP = e.offsetY / rect.height;
-      socket.emit("wb-pointer", { room: currentRoom, x: xP, y: yP });
+      socket.emit("wb-pointer", { room: currentRoom, x: e.offsetX / rect.width, y: e.offsetY / rect.height });
       return;
   }
-  
   if (!drawing) return;
 
   if(['pen', 'brush', 'spray', 'eraser'].includes(currentTool)) {
@@ -649,7 +604,7 @@ canvas.addEventListener('mouseup', (e) => {
   if(!['pen', 'brush', 'spray', 'eraser'].includes(currentTool)) {
       drawShapeObj(startX, startY, e.offsetX, e.offsetY, currentTool, currentBrushColor, currentBrushSize, true);
   }
-  ctx.shadowBlur = 0; // Reset shadow
+  ctx.shadowBlur = 0; 
 });
 canvas.addEventListener('mouseout', () => {
     drawing = false;
@@ -661,7 +616,6 @@ socket.on('drawing', (data) => {
   else drawShapeObj(data.x0, data.y0, data.x1, data.y1, data.type, data.color, data.size, false);
 });
 
-// Receive Whiteboard Pointer
 socket.on("wb-pointer", (data) => {
     if(data.hide) { wbLaser.style.display = "none"; return; }
     wbLaser.style.display = "block";
@@ -710,7 +664,7 @@ function drawWbImage(src, emit=false) {
             socket.emit("wb-image", {room: currentRoom, image: sendSrc});
         }
     };
-    img.onerror = () => showNotification("Failed to load image. Try different asset.", "danger");
+    img.onerror = () => showNotification("Failed to load image.", "danger");
     img.src = src;
 }
 socket.on("wb-image", (data) => drawWbImage(data.image, false));
