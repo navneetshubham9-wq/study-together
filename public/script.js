@@ -28,6 +28,7 @@ const muteAllBtn = document.getElementById("muteAllBtn");
 const unmuteAllBtn = document.getElementById("unmuteAllBtn");
 const localMusicMuteBtn = document.getElementById("localMusicMuteBtn"); 
 
+// Panel Toggles
 const toggleWbBtn = document.getElementById("toggleWbBtn"); 
 const toggleMapBtn = document.getElementById("toggleMapBtn"); 
 const togglePresBtn = document.getElementById("togglePresBtn"); 
@@ -35,7 +36,7 @@ const openMathBtn = document.getElementById("openMathBtn");
 const toggleCalcBtn = document.getElementById("toggleCalcBtn"); 
 
 // ==========================================
-// 🚀 NAYA: Bulletproof Hamburger Menu (Scroll Issue Fixed)
+// 🚀 NAYA: Solid Hamburger Scroll Logic
 // ==========================================
 const controlRowInner = document.getElementById("controlRowInner");
 const hamburgerBtn = document.getElementById("hamburgerBtn");
@@ -43,7 +44,7 @@ const hamburgerBtn = document.getElementById("hamburgerBtn");
 window.addEventListener("scroll", () => {
     if(!joined) return;
     const scrollY = window.scrollY || document.documentElement.scrollTop;
-    if (scrollY > 50) {
+    if (scrollY > 80) {
         hamburgerBtn.style.setProperty("display", "block", "important");
         controlRowInner.classList.add("vertical-controls-mode");
         if (controlRowInner.dataset.manualToggle !== "true") {
@@ -269,16 +270,17 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
   const maxBtn = document.createElement("button");
   maxBtn.className = "icon-btn"; maxBtn.innerHTML = "🖥️";
   maxBtn.onclick = () => {
-    if (!document.fullscreenElement) { elementToFullscreen.requestFullscreen().catch(e => e); } 
+    if (!document.fullscreenElement) { targetWrapper.requestFullscreen().catch(e => e); } 
     else { document.exitFullscreen(); }
   };
   controlsDiv.appendChild(enlargeBtn); controlsDiv.appendChild(shrinkBtn); controlsDiv.appendChild(maxBtn);
-  elementToFullscreen.appendChild(controlsDiv);
+  targetWrapper.appendChild(controlsDiv);
 }
 
-addSizeControls(whiteboardBox, document.getElementById('whiteboard-container'));
-addSizeControls(mapBox, mapContainer); 
-addSizeControls(presentationBox, presentationContainer); 
+// Add size controls to the main wrappers directly
+addSizeControls(whiteboardBox, whiteboardBox);
+addSizeControls(mapBox, mapBox); 
+addSizeControls(presentationBox, presentationBox); 
 
 function hideAllBigPanels() {
     whiteboardBox.style.display = "none";
@@ -484,15 +486,13 @@ const subjectCategory = document.getElementById("subjectCategory");
 const subjectAssetsList = document.getElementById("subjectAssetsList");
 
 // ==========================================
-// 🚀 NAYA: 100% BULLETPROOF ASSET LOADER (Base64 Bug Fixed)
+// 🚀 NAYA: 100% BULLETPROOF ASSET LOADER
+// Direct URL se drawing hogi, no Base64 conversion
 // ==========================================
 function prepareStamp(src) {
     const img = new Image();
-    
-    // FIX: Base64 data strings par crossOrigin nahi lagate! Browser allow nahi karta.
-    if (!src.startsWith("data:")) {
-        img.crossOrigin = "Anonymous"; 
-    }
+    // Anonymous hatane se browser image block nahi karta if server streams directly
+    img.crossOrigin = "Anonymous";
     
     img.onload = () => {
         stampImage = img;
@@ -509,21 +509,12 @@ function prepareStamp(src) {
     img.src = src; 
 }
 
-async function loadAssetToCanvas(url, name) {
-    try {
-        showNotification(`Downloading ${name} safely...`, "info");
-        // Fetches from our Node.js Server
-        const response = await fetch(`/proxy-image?url=${encodeURIComponent(url)}`);
-        const data = await response.json();
-        
-        if (data.base64) {
-            prepareStamp(data.base64); // Ye kabhi block nahi hoga
-        } else {
-            throw new Error("Server blocked request");
-        }
-    } catch(e) {
-        showNotification(`Failed to load ${name}.`, "danger");
-    }
+function loadAssetToCanvas(url, name) {
+    showNotification(`Downloading ${name} safely...`, "info");
+    // Connects to node server API directly! Server returns stream.
+    const safeProxyUrl = `/proxy-image?url=${encodeURIComponent(url)}`;
+    prepareStamp(safeProxyUrl);
+    wbSubjectsMenu.style.display = "none";
 }
 // ==========================================
 
@@ -710,17 +701,22 @@ canvas.addEventListener('mousedown', (e) => {
       let h = stampImage.height * stampScale;
       ctx.drawImage(stampImage, pt.x - w/2, pt.y - h/2, w, h);
       
+      // ==========================================
+      // 🚀 NAYA: 1MB Socket Crash Fix (DRAMATIC COMPRESSION FOR SYNCING)
+      // ==========================================
       let tempCanvas = document.createElement("canvas");
-      let syncScale = Math.min(1, 800 / Math.max(w, h)); // Compressed scaling
+      // Scale down large images drastically for syncing to avoid socket limit
+      let syncScale = Math.min(1, 800 / Math.max(w, h)); 
       tempCanvas.width = w * syncScale; 
       tempCanvas.height = h * syncScale;
       let tCtx = tempCanvas.getContext("2d");
       tCtx.fillStyle = "#ffffff"; tCtx.fillRect(0,0, tempCanvas.width, tempCanvas.height);
       tCtx.drawImage(stampImage, 0, 0, tempCanvas.width, tempCanvas.height);
       
-      let sendSrc = tempCanvas.toDataURL("image/jpeg", 0.5); // Highly compressed for socket
+      let sendSrc = tempCanvas.toDataURL("image/jpeg", 0.5); // COMPRESS
       socket.emit("wb-stamp", { room: currentRoom, image: sendSrc, x: pt.x - w/2, y: pt.y - h/2, w: w, h: h });
-      
+      // ==========================================
+
       wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5);
       
       isStamping = false;
@@ -769,7 +765,9 @@ canvas.addEventListener('mouseup', (e) => {
   if (!drawing || !canDraw || currentTool === 'pointer' || currentTool === 'fill') return; 
   drawing = false; 
   const pt = getCanvasPoint(e);
-  if(!['pen', 'brush', 'spray', 'eraser'].includes(currentTool)) { drawShapeObj(startX, startY, pt.x, pt.y, currentTool, currentBrushColor, currentBrushSize, true); }
+  if(!['pen', 'brush', 'spray', 'eraser'].includes(currentTool)) { 
+      drawShapeObj(startX, startY, pt.x, pt.y, currentTool, currentBrushColor, currentBrushSize, true); 
+  }
   ctx.shadowBlur = 0; 
   wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5);
 });
@@ -798,7 +796,7 @@ socket.on("wb-pointer", (data) => {
     clearTimeout(wbLaserTimeout); wbLaserTimeout = setTimeout(() => { wbLaser.style.display = "none"; }, 2000);
 });
 
-// PDF Rendering
+// PDF Rendering for Resizable Stamp
 document.getElementById('tool-pdf').addEventListener("click", () => document.getElementById('wbPdfUpload').click());
 document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
   const file = e.target.files[0]; if(!file) return; showNotification("Loading File...", "info");
@@ -826,6 +824,7 @@ function initWorldMap() {
   L.control.zoom({ position: 'bottomleft' }).addTo(geoMap);
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '&copy; Esri', crossOrigin: true }).addTo(geoMap);
   labelsLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { pane: 'markerPane', crossOrigin: true }).addTo(geoMap);
+  L.Control.geocoder({ defaultMarkGeocode: true, position: 'topleft' }).addTo(geoMap);
 }
 initWorldMap();
 document.getElementById("toggleLabelsBtn")?.addEventListener("click", function() {

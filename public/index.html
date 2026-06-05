@@ -6,6 +6,7 @@
   <title>VYDEX Workspace</title>
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -13,10 +14,8 @@
   
   <div id="notification-container"></div>
   
-  <!-- NAYA: Tracker to trigger Hamburger Menu perfectly -->
   <div id="top-anchor" style="position: absolute; top: 0; left: 0; width: 100%; height: 50px; z-index: -1; visibility: hidden;"></div>
 
-  <!-- NAYA: Hamburger Menu Button (Left Side) -->
   <button id="hamburgerBtn" class="hamburger-btn" title="Open Controls">☰ Menu</button>
 
   <header>
@@ -38,8 +37,7 @@
       
       <audio id="remoteMusicPlayer" style="display: none;" crossorigin="anonymous" allow="autoplay"></audio>
 
-      <!-- DRAGGABLE CALCULATOR -->
-      <div id="calc-modal" class="card" style="display: none; position: fixed; top: 15%; right: 5%; z-index: 9999; width: 250px; background: rgba(20,30,48,0.98); border: 2px solid #16a085; box-shadow: 0 20px 50px rgba(0,0,0,0.8); padding: 15px;">
+      <div id="calc-modal" class="card" style="display: none; position: fixed; top: 15%; right: 5%; z-index: 99999; width: 250px; background: rgba(20,30,48,0.98); border: 2px solid #16a085; box-shadow: 0 20px 50px rgba(0,0,0,0.8); padding: 15px;">
         <h4 id="calc-header" style="margin: 0 0 10px 0; color: #1abc9c; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; cursor: move; user-select: none;">🧮 Calculator (Drag)</h4>
         
         <input type="text" id="calc-display" disabled style="width: 100%; padding: 15px; font-size: 20px; text-align: right; background: #000; color: #fff; border: 1px solid #16a085; border-radius: 8px; margin-bottom: 10px; box-sizing: border-box;">
@@ -64,8 +62,7 @@
         </div>
       </div>
 
-      <!-- ADVANCED MATH MODAL -->
-      <div id="math-modal" class="card" style="display: none; position: fixed; top: 10%; left: 50%; transform: translateX(-50%); z-index: 9998; width: 550px; background: rgba(20,30,48,0.98); border: 2px solid var(--primary); box-shadow: 0 20px 50px rgba(0,0,0,0.8);">
+      <div id="math-modal" class="card" style="display: none; position: fixed; top: 10%; left: 50%; transform: translateX(-50%); z-index: 99998; width: 550px; background: rgba(20,30,48,0.98); border: 2px solid var(--primary); box-shadow: 0 20px 50px rgba(0,0,0,0.8);">
         <h3 style="margin-top: 0; color: var(--accent); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;">∑ Advanced Math Library</h3>
         <div style="margin-bottom: 10px;">
             <select id="mathCategory" style="width: 100%; padding: 8px; border-radius: 6px; background: rgba(0,0,0,0.5); color: white; border: 1px solid var(--primary);">
@@ -85,7 +82,6 @@
         <button id="closeMathBtn" style="background: var(--danger); color: white; border: none; padding: 8px; border-radius: 8px; width: 100%; cursor: pointer; margin-top: 10px;">Close Board</button>
       </div>
 
-      <!-- Controls Section -->
       <section id="controls" class="card entry-animation delay-controls">
         <div class="control-row" id="controlRowInner">
           <button id="cameraBtn" title="Toggle Camera">📹 Camera</button>
@@ -97,7 +93,6 @@
           <button id="localMusicMuteBtn" title="Mute Host Music Locally" style="display: none; background: #9b59b6;">🎵🔇 Mute Music</button>
           <button id="leaveBtn" title="Leave Room" style="background: linear-gradient(135deg, #e74c3c, #c0392b); color: white;">🚪 Exit Room</button>
           
-          <!-- Host Only Controls -->
           <button id="muteAllBtn" class="host-only-btn" title="Mute All Users" style="background: linear-gradient(135deg, #e67e22, #d35400); color: white; display: none;">🤫 Mute All</button>
           <button id="unmuteAllBtn" class="host-only-btn" title="Unmute All Users" style="background: linear-gradient(135deg, #2ecc71, #27ae60); color: white; display: none;">🔊 Unmute All</button>
           
@@ -115,10 +110,8 @@
         </div>
       </section>
 
-      <!-- Video Area -->
       <section id="video-area" class="card video-grid entry-animation delay-video"></section>
 
-      <!-- Chat Box -->
       <section id="chat-box" class="card entry-animation delay-chat">
         <h3>💬 Live Chat</h3>
         <div id="messages" class="messages"></div>
@@ -128,7 +121,6 @@
         </div>
       </section>
 
-      <!-- Shared Files Box -->
       <section id="file-box" class="card entry-animation delay-files">
         <h3>📂 Shared Files</h3>
         <div id="fileList" class="file-box-list"></div>
@@ -139,7 +131,6 @@
         </div>
       </section>
 
-      <!-- BUSINESS PRESENTATION WINDOW -->
       <section id="presentation-box" class="card big-panel" style="grid-column: 1 / -1; height: auto; min-height: 550px; display: none; position: relative;">
         <h3>📊 VYDEX Business & Growth Presentation</h3>
         <div id="pres-input-form" class="host-only-btn" style="display: none; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 12px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center;">
@@ -183,7 +174,6 @@
         </div>
       </section>
 
-      <!-- ADVANCED PRO WHITEBOARD -->
       <section id="whiteboard-box" class="card big-panel" style="grid-column: 1 / -1; height: 600px; display: none; position: relative;">
         <h3>🎨 VYDEX Education Board <span id="wb-status" style="font-size:12px; color:var(--accent); font-weight:400; margin-left: 10px;">(View Only)</span></h3>
         
@@ -260,7 +250,6 @@
         </div>
       </section>
 
-      <!-- INTERACTIVE MAP -->
       <section id="map-box" class="card big-panel" style="grid-column: 1 / -1; height: 550px; display: none; position: relative;">
         <h3>🌍 VYDEX Geography Explorer</h3>
         <div style="position: absolute; top: 80px; left: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 15px;">
@@ -275,13 +264,13 @@
 
   <footer>
     <p>Powered by VYDEX Collaboration Engine</p>
-    <!-- 🚀 MOBILE NO. UPDATED AS REQUESTED -->
     <p style="margin-top: 5px; font-weight: 600; color: var(--accent);">
       📧 navneetshubham9@gmail.com | 📞 +918839339013
     </p>
   </footer>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
