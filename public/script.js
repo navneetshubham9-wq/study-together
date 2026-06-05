@@ -34,23 +34,23 @@ const togglePresBtn = document.getElementById("togglePresBtn");
 const openMathBtn = document.getElementById("openMathBtn"); 
 const toggleCalcBtn = document.getElementById("toggleCalcBtn"); 
 
-// Hamburger Menu Logic
+// ==========================================
+// 🚀 Hamburger Click-Outside Closing Logic
+// ==========================================
 const controlRowInner = document.getElementById("controlRowInner");
 const hamburgerBtn = document.getElementById("hamburgerBtn");
+const topAnchor = document.getElementById("top-anchor");
 const sideMenuContainer = document.getElementById("side-menu-container");
 const controlsSection = document.getElementById("controls");
 
-window.addEventListener("scroll", () => {
+const observer = new IntersectionObserver((entries) => {
     if(!joined) return;
-    const scrollY = window.scrollY || document.documentElement.scrollTop;
-    
-    if (scrollY > 80) {
+    if (!entries[0].isIntersecting) {
         hamburgerBtn.style.setProperty("display", "block", "important");
         if (controlRowInner.parentElement === controlsSection) {
             sideMenuContainer.appendChild(controlRowInner);
             controlRowInner.style.display = "flex";
             controlRowInner.style.flexDirection = "column";
-            
             if (sideMenuContainer.dataset.manualToggle !== "true") {
                 sideMenuContainer.style.setProperty("display", "none", "important");
             }
@@ -64,10 +64,12 @@ window.addEventListener("scroll", () => {
             sideMenuContainer.dataset.manualToggle = "false";
         }
     }
-});
+}, { threshold: 0 });
+
+if(topAnchor) observer.observe(topAnchor);
 
 hamburgerBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
+    e.stopPropagation(); 
     if (sideMenuContainer.style.display === "none") {
         sideMenuContainer.style.setProperty("display", "flex", "important");
         sideMenuContainer.dataset.manualToggle = "true";
@@ -85,6 +87,7 @@ document.addEventListener("click", (e) => {
         }
     }
 });
+// ==========================================
 
 const sendMsgBtn = document.getElementById("sendMsg");
 const chatInput = document.getElementById("chatInput");
@@ -495,24 +498,25 @@ toggleSubjectsBtn.addEventListener("click", () => {
 });
 
 // ==========================================
-// 🚀 SMART ASSET ENGINE: Handles PNG, JPG, and PDF smoothly
+// 🚀 NAYA: 100% PDF EXTENSION FIX 
+// Sab files ko .pdf format me explicitly set kiya gaya hai.
 // ==========================================
 const subjectAssets = {
     geography: [
-        {name: "World Map", url: "assets/subjects/world_map.png"},
-        {name: "India Political", url: "assets/subjects/india_political.pdf"}, // Mixed example!
-        {name: "India Physical", url: "assets/subjects/india_physical.jpg"}
+        {name: "World Map", url: "assets/subjects/world_map.pdf"},
+        {name: "India Political", url: "assets/subjects/india_political.pdf"},
+        {name: "India Physical", url: "assets/subjects/india_physical.pdf"}
     ],
     biology: [
-        {name: "Human Skeleton", url: "assets/subjects/human_skeleton.png"},
+        {name: "Human Skeleton", url: "assets/subjects/human_skeleton.pdf"},
         {name: "Respiratory System", url: "assets/subjects/respiratory_system.pdf"},
-        {name: "Human Heart", url: "assets/subjects/human_heart.jpg"},
-        {name: "Plant Cell", url: "assets/subjects/plant_cell.png"}
+        {name: "Human Heart", url: "assets/subjects/human_heart.pdf"},
+        {name: "Plant Cell", url: "assets/subjects/plant_cell.pdf"}
     ],
     chemistry: [ {name: "Periodic Table", url: "assets/subjects/periodic_table.pdf"} ],
-    physics: [ {name: "Electric Circuit", url: "assets/subjects/electric_circuit.png"} ],
+    physics: [ {name: "Electric Circuit", url: "assets/subjects/electric_circuit.pdf"} ],
     maths: [ {name: "Graph Paper", url: "assets/subjects/graph_paper.pdf"} ],
-    commerce: [ {name: "Supply & Demand", url: "assets/subjects/supply_demand.png"} ]
+    commerce: [ {name: "Supply & Demand", url: "assets/subjects/supply_demand.pdf"} ]
 };
 
 const subjectCategory = document.getElementById("subjectCategory");
@@ -539,18 +543,15 @@ function prepareStamp(src) {
     img.src = src; 
 }
 
-// 🚀 SMART CHECKER: Identifies if it's an Image or a PDF automatically
 async function loadAssetToCanvas(url, name) {
     try {
         showNotification(`Loading ${name}...`, "info");
         const lowerUrl = url.toLowerCase();
         
-        // Agar Image hai (png, jpg, jpeg) toh direct render
         if (lowerUrl.endsWith('.png') || lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg')) {
             prepareStamp(url);
             wbSubjectsMenu.style.display = "none";
         } 
-        // Agar PDF hai toh PDF engine se render
         else if (lowerUrl.endsWith('.pdf')) {
             const pdf = await pdfjsLib.getDocument(url).promise;
             const page = await pdf.getPage(1);
@@ -569,7 +570,7 @@ async function loadAssetToCanvas(url, name) {
         }
     } catch(e) {
         console.error(e);
-        showNotification(`Failed to load ${name}. Make sure ${url} exists!`, "danger");
+        showNotification(`Failed to load ${name}. Make sure the PDF file exists in assets/subjects folder!`, "danger");
     }
 }
 // ==========================================
@@ -845,7 +846,6 @@ socket.on("wb-pointer", (data) => {
     clearTimeout(wbLaserTimeout); wbLaserTimeout = setTimeout(() => { wbLaser.style.display = "none"; }, 2000);
 });
 
-// Upload tool supports Image + PDF
 document.getElementById('tool-pdf').addEventListener("click", () => document.getElementById('wbPdfUpload').click());
 document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
   const file = e.target.files[0]; if(!file) return; showNotification("Loading File...", "info");
@@ -885,8 +885,6 @@ document.getElementById("toggleLabelsBtn")?.addEventListener("click", function()
   else { geoMap.removeLayer(labelsLayer); this.style.background = "var(--danger)"; }
 });
 
-
-// ---------- VIDEO UI HELPERS ----------
 function createLocalCard(name) {
   let el = document.getElementById("local-player"); if (el) return el;
   const localContainer = document.createElement("div"); localContainer.className = "video-card"; localContainer.id = "local-player";
@@ -909,7 +907,6 @@ function createRemoteWrapper(uid, labelText) {
   wrapper.appendChild(card); wrapper.appendChild(controlsDiv); addSizeControls(wrapper, card); videoArea.appendChild(wrapper); return wrapper;
 }
 
-// ---------- JOIN LOGIC ----------
 joinBtn.addEventListener("click", async () => {
   if (joined) return;
   try { remoteMusicPlayer.volume = 0; let playPromise = remoteMusicPlayer.play(); if (playPromise !== undefined) { playPromise.then(() => { remoteMusicPlayer.pause(); remoteMusicPlayer.volume = 1; }).catch(e => e); } } catch(e) {}
@@ -928,7 +925,6 @@ joinBtn.addEventListener("click", async () => {
   } catch (err) { showNotification("Join failed!", "danger"); }
 });
 
-// ---------- SOCKET RECEIVERS ----------
 socket.on("room-history", (data) => {
   if (data.chats) data.chats.forEach(chat => { if(chat.name === "System" && chat.text.includes("left")) return; appendMessage(`${chat.name}: ${chat.text}`); });
   if (data.files) [...data.files].reverse().forEach(file => addFileLink(file.filename, file.url));
@@ -963,7 +959,6 @@ socket.on("room-update", (data) => {
   else if (isHost) { muteAllBtn.style.display = "none"; unmuteAllBtn.style.display = "none"; }
 });
 
-// MUSIC & REMOTE VIDEO
 document.getElementById("hostAudioFile").addEventListener("change", async (e) => {
   const file = e.target.files[0]; if (!file) return; const fd = new FormData(); fd.append("file", file); fd.append("room", currentRoom || ""); fd.append("uploader", "Host-Music");
   try { currentMusicUrl = (await (await fetch("/upload", { method: "POST", body: fd })).json()).url; hostAudioPlayer.src = currentMusicUrl; showNotification("Music ready", "join"); } catch (err) {}
@@ -991,7 +986,6 @@ client.on("user-left", (user) => removeRemoteUser(user.uid.toString()));
 socket.on("user-left", info => { if (info && info.uid) removeRemoteUser(info.uid.toString(), info.name); });
 function removeRemoteUser(uid, name = null) { document.getElementById(`remote-wrapper-${uid}`)?.remove(); document.getElementById(`screen-card-${uid}`)?.remove(); delete remoteUsers[uid]; }
 
-// LOCAL & GLOBAL CONTROLS
 leaveBtn.addEventListener("click", async () => { socket.emit("leave-room"); await client.leave(); window.location.reload(); });
 muteAllBtn.addEventListener("click", () => { if (joined && isHost) socket.emit("control", { room: currentRoom, action: "mute-all" }); });
 unmuteAllBtn.addEventListener("click", () => { if (joined && isHost) socket.emit("control", { room: currentRoom, action: "unmute-all" }); });
@@ -1078,7 +1072,6 @@ socket.on("wb-control", (data) => {
   }
 });
 
-// CHAT & FILES
 sendMsgBtn.addEventListener("click", () => { const text = chatInput.value.trim(); if (!text) return; socket.emit("chat-message", { room: currentRoom, name: usernameInput.value || "Me", text }); appendMessage(`Me: ${text}`); chatInput.value = ""; });
 chatInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); sendMsgBtn.click(); } });
 socket.on("chat-message", data => { if(data.name === "System" && data.text.includes("left")) return; appendMessage(`${data.name}: ${data.text}`); });
