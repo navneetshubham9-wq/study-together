@@ -35,6 +35,27 @@ const togglePresBtn = document.getElementById("togglePresBtn");
 const openMathBtn = document.getElementById("openMathBtn"); 
 const toggleCalcBtn = document.getElementById("toggleCalcBtn"); 
 
+// NAYA: Hamburger Menu Scroll Logic
+const controlRow = document.getElementById("controlRowInner");
+const hamburgerBtn = document.getElementById("hamburgerBtn");
+
+window.addEventListener("scroll", () => {
+    if(!joined) return;
+    if (window.scrollY > 80) {
+        hamburgerBtn.style.display = "block";
+        controlRow.classList.add("vertical-controls-mode");
+        controlRow.classList.add("hide-vertical"); 
+    } else {
+        hamburgerBtn.style.display = "none";
+        controlRow.classList.remove("vertical-controls-mode");
+        controlRow.classList.remove("hide-vertical");
+    }
+});
+
+hamburgerBtn.addEventListener("click", () => {
+    controlRow.classList.toggle("hide-vertical");
+});
+
 // Chat & Files
 const sendMsgBtn = document.getElementById("sendMsg");
 const chatInput = document.getElementById("chatInput");
@@ -120,6 +141,7 @@ const canvas = document.getElementById('whiteboard');
 const ctx = canvas.getContext('2d', { willReadFrequently: true }); 
 const wbStatus = document.getElementById('wb-status');
 
+// Default White Background
 ctx.fillStyle = "#ffffff";
 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -135,6 +157,61 @@ let canvasSnapshot;
 let stampImage = null;
 let stampScale = 1.0;
 let isStamping = false;
+
+// NAYA: MULTIPLE WHITEBOARDS PAGINATION
+let wbPages = []; // Array of Base64 strings
+let currentWbPage = 0;
+const wbPrevPageBtn = document.getElementById("wbPrevPage");
+const wbNextPageBtn = document.getElementById("wbNextPage");
+const wbAddPageBtn = document.getElementById("wbAddPage");
+const wbPageNumText = document.getElementById("wbPageNum");
+
+function saveCurrentPage() {
+    wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5); // Save in memory
+}
+function loadPage(index) {
+    if (index < 0 || index >= wbPages.length) return;
+    saveCurrentPage();
+    currentWbPage = index;
+    wbPageNumText.textContent = `${currentWbPage + 1} / ${wbPages.length}`;
+    
+    const imgSrc = wbPages[currentWbPage];
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height); // Clear first
+    if(imgSrc) {
+        const img = new Image();
+        img.onload = () => { ctx.drawImage(img, 0, 0); };
+        img.src = imgSrc;
+    }
+    
+    // Sync with everyone
+    if(isHost) socket.emit("wb-page-sync", { room: currentRoom, image: imgSrc, num: currentWbPage + 1, total: wbPages.length });
+}
+
+if(wbAddPageBtn) {
+    wbAddPageBtn.addEventListener("click", () => {
+        saveCurrentPage();
+        wbPages.push(''); // Add blank page
+        currentWbPage = wbPages.length - 1;
+        wbPageNumText.textContent = `${currentWbPage + 1} / ${wbPages.length}`;
+        
+        ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        showNotification("Created new whiteboard page!", "info");
+        socket.emit("wb-page-sync", { room: currentRoom, image: '', num: currentWbPage + 1, total: wbPages.length });
+    });
+}
+if(wbPrevPageBtn) { wbPrevPageBtn.addEventListener("click", () => loadPage(currentWbPage - 1)); }
+if(wbNextPageBtn) { wbNextPageBtn.addEventListener("click", () => loadPage(currentWbPage + 1)); }
+
+socket.on("wb-page-sync", (data) => {
+    wbPageNumText.textContent = `${data.num} / ${data.total}`;
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if(data.image) {
+        const img = new Image();
+        img.onload = () => { ctx.drawImage(img, 0, 0); };
+        img.src = data.image;
+    }
+});
+
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
@@ -387,34 +464,42 @@ const subjectAssets = {
 const subjectCategory = document.getElementById("subjectCategory");
 const subjectAssetsList = document.getElementById("subjectAssetsList");
 
+
 // ==========================================
-// 🚀 NAYA: 100% BULLETPROOF ASSET LOADER
-// Tumhara local server proxy CORS ko hamesha ke liye bypass kar dega
+// 🚀 THE ULTIMATE ASSET FETCHER (Via our own node.js server)
 // ==========================================
 function prepareStamp(src) {
     const img = new Image();
-    img.crossOrigin = "Anonymous";
-    
     img.onload = () => {
         stampImage = img;
-        stampScale = Math.min((canvas.width * 0.6) / img.width, (canvas.height * 0.6) / img.height);
+        stampScale = Math.min((canvas.width * 0.8) / img.width, (canvas.height * 0.8) / img.height);
         
         isStamping = true;
         currentTool = 'stamp';
         document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active-tool'));
         
-        showNotification("🖱️ ✅ Ready! Click anywhere on board to paste.", "join");
+        showNotification("🖱️ Ready! Click on board to paste.", "join");
         canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); 
     };
-    img.onerror = () => showNotification("Error decoding image data.", "danger");
-    img.src = src;
+    img.onerror = () => showNotification("Image error. Try again.", "danger");
+    img.src = src; // Direct Base64 string from server, zero CORS!
 }
 
-function loadAssetToCanvas(url, name) {
-    showNotification(`Downloading ${name}...`, "info");
-    // Directly request from our safe server.js proxy
-    const safeProxyUrl = `/proxy-image?url=${encodeURIComponent(url)}`;
-    prepareStamp(safeProxyUrl);
+async function loadAssetToCanvas(url, name) {
+    try {
+        showNotification(`Downloading ${name} safely...`, "info");
+        // Hamare apne server se fetch karega, jo Base64 string banakar dega JSON me
+        const response = await fetch(`/proxy-image?url=${encodeURIComponent(url)}`);
+        const data = await response.json();
+        
+        if(data.base64) {
+            prepareStamp(data.base64);
+        } else {
+            throw new Error("Invalid response");
+        }
+    } catch(e) {
+        showNotification(`Failed to load ${name}. Server blocked request.`, "danger");
+    }
 }
 // ==========================================
 
@@ -607,11 +692,14 @@ canvas.addEventListener('mousedown', (e) => {
       let sendSrc = tempCanvas.toDataURL("image/jpeg", 0.6);
       socket.emit("wb-stamp", { room: currentRoom, image: sendSrc, x: pt.x - w/2, y: pt.y - h/2, w: w, h: h });
       
+      // Stamp lagne ke baad array me save karo for pagination
+      wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5);
+      
       isStamping = false;
       currentTool = 'pen';
       document.getElementById('tool-pen').classList.add('active-tool');
       canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      showNotification("Asset Stamped successfully!", "join");
+      showNotification("Stamped successfully!", "join");
       return;
   }
 
@@ -653,8 +741,12 @@ canvas.addEventListener('mouseup', (e) => {
   if (!drawing || !canDraw || currentTool === 'pointer' || currentTool === 'fill') return; 
   drawing = false; 
   const pt = getCanvasPoint(e);
-  if(!['pen', 'brush', 'spray', 'eraser'].includes(currentTool)) { drawShapeObj(startX, startY, pt.x, pt.y, currentTool, currentBrushColor, currentBrushSize, true); }
+  if(!['pen', 'brush', 'spray', 'eraser'].includes(currentTool)) { 
+      drawShapeObj(startX, startY, pt.x, pt.y, currentTool, currentBrushColor, currentBrushSize, true); 
+  }
   ctx.shadowBlur = 0; 
+  // Save page state after drawing
+  wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5);
 });
 
 canvas.addEventListener('mouseout', () => { drawing = false; if(currentTool === 'pointer' && canDraw) socket.emit("wb-pointer", { room: currentRoom, hide: true }); });
@@ -662,11 +754,17 @@ canvas.addEventListener('mouseout', () => { drawing = false; if(currentTool === 
 socket.on('drawing', (data) => {
   if(data.type === 'free') drawFreehand(data.x0, data.y0, data.x1, data.y1, data.color, data.size, data.toolType, false);
   else drawShapeObj(data.x0, data.y0, data.x1, data.y1, data.type, data.color, data.size, false);
+  
+  if(!isHost) return; // Host maintains global page array
+  wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5);
 });
 
 socket.on("wb-stamp", (data) => {
     const img = new Image();
-    img.onload = () => { ctx.drawImage(img, data.x, data.y, data.w, data.h); };
+    img.onload = () => { 
+        ctx.drawImage(img, data.x, data.y, data.w, data.h); 
+        if(isHost) wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5);
+    };
     img.src = data.image;
 });
 
@@ -676,20 +774,22 @@ socket.on("wb-pointer", (data) => {
     clearTimeout(wbLaserTimeout); wbLaserTimeout = setTimeout(() => { wbLaser.style.display = "none"; }, 2000);
 });
 
-// PDF Rendering for Resizable Stamp
+// PDF Rendering for Resizable Stamp (Full-Scale HD loading)
 document.getElementById('tool-pdf').addEventListener("click", () => document.getElementById('wbPdfUpload').click());
 document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
   const file = e.target.files[0]; if(!file) return; showNotification("Rendering PDF...", "info");
   const fileReader = new FileReader();
   fileReader.onload = async function() {
       const typedarray = new Uint8Array(this.result); const pdf = await pdfjsLib.getDocument(typedarray).promise; const page = await pdf.getPage(1); 
-      const viewport = page.getViewport({scale: 2.0}); 
+      // Render at very high res so stamp preview is HD
+      const viewport = page.getViewport({scale: 2.5}); 
       const tc = document.createElement('canvas'); const tCtx = tc.getContext('2d'); tc.height = viewport.height; tc.width = viewport.width;
       await page.render({canvasContext: tCtx, viewport: viewport}).promise; 
       prepareStamp(tc.toDataURL());
   };
   fileReader.readAsArrayBuffer(file);
 });
+
 
 // ---------- INITIALIZE LEAFLET WORLD MAP ----------
 function initWorldMap() {

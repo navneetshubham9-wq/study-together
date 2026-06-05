@@ -1,6 +1,6 @@
 const express = require("express");
 const http = require("http");
-const https = require("https"); // NAYA: Secure proxy fetch ke liye
+const https = require("https"); 
 const path = require("path");
 const multer = require("multer");
 const { Server } = require("socket.io");
@@ -8,8 +8,8 @@ const fs = require("fs");
 
 const app = express();
 const server = http.createServer(app);
-// Payload size increased to 10MB to prevent crashes
-const io = new Server(server, { maxHttpBufferSize: 1e7 }); 
+// Increased payload limit to 20MB for handling high-quality Base64 images and boards
+const io = new Server(server, { maxHttpBufferSize: 2e7 }); 
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, "uploads");
 const PORT = process.env.PORT || 3000;
@@ -42,29 +42,37 @@ const roomPresState = new Map();
 const roomChartData = new Map(); 
 
 // ==========================================
-// 🚀 NAYA: VYDEX INTERNAL IMAGE PROXY 
-// Ye kisi bhi browser CORS block ko bypass kar dega!
+// 🚀 NAYA: VYDEX BASE64 IMAGE PROXY 
+// Ye server pe image load karke directly text/base64 banayega. CORS ki problem permanently khtam!
 // ==========================================
 app.get("/proxy-image", (req, res) => {
   const imgUrl = req.query.url;
-  if (!imgUrl) return res.status(400).send("URL required");
+  if (!imgUrl) return res.status(400).json({error: "URL required"});
 
   const fetchImage = (targetUrl) => {
     const client = targetUrl.startsWith("https") ? https : http;
-    client.get(targetUrl, { headers: { "User-Agent": "VYDEX-App/1.0" } }, (response) => {
-      // Handle Redirects (Wikipedia karta hai aisa)
+    client.get(targetUrl, { headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" } }, (response) => {
+      
+      // Handle Redirects
       if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
         let redirectUrl = response.headers.location;
         if (!redirectUrl.startsWith("http")) redirectUrl = new URL(redirectUrl, targetUrl).href;
         fetchImage(redirectUrl);
+      } 
+      else if (response.statusCode === 200) {
+        const chunks = [];
+        response.on("data", chunk => chunks.push(chunk));
+        response.on("end", () => {
+          const buffer = Buffer.concat(chunks);
+          const contentType = response.headers["content-type"] || "image/png";
+          const base64 = `data:${contentType};base64,${buffer.toString("base64")}`;
+          res.json({ base64: base64 }); // Send as JSON string (No CORS blocking possible)
+        });
       } else {
-        // Bypass CORS Header
-        res.setHeader("Access-Control-Allow-Origin", "*");
-        res.setHeader("Content-Type", response.headers["content-type"] || "image/png");
-        response.pipe(res);
+        res.status(500).json({error: "Failed to load image from external server."});
       }
     }).on("error", (err) => {
-      res.status(500).send("Failed to fetch image");
+      res.status(500).json({error: err.message});
     });
   };
 
@@ -72,7 +80,6 @@ app.get("/proxy-image", (req, res) => {
 });
 // ==========================================
 
-// File Upload Route
 app.post("/upload", upload.single("file"), (req, res) => {
   const room = req.body.room || "";
   const filename = req.file.filename;
@@ -87,7 +94,6 @@ app.post("/upload", upload.single("file"), (req, res) => {
   res.json({ filename, url });
 });
 
-// Socket Connections
 io.on("connection", socket => {
   
   socket.on("join-room", info => {
