@@ -8,7 +8,7 @@ const fs = require("fs");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { maxHttpBufferSize: 2e7 }); // 20MB limit for HD Images
+const io = new Server(server, { maxHttpBufferSize: 2e7 }); // 20MB limit
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, "uploads");
 const PORT = process.env.PORT || 3000;
@@ -41,45 +41,28 @@ const roomPresState = new Map();
 const roomChartData = new Map(); 
 
 // ==========================================
-// 🚀 THE ULTIMATE IMAGE PROXY (Bypasses all Blocks)
+// 🚀 NAYA: DIRECT IMAGE STREAM PROXY (100% CORS BYPASS)
 // ==========================================
 app.get("/proxy-image", (req, res) => {
   const imgUrl = req.query.url;
-  if (!imgUrl) return res.status(400).json({error: "URL required"});
+  if (!imgUrl) return res.status(400).send("URL required");
 
   const fetchImage = (targetUrl) => {
     const client = targetUrl.startsWith("https") ? https : http;
-    
-    // NAYA FIX: Fake Real Browser Headers so Wikipedia doesn't block us!
-    const options = {
-        headers: {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
-            "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.9"
-        }
-    };
-
-    client.get(targetUrl, options, (response) => {
+    client.get(targetUrl, { headers: { "User-Agent": "Mozilla/5.0" } }, (response) => {
       // Follow Redirects
       if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
         let redirectUrl = response.headers.location;
         if (!redirectUrl.startsWith("http")) redirectUrl = new URL(redirectUrl, targetUrl).href;
         fetchImage(redirectUrl);
-      } 
-      else if (response.statusCode === 200) {
-        const chunks = [];
-        response.on("data", chunk => chunks.push(chunk));
-        response.on("end", () => {
-          const buffer = Buffer.concat(chunks);
-          const contentType = response.headers["content-type"] || "image/png";
-          const base64 = `data:${contentType};base64,${buffer.toString("base64")}`;
-          res.json({ base64: base64 }); // Send pure text! No CORS possible!
-        });
       } else {
-        res.status(500).json({error: `Failed to load image. Status: ${response.statusCode}`});
+        // Direct stream setup
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("Content-Type", response.headers["content-type"] || "image/png");
+        response.pipe(res);
       }
     }).on("error", (err) => {
-      res.status(500).json({error: err.message});
+      res.status(500).send("Error fetching image");
     });
   };
 
@@ -157,6 +140,7 @@ io.on("connection", socket => {
 
   socket.on("drawing", data => socket.to(data.room).emit("drawing", data));
   socket.on("wb-fill", data => socket.to(data.room).emit("wb-fill", data));
+  socket.on("wb-stamp", data => socket.to(data.room).emit("wb-stamp", data));
   socket.on("wb-image", data => socket.to(data.room).emit("wb-image", data));
   socket.on("clear-whiteboard", data => socket.to(data.room).emit("clear-whiteboard"));
 

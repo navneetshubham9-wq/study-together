@@ -12,7 +12,6 @@ let isSharing = false;
 const remoteUsers = {}; 
 let currentMusicUrl = null;
 
-// DOM Elements
 const joinBtn = document.getElementById("joinBtn");
 const joinSection = document.getElementById("join-section"); 
 const workspace = document.getElementById("workspace"); 
@@ -28,7 +27,6 @@ const muteAllBtn = document.getElementById("muteAllBtn");
 const unmuteAllBtn = document.getElementById("unmuteAllBtn");
 const localMusicMuteBtn = document.getElementById("localMusicMuteBtn"); 
 
-// Panel Toggles
 const toggleWbBtn = document.getElementById("toggleWbBtn"); 
 const toggleMapBtn = document.getElementById("toggleMapBtn"); 
 const togglePresBtn = document.getElementById("togglePresBtn"); 
@@ -36,32 +34,27 @@ const openMathBtn = document.getElementById("openMathBtn");
 const toggleCalcBtn = document.getElementById("toggleCalcBtn"); 
 
 // ==========================================
-// 🚀 NAYA: Hamburger Menu Scroll Logic (Intersection Observer)
-// Ye scroll detect karne ka sabse solid tarika hai
+// 🚀 NAYA: Simple Scroll logic for Hamburger Menu
 // ==========================================
 const controlRowInner = document.getElementById("controlRowInner");
 const hamburgerBtn = document.getElementById("hamburgerBtn");
-const headerElem = document.querySelector("header");
 
-const observer = new IntersectionObserver((entries) => {
+window.addEventListener("scroll", () => {
     if(!joined) return;
-    if (!entries[0].isIntersecting) {
+    if (window.scrollY > 100) {
         hamburgerBtn.style.display = "block";
         controlRowInner.classList.add("vertical-controls-mode", "hide-vertical");
     } else {
         hamburgerBtn.style.display = "none";
         controlRowInner.classList.remove("vertical-controls-mode", "hide-vertical");
     }
-}, { threshold: 0 });
-
-if(headerElem) observer.observe(headerElem);
+});
 
 hamburgerBtn.addEventListener("click", () => {
     controlRowInner.classList.toggle("hide-vertical");
 });
 // ==========================================
 
-// Chat & Files
 const sendMsgBtn = document.getElementById("sendMsg");
 const chatInput = document.getElementById("chatInput");
 const messages = document.getElementById("messages");
@@ -118,7 +111,6 @@ document.addEventListener("mousemove", (e) => {
     calcModal.style.top = (calcInitialY + e.clientY - calcStartY) + "px";
 });
 document.addEventListener("mouseup", () => isCalcDragging = false);
-
 
 // Math Modal
 const mathModal = document.getElementById("math-modal");
@@ -484,11 +476,11 @@ const subjectCategory = document.getElementById("subjectCategory");
 const subjectAssetsList = document.getElementById("subjectAssetsList");
 
 // ==========================================
-// 🚀 NAYA: FRONTEND MULTIPLE PROXY FETCH
-// Completely bypasses server.js dependency! (100% Work Guarantee)
+// 🚀 THE ULTIMATE ASSET FETCHER (Using our internal server proxy!)
 // ==========================================
 function prepareStamp(src) {
     const img = new Image();
+    img.crossOrigin = "Anonymous"; // Allow canvas interaction
     img.onload = () => {
         stampImage = img;
         stampScale = Math.min((canvas.width * 0.6) / img.width, (canvas.height * 0.6) / img.height);
@@ -497,40 +489,19 @@ function prepareStamp(src) {
         currentTool = 'stamp';
         document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active-tool'));
         
-        showNotification("🖱️ Scroll to Resize. Click to Stamp!", "info");
+        showNotification("🖱️ Ready! Click on board to paste.", "join");
         canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); 
     };
     img.onerror = () => showNotification("Image error. Try again.", "danger");
     img.src = src; 
 }
 
-async function loadAssetToCanvas(url, name) {
-    showNotification(`Downloading ${name}...`, "info");
-    
-    // Multiple proxies fallback directly in browser memory
-    const proxies = [
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-        `https://corsproxy.io/?url=${encodeURIComponent(url)}`
-    ];
-
-    for (let i = 0; i < proxies.length; i++) {
-        try {
-            const response = await fetch(proxies[i]);
-            if (!response.ok) throw new Error("Proxy failed");
-            
-            const blob = await response.blob();
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                prepareStamp(reader.result); // Base64 never blocked
-            };
-            reader.readAsDataURL(blob);
-            return; // Success!
-        } catch (e) {
-            console.warn(`Proxy ${i+1} failed`);
-        }
-    }
-    showNotification(`Failed to load ${name}.`, "danger");
+function loadAssetToCanvas(url, name) {
+    showNotification(`Downloading ${name} safely...`, "info");
+    // Connect direct to our own backend proxy API
+    const safeProxyUrl = `/proxy-image?url=${encodeURIComponent(url)}`;
+    prepareStamp(safeProxyUrl);
+    wbSubjectsMenu.style.display = "none";
 }
 // ==========================================
 
@@ -540,10 +511,7 @@ function loadSubjectAssets(cat) {
         const btn = document.createElement("button");
         btn.textContent = "➕ Insert " + asset.name;
         btn.style.cssText = "background: rgba(255,255,255,0.1); color: white; border: 1px solid var(--accent); padding: 8px; border-radius: 6px; cursor: pointer; text-align: left; font-size: 13px;";
-        btn.onclick = () => {
-            loadAssetToCanvas(asset.url, asset.name);
-            wbSubjectsMenu.style.display = "none";
-        };
+        btn.onclick = () => { loadAssetToCanvas(asset.url, asset.name); };
         subjectAssetsList.appendChild(btn);
     });
 }
@@ -712,24 +680,23 @@ canvas.addEventListener('mousedown', (e) => {
   const pt = getCanvasPoint(e);
 
   if (isStamping && stampImage) {
-      // 1. FINAL STAMPING PROCESS
       ctx.putImageData(canvasSnapshot, 0, 0); 
       let w = stampImage.width * stampScale;
       let h = stampImage.height * stampScale;
       ctx.drawImage(stampImage, pt.x - w/2, pt.y - h/2, w, h);
       
       // ==========================================
-      // 🚀 NAYA: 1MB Socket Crash Fix (Aggressive Compression for Sync)
-      // Doosro ko bhejne ke liye size compress karenge
+      // 🚀 NAYA: 1MB Socket Crash Fix (Compressed Syncing)
       // ==========================================
       let tempCanvas = document.createElement("canvas");
-      // Scale down large images drastically for syncing
-      let scale = Math.min(1, 800 / w, 800 / h);
-      tempCanvas.width = w * scale; 
-      tempCanvas.height = h * scale;
-      tempCanvas.getContext("2d").drawImage(stampImage, 0, 0, tempCanvas.width, tempCanvas.height);
+      let syncScale = Math.min(1, 1000 / Math.max(w, h)); // Restrict max size
+      tempCanvas.width = w * syncScale; 
+      tempCanvas.height = h * syncScale;
+      let tCtx = tempCanvas.getContext("2d");
+      tCtx.fillStyle = "#ffffff"; tCtx.fillRect(0,0, tempCanvas.width, tempCanvas.height);
+      tCtx.drawImage(stampImage, 0, 0, tempCanvas.width, tempCanvas.height);
       
-      let sendSrc = tempCanvas.toDataURL("image/jpeg", 0.4); // 0.4 Quality JPEG is very small!
+      let sendSrc = tempCanvas.toDataURL("image/jpeg", 0.5); // COMPRESS TO PREVENT SOCKET DROP
       socket.emit("wb-stamp", { room: currentRoom, image: sendSrc, x: pt.x - w/2, y: pt.y - h/2, w: w, h: h });
       // ==========================================
 
@@ -810,7 +777,6 @@ socket.on("wb-pointer", (data) => {
     clearTimeout(wbLaserTimeout); wbLaserTimeout = setTimeout(() => { wbLaser.style.display = "none"; }, 2000);
 });
 
-// PDF Rendering
 document.getElementById('tool-pdf').addEventListener("click", () => document.getElementById('wbPdfUpload').click());
 document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
   const file = e.target.files[0]; if(!file) return; showNotification("Loading File...", "info");
@@ -826,14 +792,11 @@ document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
           const viewport = page.getViewport({scale: 2.0}); 
           const tc = document.createElement('canvas'); const tCtx = tc.getContext('2d'); tc.height = viewport.height; tc.width = viewport.width;
           await page.render({canvasContext: tCtx, viewport: viewport}).promise; 
-          
-          // PDF ko thoda compress karke stamp me daalo
           prepareStamp(tc.toDataURL("image/jpeg", 0.8));
       };
       fileReader.readAsArrayBuffer(file);
   }
 });
-
 
 // ---------- INITIALIZE LEAFLET WORLD MAP ----------
 function initWorldMap() {
@@ -848,7 +811,6 @@ document.getElementById("toggleLabelsBtn")?.addEventListener("click", function()
   if (labelsVisible) { geoMap.addLayer(labelsLayer); this.style.background = "var(--primary)"; } 
   else { geoMap.removeLayer(labelsLayer); this.style.background = "var(--danger)"; }
 });
-
 
 // ---------- VIDEO UI HELPERS ----------
 function createLocalCard(name) {
