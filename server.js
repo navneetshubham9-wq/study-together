@@ -8,8 +8,7 @@ const fs = require("fs");
 
 const app = express();
 const server = http.createServer(app);
-// Increased payload limit to 20MB for handling high-quality Base64 images and boards
-const io = new Server(server, { maxHttpBufferSize: 2e7 }); 
+const io = new Server(server, { maxHttpBufferSize: 2e7 }); // 20MB limit for HD Images
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, "uploads");
 const PORT = process.env.PORT || 3000;
@@ -30,7 +29,7 @@ const upload = multer({ storage });
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(UPLOAD_DIR));
 
-// Memory State Storage
+// Memory State
 const uidToSocket = new Map();
 const roomHosts = new Map();
 const socketUsers = new Map();
@@ -42,8 +41,7 @@ const roomPresState = new Map();
 const roomChartData = new Map(); 
 
 // ==========================================
-// 🚀 NAYA: VYDEX BASE64 IMAGE PROXY 
-// Ye server pe image load karke directly text/base64 banayega. CORS ki problem permanently khtam!
+// 🚀 THE ULTIMATE IMAGE PROXY (Bypasses all Blocks)
 // ==========================================
 app.get("/proxy-image", (req, res) => {
   const imgUrl = req.query.url;
@@ -51,9 +49,18 @@ app.get("/proxy-image", (req, res) => {
 
   const fetchImage = (targetUrl) => {
     const client = targetUrl.startsWith("https") ? https : http;
-    client.get(targetUrl, { headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" } }, (response) => {
-      
-      // Handle Redirects
+    
+    // NAYA FIX: Fake Real Browser Headers so Wikipedia doesn't block us!
+    const options = {
+        headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+            "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9"
+        }
+    };
+
+    client.get(targetUrl, options, (response) => {
+      // Follow Redirects
       if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
         let redirectUrl = response.headers.location;
         if (!redirectUrl.startsWith("http")) redirectUrl = new URL(redirectUrl, targetUrl).href;
@@ -66,10 +73,10 @@ app.get("/proxy-image", (req, res) => {
           const buffer = Buffer.concat(chunks);
           const contentType = response.headers["content-type"] || "image/png";
           const base64 = `data:${contentType};base64,${buffer.toString("base64")}`;
-          res.json({ base64: base64 }); // Send as JSON string (No CORS blocking possible)
+          res.json({ base64: base64 }); // Send pure text! No CORS possible!
         });
       } else {
-        res.status(500).json({error: "Failed to load image from external server."});
+        res.status(500).json({error: `Failed to load image. Status: ${response.statusCode}`});
       }
     }).on("error", (err) => {
       res.status(500).json({error: err.message});
@@ -139,6 +146,7 @@ io.on("connection", socket => {
 
   socket.on("laser-pointer", data => socket.to(data.room).emit("laser-pointer", data));
   socket.on("wb-pointer", data => socket.to(data.room).emit("wb-pointer", data));
+  socket.on("wb-page-sync", data => socket.to(data.room).emit("wb-page-sync", data));
   socket.on("math-equation", data => io.to(data.room).emit("math-equation", data));
 
   socket.on("chat-message", data => {

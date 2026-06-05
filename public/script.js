@@ -35,16 +35,19 @@ const togglePresBtn = document.getElementById("togglePresBtn");
 const openMathBtn = document.getElementById("openMathBtn"); 
 const toggleCalcBtn = document.getElementById("toggleCalcBtn"); 
 
-// NAYA: Hamburger Menu Scroll Logic
+// ==========================================
+// 🚀 NAYA: Hamburger Menu Scroll Logic Fix
+// ==========================================
 const controlRow = document.getElementById("controlRowInner");
 const hamburgerBtn = document.getElementById("hamburgerBtn");
 
 window.addEventListener("scroll", () => {
     if(!joined) return;
-    if (window.scrollY > 80) {
+    // Agar page thoda sa bhi niche gaya, controls ko left side me list bana do
+    if (window.scrollY > 50) {
         hamburgerBtn.style.display = "block";
         controlRow.classList.add("vertical-controls-mode");
-        controlRow.classList.add("hide-vertical"); 
+        controlRow.classList.add("hide-vertical"); // Shuru me band rakho
     } else {
         hamburgerBtn.style.display = "none";
         controlRow.classList.remove("vertical-controls-mode");
@@ -55,6 +58,8 @@ window.addEventListener("scroll", () => {
 hamburgerBtn.addEventListener("click", () => {
     controlRow.classList.toggle("hide-vertical");
 });
+// ==========================================
+
 
 // Chat & Files
 const sendMsgBtn = document.getElementById("sendMsg");
@@ -64,7 +69,9 @@ const uploadBtn = document.getElementById("uploadBtn");
 const fileUpload = document.getElementById("fileUpload");
 const fileList = document.getElementById("fileList");
 
-// Draggable Personal Calculator
+// ==========================================
+// 🚀 NAYA: Calculator Numpad Keyboard Logic
+// ==========================================
 const calcModal = document.getElementById("calc-modal");
 const calcDisplay = document.getElementById("calc-display");
 const calcHeader = document.getElementById("calc-header");
@@ -78,6 +85,23 @@ window.calcCalculate = () => {
     try { calcDisplay.value = eval(calcDisplay.value); } 
     catch(e) { calcDisplay.value = "Error"; setTimeout(calcClear, 1000); } 
 };
+
+// Keyboard Numpad Listeners
+document.addEventListener("keydown", (e) => {
+    if (calcModal.style.display === "block") {
+        const key = e.key;
+        if (/^[0-9\.\+\-\*\/]$/.test(key)) {
+            calcAppend(key);
+        } else if (key === "Enter" || key === "=") {
+            e.preventDefault();
+            calcCalculate();
+        } else if (key === "Escape" || key === "Clear" || key === "Delete") {
+            calcClear();
+        } else if (key === "Backspace") {
+            calcDisplay.value = calcDisplay.value.slice(0, -1);
+        }
+    }
+});
 
 let isCalcDragging = false;
 let calcStartX, calcStartY, calcInitialX, calcInitialY;
@@ -96,6 +120,8 @@ document.addEventListener("mousemove", (e) => {
     calcModal.style.top = (calcInitialY + e.clientY - calcStartY) + "px";
 });
 document.addEventListener("mouseup", () => isCalcDragging = false);
+// ==========================================
+
 
 // Math Modal
 const mathModal = document.getElementById("math-modal");
@@ -141,7 +167,6 @@ const canvas = document.getElementById('whiteboard');
 const ctx = canvas.getContext('2d', { willReadFrequently: true }); 
 const wbStatus = document.getElementById('wb-status');
 
-// Default White Background
 ctx.fillStyle = "#ffffff";
 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -153,13 +178,12 @@ let drawing = false;
 let startX = 0; let startY = 0;
 let canvasSnapshot; 
 
-// STAMP STATE
 let stampImage = null;
 let stampScale = 1.0;
 let isStamping = false;
 
-// NAYA: MULTIPLE WHITEBOARDS PAGINATION
-let wbPages = []; // Array of Base64 strings
+// Multiple Whiteboards
+let wbPages = []; 
 let currentWbPage = 0;
 const wbPrevPageBtn = document.getElementById("wbPrevPage");
 const wbNextPageBtn = document.getElementById("wbNextPage");
@@ -167,7 +191,7 @@ const wbAddPageBtn = document.getElementById("wbAddPage");
 const wbPageNumText = document.getElementById("wbPageNum");
 
 function saveCurrentPage() {
-    wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5); // Save in memory
+    wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5); 
 }
 function loadPage(index) {
     if (index < 0 || index >= wbPages.length) return;
@@ -176,21 +200,19 @@ function loadPage(index) {
     wbPageNumText.textContent = `${currentWbPage + 1} / ${wbPages.length}`;
     
     const imgSrc = wbPages[currentWbPage];
-    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height); // Clear first
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height); 
     if(imgSrc) {
         const img = new Image();
         img.onload = () => { ctx.drawImage(img, 0, 0); };
         img.src = imgSrc;
     }
-    
-    // Sync with everyone
     if(isHost) socket.emit("wb-page-sync", { room: currentRoom, image: imgSrc, num: currentWbPage + 1, total: wbPages.length });
 }
 
 if(wbAddPageBtn) {
     wbAddPageBtn.addEventListener("click", () => {
         saveCurrentPage();
-        wbPages.push(''); // Add blank page
+        wbPages.push(''); 
         currentWbPage = wbPages.length - 1;
         wbPageNumText.textContent = `${currentWbPage + 1} / ${wbPages.length}`;
         
@@ -427,7 +449,6 @@ socket.on("laser-pointer", (data) => {
 });
 
 // ---------- ADVANCED PRO WHITEBOARD ----------
-
 const toggleShapesBtn = document.getElementById("toggleShapesBtn");
 const wbShapesMenu = document.getElementById("wb-shapes-menu");
 const toggleSubjectsBtn = document.getElementById("toggleSubjectsBtn");
@@ -464,41 +485,40 @@ const subjectAssets = {
 const subjectCategory = document.getElementById("subjectCategory");
 const subjectAssetsList = document.getElementById("subjectAssetsList");
 
-
 // ==========================================
-// 🚀 THE ULTIMATE ASSET FETCHER (Via our own node.js server)
+// 🚀 NAYA: 100% BULLETPROOF ASSET LOADER VIA PROXY
 // ==========================================
 function prepareStamp(src) {
     const img = new Image();
     img.onload = () => {
         stampImage = img;
-        stampScale = Math.min((canvas.width * 0.8) / img.width, (canvas.height * 0.8) / img.height);
+        stampScale = Math.min((canvas.width * 0.6) / img.width, (canvas.height * 0.6) / img.height);
         
         isStamping = true;
         currentTool = 'stamp';
         document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active-tool'));
         
-        showNotification("🖱️ Ready! Click on board to paste.", "join");
+        showNotification("🖱️ Scroll to Resize. Click to Stamp!", "join");
         canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); 
     };
     img.onerror = () => showNotification("Image error. Try again.", "danger");
-    img.src = src; // Direct Base64 string from server, zero CORS!
+    img.src = src; // Base64 never fails here
 }
 
 async function loadAssetToCanvas(url, name) {
     try {
-        showNotification(`Downloading ${name} safely...`, "info");
-        // Hamare apne server se fetch karega, jo Base64 string banakar dega JSON me
+        showNotification(`Downloading ${name}...`, "info");
+        // Hamare apne Node server proxy se layega, jo CORS ko ignore kar deta hai
         const response = await fetch(`/proxy-image?url=${encodeURIComponent(url)}`);
         const data = await response.json();
         
         if(data.base64) {
             prepareStamp(data.base64);
         } else {
-            throw new Error("Invalid response");
+            throw new Error("Server blocked request");
         }
     } catch(e) {
-        showNotification(`Failed to load ${name}. Server blocked request.`, "danger");
+        showNotification(`Failed to load ${name}.`, "danger");
     }
 }
 // ==========================================
@@ -539,12 +559,12 @@ document.getElementById('wb-clear').addEventListener("click", () => {
   if (!canDraw) return; 
   ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height); 
   socket.emit("clear-whiteboard", { room: currentRoom });
+  wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5);
 });
 socket.on("clear-whiteboard", () => {
     ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
 });
 
-// Precise mapping for 1920x1080 fixed canvas resolution
 function getCanvasPoint(e) {
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
@@ -692,7 +712,6 @@ canvas.addEventListener('mousedown', (e) => {
       let sendSrc = tempCanvas.toDataURL("image/jpeg", 0.6);
       socket.emit("wb-stamp", { room: currentRoom, image: sendSrc, x: pt.x - w/2, y: pt.y - h/2, w: w, h: h });
       
-      // Stamp lagne ke baad array me save karo for pagination
       wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5);
       
       isStamping = false;
@@ -745,7 +764,6 @@ canvas.addEventListener('mouseup', (e) => {
       drawShapeObj(startX, startY, pt.x, pt.y, currentTool, currentBrushColor, currentBrushSize, true); 
   }
   ctx.shadowBlur = 0; 
-  // Save page state after drawing
   wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5);
 });
 
@@ -755,8 +773,7 @@ socket.on('drawing', (data) => {
   if(data.type === 'free') drawFreehand(data.x0, data.y0, data.x1, data.y1, data.color, data.size, data.toolType, false);
   else drawShapeObj(data.x0, data.y0, data.x1, data.y1, data.type, data.color, data.size, false);
   
-  if(!isHost) return; // Host maintains global page array
-  wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5);
+  if(isHost) wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5);
 });
 
 socket.on("wb-stamp", (data) => {
@@ -774,20 +791,32 @@ socket.on("wb-pointer", (data) => {
     clearTimeout(wbLaserTimeout); wbLaserTimeout = setTimeout(() => { wbLaser.style.display = "none"; }, 2000);
 });
 
-// PDF Rendering for Resizable Stamp (Full-Scale HD loading)
+// NAYA: IMAGE AND PDF UPLOAD LOGIC
 document.getElementById('tool-pdf').addEventListener("click", () => document.getElementById('wbPdfUpload').click());
 document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
-  const file = e.target.files[0]; if(!file) return; showNotification("Rendering PDF...", "info");
-  const fileReader = new FileReader();
-  fileReader.onload = async function() {
-      const typedarray = new Uint8Array(this.result); const pdf = await pdfjsLib.getDocument(typedarray).promise; const page = await pdf.getPage(1); 
-      // Render at very high res so stamp preview is HD
-      const viewport = page.getViewport({scale: 2.5}); 
-      const tc = document.createElement('canvas'); const tCtx = tc.getContext('2d'); tc.height = viewport.height; tc.width = viewport.width;
-      await page.render({canvasContext: tCtx, viewport: viewport}).promise; 
-      prepareStamp(tc.toDataURL());
-  };
-  fileReader.readAsArrayBuffer(file);
+  const file = e.target.files[0]; if(!file) return; 
+  showNotification("Loading file...", "info");
+  
+  if (file.type.startsWith('image/')) {
+      // 1. Direct Image Upload
+      const reader = new FileReader();
+      reader.onload = (event) => { prepareStamp(event.target.result); };
+      reader.readAsDataURL(file);
+  } 
+  else if (file.type === 'application/pdf') {
+      // 2. PDF Rendering
+      const fileReader = new FileReader();
+      fileReader.onload = async function() {
+          const typedarray = new Uint8Array(this.result); const pdf = await pdfjsLib.getDocument(typedarray).promise; const page = await pdf.getPage(1); 
+          const viewport = page.getViewport({scale: 2.0}); 
+          const tc = document.createElement('canvas'); const tCtx = tc.getContext('2d'); tc.height = viewport.height; tc.width = viewport.width;
+          await page.render({canvasContext: tCtx, viewport: viewport}).promise; 
+          prepareStamp(tc.toDataURL());
+      };
+      fileReader.readAsArrayBuffer(file);
+  } else {
+      showNotification("Please upload an Image or PDF.", "danger");
+  }
 });
 
 
@@ -919,13 +948,13 @@ unmuteAllBtn.addEventListener("click", () => { if (joined && isHost) socket.emit
 cameraBtn.addEventListener("click", async () => {
   if (!joined || !localTracks.videoTrack) return;
   const en = localTracks.videoTrack.enabled; await localTracks.videoTrack.setEnabled(!en);
-  cameraBtn.textContent = en ? "📹" : "🚫📹"; cameraBtn.style.background = en ? "" : "rgba(231, 76, 60, 0.7)"; 
+  cameraBtn.textContent = en ? "📹 Camera" : "🚫📹 Camera"; cameraBtn.style.background = en ? "" : "rgba(231, 76, 60, 0.7)"; 
   socket.emit("control", { room: currentRoom, targetUid: localUid, action: en ? "disable-video" : "enable-video" });
 });
 muteBtn.addEventListener("click", async () => {
   if (!joined || !localTracks.audioTrack) return;
   const en = localTracks.audioTrack.enabled; await localTracks.audioTrack.setEnabled(!en);
-  muteBtn.textContent = en ? "🎙️" : "🔇"; muteBtn.style.background = en ? "" : "rgba(231, 76, 60, 0.7)"; 
+  muteBtn.textContent = en ? "🎙️ Mic" : "🔇 Mic"; muteBtn.style.background = en ? "" : "rgba(231, 76, 60, 0.7)"; 
   socket.emit("control", { room: currentRoom, targetUid: localUid, action: en ? "mute-audio" : "enable-audio" });
 });
 
@@ -937,11 +966,11 @@ shareBtn.addEventListener("click", async () => {
     const myContainer = document.getElementById("local-player");
     if(myContainer) { myContainer.style.height = "200px"; myContainer.parentElement.style.width = "100%"; myContainer.parentElement.classList.remove("video-wrapper-large"); }
     if (localTracks.videoTrack) { await client.publish(localTracks.videoTrack); localTracks.videoTrack.play(myContainer); }
-    shareBtn.textContent = "Share Screen"; shareBtn.style.background = ""; return;
+    shareBtn.textContent = "🖥️ Share Screen"; shareBtn.style.background = ""; return;
   }
   if (localTracks.videoTrack) await client.unpublish(localTracks.videoTrack);
   try {
-      screenTrack = await AgoraRTC.createScreenVideoTrack({ encoderConfig: "1080p_1" }, "auto"); isSharing = true; shareBtn.textContent = "Stop Share"; shareBtn.style.background = "linear-gradient(135deg, #e74c3c, #c0392b)";
+      screenTrack = await AgoraRTC.createScreenVideoTrack({ encoderConfig: "1080p_1" }, "auto"); isSharing = true; shareBtn.textContent = "🛑 Stop Share"; shareBtn.style.background = "linear-gradient(135deg, #e74c3c, #c0392b)";
       const myContainer = document.getElementById("local-player");
       if(myContainer) { myContainer.style.height = "400px"; myContainer.parentElement.classList.add("video-wrapper-large"); screenTrack.play(myContainer); }
       await client.publish(screenTrack); socket.emit("control", { room: currentRoom, action: "share-start", uid: localUid });
@@ -956,13 +985,13 @@ socket.on("control", async (data) => {
   if (data.action === "music-play" && !isHost) { localMusicMuteBtn.style.display = "inline-block"; remoteMusicPlayer.src = window.location.origin + data.url; remoteMusicPlayer.currentTime = data.time || 0; remoteMusicPlayer.play().catch(() => { showNotification("🎵 Click screen to allow music!", "danger"); document.body.addEventListener('click', () => remoteMusicPlayer.play().catch(e=>e), { once: true }); }); }
   if (data.action === "music-pause" && !isHost) remoteMusicPlayer.pause();
   if (data.action === "music-seek" && !isHost) remoteMusicPlayer.currentTime = data.time || 0;
-  if (data.action === "mute-all" && localTracks.audioTrack) { await localTracks.audioTrack.setEnabled(false); muteBtn.textContent = "🔇"; muteBtn.style.background = "rgba(231, 76, 60, 0.7)"; }
-  if (data.action === "unmute-all" && localTracks.audioTrack) { await localTracks.audioTrack.setEnabled(true); muteBtn.textContent = "🎙️"; muteBtn.style.background = ""; }
+  if (data.action === "mute-all" && localTracks.audioTrack) { await localTracks.audioTrack.setEnabled(false); muteBtn.textContent = "🔇 Mic"; muteBtn.style.background = "rgba(231, 76, 60, 0.7)"; }
+  if (data.action === "unmute-all" && localTracks.audioTrack) { await localTracks.audioTrack.setEnabled(true); muteBtn.textContent = "🎙️ Mic"; muteBtn.style.background = ""; }
   if (data.targetUid === localUid) {
-    if (data.action === "mute-audio" && localTracks.audioTrack) { await localTracks.audioTrack.setEnabled(false); muteBtn.textContent = "🔇"; muteBtn.style.background = "rgba(231, 76, 60, 0.7)"; showNotification("Host muted you", "danger"); }
-    if (data.action === "disable-video" && localTracks.videoTrack) { await localTracks.videoTrack.setEnabled(false); cameraBtn.textContent = "🚫📹"; cameraBtn.style.background = "rgba(231, 76, 60, 0.7)"; }
-    if (data.action === "enable-audio" && localTracks.audioTrack) { await localTracks.audioTrack.setEnabled(true); muteBtn.textContent = "🎙️"; muteBtn.style.background = ""; }
-    if (data.action === "enable-video" && localTracks.videoTrack) { await localTracks.videoTrack.setEnabled(true); cameraBtn.textContent = "📹"; cameraBtn.style.background = ""; }
+    if (data.action === "mute-audio" && localTracks.audioTrack) { await localTracks.audioTrack.setEnabled(false); muteBtn.textContent = "🔇 Mic"; muteBtn.style.background = "rgba(231, 76, 60, 0.7)"; showNotification("Host muted you", "danger"); }
+    if (data.action === "disable-video" && localTracks.videoTrack) { await localTracks.videoTrack.setEnabled(false); cameraBtn.textContent = "🚫📹 Camera"; cameraBtn.style.background = "rgba(231, 76, 60, 0.7)"; }
+    if (data.action === "enable-audio" && localTracks.audioTrack) { await localTracks.audioTrack.setEnabled(true); muteBtn.textContent = "🎙️ Mic"; muteBtn.style.background = ""; }
+    if (data.action === "enable-video" && localTracks.videoTrack) { await localTracks.videoTrack.setEnabled(true); cameraBtn.textContent = "📹 Camera"; cameraBtn.style.background = ""; }
   }
 });
 

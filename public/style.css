@@ -16,9 +16,9 @@ main { max-width: 1450px; margin: 0 auto; padding: 0 20px 40px; }
 #workspace { width: 100%; display: none; grid-template-columns: 2.5fr 1fr; grid-template-rows: auto auto auto; gap: 25px; margin-top: 15px; }
 #workspace.workspace-active { display: grid; }
 
-/* NAYA: SCROLL HAMBURGER LOGIC */
-.hamburger-btn { display: none; position: fixed; top: 20px; left: 20px; z-index: 1001; background: var(--primary); color: white; border: 2px solid white; border-radius: 8px; padding: 10px 15px; font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
-.vertical-controls-mode { position: fixed !important; top: 70px !important; left: 20px !important; flex-direction: column !important; background: rgba(20,30,48,0.95); padding: 15px; border-radius: 12px; border: 1px solid var(--primary); z-index: 1000; box-shadow: 0 10px 30px rgba(0,0,0,0.6); max-height: 80vh; overflow-y: auto; display: flex !important;}
+/* 🚀 NAYA: HAMBURGER & VERTICAL MENU CSS */
+.hamburger-btn { display: none; position: fixed; top: 15px; left: 15px; z-index: 1001; background: var(--primary); color: white; border: 2px solid white; border-radius: 8px; padding: 8px 12px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+.vertical-controls-mode { position: fixed !important; top: 60px !important; left: 15px !important; flex-direction: column !important; background: rgba(20,30,48,0.95); padding: 15px; border-radius: 12px; border: 1px solid var(--primary); z-index: 1000; box-shadow: 0 10px 30px rgba(0,0,0,0.6); max-height: 85vh; overflow-y: auto; display: flex !important; align-items: flex-start;}
 .hide-vertical { display: none !important; }
 
 #controls { grid-column: 1 / span 2; grid-row: 1; transition: all 0.3s ease; }
