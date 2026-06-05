@@ -35,55 +35,52 @@ const openMathBtn = document.getElementById("openMathBtn");
 const toggleCalcBtn = document.getElementById("toggleCalcBtn"); 
 
 // ==========================================
-// 🚀 Hamburger Click-Outside Closing Logic
+// 🚀 NAYA: 100% BULLETPROOF SCROLL & MENU LOGIC
 // ==========================================
 const controlRowInner = document.getElementById("controlRowInner");
 const hamburgerBtn = document.getElementById("hamburgerBtn");
-const topAnchor = document.getElementById("top-anchor");
 const sideMenuContainer = document.getElementById("side-menu-container");
 const controlsSection = document.getElementById("controls");
 
-const observer = new IntersectionObserver((entries) => {
+window.addEventListener("scroll", () => {
     if(!joined) return;
-    if (!entries[0].isIntersecting) {
-        hamburgerBtn.style.setProperty("display", "block", "important");
+    const scrollY = window.scrollY || document.documentElement.scrollTop;
+    
+    if (scrollY > 60) {
+        // Javascript CSS Override to destroy any hidden rules
+        hamburgerBtn.style.cssText = "display: block !important; position: fixed; top: 20px; left: 20px; z-index: 2147483647; background: var(--danger); color: white; border: 2px solid white; border-radius: 8px; padding: 10px 15px; font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.5);";
+        
         if (controlRowInner.parentElement === controlsSection) {
             sideMenuContainer.appendChild(controlRowInner);
             controlRowInner.style.display = "flex";
             controlRowInner.style.flexDirection = "column";
-            if (sideMenuContainer.dataset.manualToggle !== "true") {
-                sideMenuContainer.style.setProperty("display", "none", "important");
-            }
+            sideMenuContainer.style.setProperty("display", "none", "important");
         }
     } else {
         hamburgerBtn.style.setProperty("display", "none", "important");
+        
         if (controlRowInner.parentElement === sideMenuContainer) {
             controlsSection.insertBefore(controlRowInner, controlsSection.firstChild);
             controlRowInner.style.flexDirection = "row";
             sideMenuContainer.style.setProperty("display", "none", "important");
-            sideMenuContainer.dataset.manualToggle = "false";
         }
-    }
-}, { threshold: 0 });
-
-if(topAnchor) observer.observe(topAnchor);
-
-hamburgerBtn.addEventListener("click", (e) => {
-    e.stopPropagation(); 
-    if (sideMenuContainer.style.display === "none") {
-        sideMenuContainer.style.setProperty("display", "flex", "important");
-        sideMenuContainer.dataset.manualToggle = "true";
-    } else {
-        sideMenuContainer.style.setProperty("display", "none", "important");
-        sideMenuContainer.dataset.manualToggle = "false";
     }
 });
 
+hamburgerBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (sideMenuContainer.style.display === "none" || sideMenuContainer.style.display === "") {
+        sideMenuContainer.style.setProperty("display", "flex", "important");
+    } else {
+        sideMenuContainer.style.setProperty("display", "none", "important");
+    }
+});
+
+// Click Outside Auto Close
 document.addEventListener("click", (e) => {
-    if (hamburgerBtn.style.display === "block" && sideMenuContainer.style.display === "flex") {
+    if (hamburgerBtn.style.display.includes("block") && sideMenuContainer.style.display.includes("flex")) {
         if (!sideMenuContainer.contains(e.target) && e.target !== hamburgerBtn) {
             sideMenuContainer.style.setProperty("display", "none", "important");
-            sideMenuContainer.dataset.manualToggle = "false";
         }
     }
 });
@@ -497,10 +494,6 @@ toggleSubjectsBtn.addEventListener("click", () => {
     wbShapesMenu.style.display = "none";
 });
 
-// ==========================================
-// 🚀 NAYA: 100% PDF EXTENSION FIX 
-// Sab files ko .pdf format me explicitly set kiya gaya hai.
-// ==========================================
 const subjectAssets = {
     geography: [
         {name: "World Map", url: "assets/subjects/world_map.pdf"},
@@ -573,7 +566,6 @@ async function loadAssetToCanvas(url, name) {
         showNotification(`Failed to load ${name}. Make sure the PDF file exists in assets/subjects folder!`, "danger");
     }
 }
-// ==========================================
 
 function loadSubjectAssets(cat) {
     subjectAssetsList.innerHTML = "";
