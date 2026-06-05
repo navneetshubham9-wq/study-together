@@ -40,21 +40,25 @@ const roomPresState = new Map();
 const roomChartData = new Map(); 
 
 // ==========================================
-// 🚀 THE ULTIMATE PROXY: Image -> Base64 Text
-// Browser text ko block nahi kar sakta!
+// 🚀 NAYA: Wikipedia Block Bypass (Direct to Base64)
+// Wikipedia needs a verified User-Agent, so we give them yours!
 // ==========================================
 app.get("/proxy-image", (req, res) => {
   const imgUrl = req.query.url;
-  if (!imgUrl) return res.status(400).json({ error: "URL missing" });
+  if (!imgUrl) return res.status(400).json({error: "URL required"});
 
   const fetchImage = (targetUrl) => {
     const client = targetUrl.startsWith("https") ? https : http;
+    
     const options = {
-        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" }
+        headers: {
+            // Wikipedia strictly needs a valid User-Agent, this makes your app an approved crawler!
+            "User-Agent": "VYDEX-Education-App/1.0 (navneetshubham9@gmail.com)",
+            "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"
+        }
     };
 
     client.get(targetUrl, options, (response) => {
-      // Handle redirects
       if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
         let redirectUrl = response.headers.location;
         if (!redirectUrl.startsWith("http")) redirectUrl = new URL(redirectUrl, targetUrl).href;
@@ -67,13 +71,14 @@ app.get("/proxy-image", (req, res) => {
           const buffer = Buffer.concat(chunks);
           const contentType = response.headers["content-type"] || "image/png";
           const base64 = `data:${contentType};base64,${buffer.toString("base64")}`;
-          // Send string inside JSON to completely bypass CORS
           res.json({ base64: base64 }); 
         });
       } else {
-        res.status(500).json({ error: "External server error" });
+        res.status(500).json({error: `Failed to load image. Wikipedia Server Status: ${response.statusCode}`});
       }
-    }).on("error", (err) => res.status(500).json({ error: err.message }));
+    }).on("error", (err) => {
+      res.status(500).json({error: err.message});
+    });
   };
 
   fetchImage(imgUrl);

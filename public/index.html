@@ -13,8 +13,9 @@
 <body>
   
   <div id="notification-container"></div>
+  
+  <div id="top-anchor" style="position: absolute; top: 0; left: 0; width: 100%; height: 50px; z-index: -1; visibility: hidden;"></div>
 
-  <!-- NAYA: Hamburger Menu Button outside everything to ensure max z-index -->
   <button id="hamburgerBtn" class="hamburger-btn" title="Open Controls">☰ Menu</button>
 
   <header>
@@ -259,13 +260,13 @@
       </section>
 
       <!-- INTERACTIVE MAP -->
-      <section id="map-box" class="card big-panel" style="grid-column: 1 / -1; height: 550px; display: none; position: relative;">
+      <section id="map-box" class="card big-panel" style="grid-column: 1 / -1; display: none; position: relative;">
         <h3>🌍 VYDEX Geography Explorer</h3>
-        <!-- NAYA FIX: Maximize icon ab map container ke bahar box me hai taki chhupe nahi! -->
         <div style="position: absolute; top: 80px; left: 20px; z-index: 10000; display: flex; flex-direction: column; gap: 15px;">
           <button id="toggleLabelsBtn" title="Toggle Place Names" style="background: var(--primary); color: white; border: 2px solid white; border-radius: 50%; width: 50px; height: 50px; cursor: pointer; font-size: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);">🏷️</button>
           <button id="screenshotMapBtn" title="Take Map Screenshot" style="background: var(--accent-dark); color: white; border: 2px solid white; border-radius: 50%; width: 50px; height: 50px; cursor: pointer; font-size: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);">📸</button>
         </div>
+        <!-- NAYA: Map container ko proper resize hone denge -->
         <div id="map-container" style="width: 100%; height: 450px; border-radius: 12px; overflow: hidden; box-shadow: inset 0 5px 15px rgba(0,0,0,0.1); z-index: 1;"></div>
       </section>
 
@@ -280,7 +281,7 @@
   </footer>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <!-- NAYA: Leaflet Geocoder for Maps Search -->
+  <!-- NAYA: Leaflet Geocoder Script Added here -->
   <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>

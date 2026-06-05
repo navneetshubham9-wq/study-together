@@ -35,8 +35,7 @@ const openMathBtn = document.getElementById("openMathBtn");
 const toggleCalcBtn = document.getElementById("toggleCalcBtn"); 
 
 // ==========================================
-// 🚀 NAYA: 100% Solid Menu Moving Logic
-// Isko document.body me move kar denge taaki background box isko na daba paye
+// 🚀 Hamburger Menu Scroll Logic
 // ==========================================
 const controlRowInner = document.getElementById("controlRowInner");
 const hamburgerBtn = document.getElementById("hamburgerBtn");
@@ -48,7 +47,6 @@ window.addEventListener("scroll", () => {
     
     if (scrollY > 80) {
         hamburgerBtn.style.setProperty("display", "block", "important");
-        // Escaping the Z-Index trap by moving to body!
         if (controlRowInner.parentElement === controlsSection) {
             document.body.appendChild(controlRowInner);
             controlRowInner.classList.add("vertical-controls-mode", "hide-vertical");
@@ -56,7 +54,6 @@ window.addEventListener("scroll", () => {
         }
     } else {
         hamburgerBtn.style.setProperty("display", "none", "important");
-        // Moving back
         if (controlRowInner.parentElement === document.body) {
             controlsSection.insertBefore(controlRowInner, controlsSection.firstChild);
             controlRowInner.classList.remove("vertical-controls-mode", "hide-vertical");
@@ -68,6 +65,12 @@ hamburgerBtn.addEventListener("click", () => {
     controlRowInner.classList.toggle("hide-vertical");
     controlRowInner.dataset.manualToggle = controlRowInner.classList.contains("hide-vertical") ? "false" : "true";
 });
+
+// Fullscreen update fix for Map
+document.addEventListener("fullscreenchange", () => {
+    if (geoMap) setTimeout(() => geoMap.invalidateSize(), 300);
+});
+
 // ==========================================
 
 const sendMsgBtn = document.getElementById("sendMsg");
@@ -325,7 +328,6 @@ socket.on("map-toggle", (data) => {
   else { mapBox.style.display = "none"; if(isHost){toggleMapBtn.dataset.show="false"; toggleMapBtn.style.background="linear-gradient(135deg, #27ae60, #2ecc71)";} }
 });
 
-
 // ---------- MATH FORMULA LIBRARY LOGIC ----------
 const formulas = {
     algebra: [ {name: "Quadratic", eq: "x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}", desc: "Roots of a quadratic eq."}, {name: "Logarithm", eq: "\\log_b(xy) = \\log_b(x) + \\log_b(y)", desc: "Log product rule."}, {name: "Binomial", eq: "(a+b)^n = \\sum_{k=0}^{n} \\binom{n}{k} a^{n-k} b^k", desc: "Binomial theorem expansion."} ],
@@ -452,7 +454,6 @@ socket.on("laser-pointer", (data) => {
 });
 
 // ---------- ADVANCED PRO WHITEBOARD ----------
-
 const toggleShapesBtn = document.getElementById("toggleShapesBtn");
 const wbShapesMenu = document.getElementById("wb-shapes-menu");
 const toggleSubjectsBtn = document.getElementById("toggleSubjectsBtn");
@@ -490,12 +491,13 @@ const subjectCategory = document.getElementById("subjectCategory");
 const subjectAssetsList = document.getElementById("subjectAssetsList");
 
 // ==========================================
-// 🚀 NAYA: PERFECT ASSET FETCHER (Text JSON Based - No Blocks)
+// 🚀 NAYA: Json Base64 Asset Fetcher
+// (Server se Text Data lekar image banayega)
 // ==========================================
 function prepareStamp(src) {
     const img = new Image();
     
-    // Do NOT set crossOrigin if it is a base64 string.
+    // NAYA: Data uri string par cors bypass kaam nahi karta, isliye condition lagayi hai.
     if (!src.startsWith("data:")) {
         img.crossOrigin = "Anonymous"; 
     }
@@ -511,24 +513,23 @@ function prepareStamp(src) {
         showNotification("🖱️ Ready! Click on board to paste.", "info");
         canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); 
     };
-    img.onerror = () => showNotification("Image Decode Error.", "danger");
+    img.onerror = () => showNotification("Image error. Server failed to send proper image data.", "danger");
     img.src = src; 
 }
 
 async function loadAssetToCanvas(url, name) {
     try {
-        showNotification(`Downloading ${name}...`, "info");
-        // Hamara apna secure backend isko text (JSON) me badal kar bhejega
+        showNotification(`Downloading ${name} from Wikipedia...`, "info");
         const response = await fetch(`/proxy-image?url=${encodeURIComponent(url)}`);
         const data = await response.json();
         
         if (data.base64) {
-            prepareStamp(data.base64); // Successfully loaded as Text!
+            prepareStamp(data.base64); // Ye kabhi block nahi hoga
         } else {
-            throw new Error("Server blocked request");
+            throw new Error("Invalid response");
         }
     } catch(e) {
-        showNotification(`Failed to load ${name}.`, "danger");
+        showNotification(`Failed to load ${name}. Wikipedia blocked the request.`, "danger");
     }
 }
 // ==========================================
@@ -716,7 +717,6 @@ canvas.addEventListener('mousedown', (e) => {
       let h = stampImage.height * stampScale;
       ctx.drawImage(stampImage, pt.x - w/2, pt.y - h/2, w, h);
       
-      // Compress and Sync to other users safely
       let tempCanvas = document.createElement("canvas");
       let syncScale = Math.min(1, 800 / Math.max(w, h)); 
       tempCanvas.width = w * syncScale; 
@@ -727,7 +727,7 @@ canvas.addEventListener('mousedown', (e) => {
       
       let sendSrc = tempCanvas.toDataURL("image/jpeg", 0.5); 
       socket.emit("wb-stamp", { room: currentRoom, image: sendSrc, x: pt.x - w/2, y: pt.y - h/2, w: w, h: h });
-
+      
       wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5);
       
       isStamping = false;
@@ -776,9 +776,7 @@ canvas.addEventListener('mouseup', (e) => {
   if (!drawing || !canDraw || currentTool === 'pointer' || currentTool === 'fill') return; 
   drawing = false; 
   const pt = getCanvasPoint(e);
-  if(!['pen', 'brush', 'spray', 'eraser'].includes(currentTool)) { 
-      drawShapeObj(startX, startY, pt.x, pt.y, currentTool, currentBrushColor, currentBrushSize, true); 
-  }
+  if(!['pen', 'brush', 'spray', 'eraser'].includes(currentTool)) { drawShapeObj(startX, startY, pt.x, pt.y, currentTool, currentBrushColor, currentBrushSize, true); }
   ctx.shadowBlur = 0; 
   wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5);
 });
@@ -807,7 +805,6 @@ socket.on("wb-pointer", (data) => {
     clearTimeout(wbLaserTimeout); wbLaserTimeout = setTimeout(() => { wbLaser.style.display = "none"; }, 2000);
 });
 
-// PDF Rendering
 document.getElementById('tool-pdf').addEventListener("click", () => document.getElementById('wbPdfUpload').click());
 document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
   const file = e.target.files[0]; if(!file) return; showNotification("Loading File...", "info");
@@ -836,7 +833,7 @@ function initWorldMap() {
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '&copy; Esri', crossOrigin: true }).addTo(geoMap);
   labelsLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { pane: 'markerPane', crossOrigin: true }).addTo(geoMap);
   
-  // NAYA: Search Box added!
+  // 🚀 NAYA: Map Search Feature Fully Added
   L.Control.geocoder({ defaultMarkGeocode: true, position: 'topleft' }).addTo(geoMap);
 }
 initWorldMap();
@@ -845,6 +842,7 @@ document.getElementById("toggleLabelsBtn")?.addEventListener("click", function()
   if (labelsVisible) { geoMap.addLayer(labelsLayer); this.style.background = "var(--primary)"; } 
   else { geoMap.removeLayer(labelsLayer); this.style.background = "var(--danger)"; }
 });
+
 
 // ---------- VIDEO UI HELPERS ----------
 function createLocalCard(name) {
