@@ -8,7 +8,7 @@ const fs = require("fs");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { maxHttpBufferSize: 2e7 }); // 20MB limit
+const io = new Server(server, { maxHttpBufferSize: 2e7 }); 
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, "uploads");
 const PORT = process.env.PORT || 3000;
@@ -29,7 +29,6 @@ const upload = multer({ storage });
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(UPLOAD_DIR));
 
-// Memory State
 const uidToSocket = new Map();
 const roomHosts = new Map();
 const socketUsers = new Map();
@@ -41,40 +40,40 @@ const roomPresState = new Map();
 const roomChartData = new Map(); 
 
 // ==========================================
-// 🚀 THE ULTIMATE IMAGE STREAM PROXY (No JSON, No Base64 Bugs)
+// 🚀 THE ULTIMATE PROXY: Image -> Base64 Text
+// Browser text ko block nahi kar sakta!
 // ==========================================
 app.get("/proxy-image", (req, res) => {
   const imgUrl = req.query.url;
-  if (!imgUrl) return res.status(400).send("URL required");
+  if (!imgUrl) return res.status(400).json({ error: "URL missing" });
 
   const fetchImage = (targetUrl) => {
     const client = targetUrl.startsWith("https") ? https : http;
     const options = {
-        headers: {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-            "Accept": "image/*"
-        }
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" }
     };
 
     client.get(targetUrl, options, (response) => {
-      // Follow Redirects safely
+      // Handle redirects
       if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
         let redirectUrl = response.headers.location;
         if (!redirectUrl.startsWith("http")) redirectUrl = new URL(redirectUrl, targetUrl).href;
         fetchImage(redirectUrl);
       } 
       else if (response.statusCode === 200) {
-        // Direct stream to canvas!
-        res.setHeader("Access-Control-Allow-Origin", "*");
-        res.setHeader("Content-Type", response.headers["content-type"] || "image/png");
-        res.setHeader("Cache-Control", "public, max-age=86400"); 
-        response.pipe(res);
+        const chunks = [];
+        response.on("data", chunk => chunks.push(chunk));
+        response.on("end", () => {
+          const buffer = Buffer.concat(chunks);
+          const contentType = response.headers["content-type"] || "image/png";
+          const base64 = `data:${contentType};base64,${buffer.toString("base64")}`;
+          // Send string inside JSON to completely bypass CORS
+          res.json({ base64: base64 }); 
+        });
       } else {
-        res.status(500).send("Error fetching image");
+        res.status(500).json({ error: "External server error" });
       }
-    }).on("error", (err) => {
-      res.status(500).send("Error fetching image");
-    });
+    }).on("error", (err) => res.status(500).json({ error: err.message }));
   };
 
   fetchImage(imgUrl);

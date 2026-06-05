@@ -28,7 +28,6 @@ const muteAllBtn = document.getElementById("muteAllBtn");
 const unmuteAllBtn = document.getElementById("unmuteAllBtn");
 const localMusicMuteBtn = document.getElementById("localMusicMuteBtn"); 
 
-// Panel Toggles
 const toggleWbBtn = document.getElementById("toggleWbBtn"); 
 const toggleMapBtn = document.getElementById("toggleMapBtn"); 
 const togglePresBtn = document.getElementById("togglePresBtn"); 
@@ -36,25 +35,32 @@ const openMathBtn = document.getElementById("openMathBtn");
 const toggleCalcBtn = document.getElementById("toggleCalcBtn"); 
 
 // ==========================================
-// 🚀 NAYA: Solid Hamburger Scroll Logic
+// 🚀 NAYA: 100% Solid Menu Moving Logic
+// Isko document.body me move kar denge taaki background box isko na daba paye
 // ==========================================
 const controlRowInner = document.getElementById("controlRowInner");
 const hamburgerBtn = document.getElementById("hamburgerBtn");
+const controlsSection = document.getElementById("controls");
 
 window.addEventListener("scroll", () => {
     if(!joined) return;
     const scrollY = window.scrollY || document.documentElement.scrollTop;
+    
     if (scrollY > 80) {
         hamburgerBtn.style.setProperty("display", "block", "important");
-        controlRowInner.classList.add("vertical-controls-mode");
-        if (controlRowInner.dataset.manualToggle !== "true") {
-            controlRowInner.classList.add("hide-vertical");
+        // Escaping the Z-Index trap by moving to body!
+        if (controlRowInner.parentElement === controlsSection) {
+            document.body.appendChild(controlRowInner);
+            controlRowInner.classList.add("vertical-controls-mode", "hide-vertical");
+            controlRowInner.dataset.manualToggle = "false";
         }
     } else {
         hamburgerBtn.style.setProperty("display", "none", "important");
-        controlRowInner.classList.remove("vertical-controls-mode");
-        controlRowInner.classList.remove("hide-vertical");
-        controlRowInner.dataset.manualToggle = "false";
+        // Moving back
+        if (controlRowInner.parentElement === document.body) {
+            controlsSection.insertBefore(controlRowInner, controlsSection.firstChild);
+            controlRowInner.classList.remove("vertical-controls-mode", "hide-vertical");
+        }
     }
 });
 
@@ -232,7 +238,6 @@ socket.on("wb-page-sync", (data) => {
     }
 });
 
-
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
 function showNotification(message, type = 'info') {
@@ -277,7 +282,6 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
   targetWrapper.appendChild(controlsDiv);
 }
 
-// Add size controls to the main wrappers directly
 addSizeControls(whiteboardBox, whiteboardBox);
 addSizeControls(mapBox, mapBox); 
 addSizeControls(presentationBox, presentationBox); 
@@ -486,13 +490,15 @@ const subjectCategory = document.getElementById("subjectCategory");
 const subjectAssetsList = document.getElementById("subjectAssetsList");
 
 // ==========================================
-// 🚀 NAYA: 100% BULLETPROOF ASSET LOADER
-// Direct URL se drawing hogi, no Base64 conversion
+// 🚀 NAYA: PERFECT ASSET FETCHER (Text JSON Based - No Blocks)
 // ==========================================
 function prepareStamp(src) {
     const img = new Image();
-    // Anonymous hatane se browser image block nahi karta if server streams directly
-    img.crossOrigin = "Anonymous";
+    
+    // Do NOT set crossOrigin if it is a base64 string.
+    if (!src.startsWith("data:")) {
+        img.crossOrigin = "Anonymous"; 
+    }
     
     img.onload = () => {
         stampImage = img;
@@ -505,16 +511,25 @@ function prepareStamp(src) {
         showNotification("🖱️ Ready! Click on board to paste.", "info");
         canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); 
     };
-    img.onerror = () => showNotification("Image failed to load.", "danger");
+    img.onerror = () => showNotification("Image Decode Error.", "danger");
     img.src = src; 
 }
 
-function loadAssetToCanvas(url, name) {
-    showNotification(`Downloading ${name} safely...`, "info");
-    // Connects to node server API directly! Server returns stream.
-    const safeProxyUrl = `/proxy-image?url=${encodeURIComponent(url)}`;
-    prepareStamp(safeProxyUrl);
-    wbSubjectsMenu.style.display = "none";
+async function loadAssetToCanvas(url, name) {
+    try {
+        showNotification(`Downloading ${name}...`, "info");
+        // Hamara apna secure backend isko text (JSON) me badal kar bhejega
+        const response = await fetch(`/proxy-image?url=${encodeURIComponent(url)}`);
+        const data = await response.json();
+        
+        if (data.base64) {
+            prepareStamp(data.base64); // Successfully loaded as Text!
+        } else {
+            throw new Error("Server blocked request");
+        }
+    } catch(e) {
+        showNotification(`Failed to load ${name}.`, "danger");
+    }
 }
 // ==========================================
 
@@ -701,11 +716,8 @@ canvas.addEventListener('mousedown', (e) => {
       let h = stampImage.height * stampScale;
       ctx.drawImage(stampImage, pt.x - w/2, pt.y - h/2, w, h);
       
-      // ==========================================
-      // 🚀 NAYA: 1MB Socket Crash Fix (DRAMATIC COMPRESSION FOR SYNCING)
-      // ==========================================
+      // Compress and Sync to other users safely
       let tempCanvas = document.createElement("canvas");
-      // Scale down large images drastically for syncing to avoid socket limit
       let syncScale = Math.min(1, 800 / Math.max(w, h)); 
       tempCanvas.width = w * syncScale; 
       tempCanvas.height = h * syncScale;
@@ -713,9 +725,8 @@ canvas.addEventListener('mousedown', (e) => {
       tCtx.fillStyle = "#ffffff"; tCtx.fillRect(0,0, tempCanvas.width, tempCanvas.height);
       tCtx.drawImage(stampImage, 0, 0, tempCanvas.width, tempCanvas.height);
       
-      let sendSrc = tempCanvas.toDataURL("image/jpeg", 0.5); // COMPRESS
+      let sendSrc = tempCanvas.toDataURL("image/jpeg", 0.5); 
       socket.emit("wb-stamp", { room: currentRoom, image: sendSrc, x: pt.x - w/2, y: pt.y - h/2, w: w, h: h });
-      // ==========================================
 
       wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5);
       
@@ -796,7 +807,7 @@ socket.on("wb-pointer", (data) => {
     clearTimeout(wbLaserTimeout); wbLaserTimeout = setTimeout(() => { wbLaser.style.display = "none"; }, 2000);
 });
 
-// PDF Rendering for Resizable Stamp
+// PDF Rendering
 document.getElementById('tool-pdf').addEventListener("click", () => document.getElementById('wbPdfUpload').click());
 document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
   const file = e.target.files[0]; if(!file) return; showNotification("Loading File...", "info");
@@ -824,6 +835,8 @@ function initWorldMap() {
   L.control.zoom({ position: 'bottomleft' }).addTo(geoMap);
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '&copy; Esri', crossOrigin: true }).addTo(geoMap);
   labelsLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { pane: 'markerPane', crossOrigin: true }).addTo(geoMap);
+  
+  // NAYA: Search Box added!
   L.Control.geocoder({ defaultMarkGeocode: true, position: 'topleft' }).addTo(geoMap);
 }
 initWorldMap();
@@ -832,7 +845,6 @@ document.getElementById("toggleLabelsBtn")?.addEventListener("click", function()
   if (labelsVisible) { geoMap.addLayer(labelsLayer); this.style.background = "var(--primary)"; } 
   else { geoMap.removeLayer(labelsLayer); this.style.background = "var(--danger)"; }
 });
-
 
 // ---------- VIDEO UI HELPERS ----------
 function createLocalCard(name) {
@@ -982,9 +994,6 @@ socket.on("control", async (data) => {
   if (data.action === "share-start") { const w = document.getElementById(`remote-wrapper-${data.uid}`); if (w) w.classList.add("video-wrapper-large"); }
   if (data.action === "share-stop") { const w = document.getElementById(`remote-wrapper-${data.uid}`); if (w) w.classList.remove("video-wrapper-large"); }
   
-  // ==========================================
-  // 🚀 NAYA: Music Explicit Popup Fix for Doosra User
-  // ==========================================
   if (data.action === "music-play" && !isHost) { 
       remoteMusicPlayer.src = data.url; 
       remoteMusicPlayer.currentTime = data.time || 0; 
@@ -1009,7 +1018,6 @@ socket.on("control", async (data) => {
           listenBtn.style.display = "block";
       }
   }
-  // ==========================================
 
   if (data.action === "music-pause" && !isHost) remoteMusicPlayer.pause();
   if (data.action === "music-seek" && !isHost) remoteMusicPlayer.currentTime = data.time || 0;

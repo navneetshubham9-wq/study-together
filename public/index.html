@@ -13,9 +13,8 @@
 <body>
   
   <div id="notification-container"></div>
-  
-  <div id="top-anchor" style="position: absolute; top: 0; left: 0; width: 100%; height: 50px; z-index: -1; visibility: hidden;"></div>
 
+  <!-- NAYA: Hamburger Menu Button outside everything to ensure max z-index -->
   <button id="hamburgerBtn" class="hamburger-btn" title="Open Controls">☰ Menu</button>
 
   <header>
@@ -37,6 +36,7 @@
       
       <audio id="remoteMusicPlayer" style="display: none;" crossorigin="anonymous" allow="autoplay"></audio>
 
+      <!-- DRAGGABLE CALCULATOR -->
       <div id="calc-modal" class="card" style="display: none; position: fixed; top: 15%; right: 5%; z-index: 99999; width: 250px; background: rgba(20,30,48,0.98); border: 2px solid #16a085; box-shadow: 0 20px 50px rgba(0,0,0,0.8); padding: 15px;">
         <h4 id="calc-header" style="margin: 0 0 10px 0; color: #1abc9c; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; cursor: move; user-select: none;">🧮 Calculator (Drag)</h4>
         
@@ -62,6 +62,7 @@
         </div>
       </div>
 
+      <!-- ADVANCED MATH MODAL -->
       <div id="math-modal" class="card" style="display: none; position: fixed; top: 10%; left: 50%; transform: translateX(-50%); z-index: 99998; width: 550px; background: rgba(20,30,48,0.98); border: 2px solid var(--primary); box-shadow: 0 20px 50px rgba(0,0,0,0.8);">
         <h3 style="margin-top: 0; color: var(--accent); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;">∑ Advanced Math Library</h3>
         <div style="margin-bottom: 10px;">
@@ -82,6 +83,7 @@
         <button id="closeMathBtn" style="background: var(--danger); color: white; border: none; padding: 8px; border-radius: 8px; width: 100%; cursor: pointer; margin-top: 10px;">Close Board</button>
       </div>
 
+      <!-- Controls Section -->
       <section id="controls" class="card entry-animation delay-controls">
         <div class="control-row" id="controlRowInner">
           <button id="cameraBtn" title="Toggle Camera">📹 Camera</button>
@@ -93,6 +95,7 @@
           <button id="localMusicMuteBtn" title="Mute Host Music Locally" style="display: none; background: #9b59b6;">🎵🔇 Mute Music</button>
           <button id="leaveBtn" title="Leave Room" style="background: linear-gradient(135deg, #e74c3c, #c0392b); color: white;">🚪 Exit Room</button>
           
+          <!-- Host Only Controls -->
           <button id="muteAllBtn" class="host-only-btn" title="Mute All Users" style="background: linear-gradient(135deg, #e67e22, #d35400); color: white; display: none;">🤫 Mute All</button>
           <button id="unmuteAllBtn" class="host-only-btn" title="Unmute All Users" style="background: linear-gradient(135deg, #2ecc71, #27ae60); color: white; display: none;">🔊 Unmute All</button>
           
@@ -110,8 +113,10 @@
         </div>
       </section>
 
+      <!-- Video Area -->
       <section id="video-area" class="card video-grid entry-animation delay-video"></section>
 
+      <!-- Chat Box -->
       <section id="chat-box" class="card entry-animation delay-chat">
         <h3>💬 Live Chat</h3>
         <div id="messages" class="messages"></div>
@@ -121,6 +126,7 @@
         </div>
       </section>
 
+      <!-- Shared Files Box -->
       <section id="file-box" class="card entry-animation delay-files">
         <h3>📂 Shared Files</h3>
         <div id="fileList" class="file-box-list"></div>
@@ -131,6 +137,7 @@
         </div>
       </section>
 
+      <!-- BUSINESS PRESENTATION WINDOW -->
       <section id="presentation-box" class="card big-panel" style="grid-column: 1 / -1; height: auto; min-height: 550px; display: none; position: relative;">
         <h3>📊 VYDEX Business & Growth Presentation</h3>
         <div id="pres-input-form" class="host-only-btn" style="display: none; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 12px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center;">
@@ -174,6 +181,7 @@
         </div>
       </section>
 
+      <!-- ADVANCED PRO WHITEBOARD WITH PAGINATION -->
       <section id="whiteboard-box" class="card big-panel" style="grid-column: 1 / -1; height: 600px; display: none; position: relative;">
         <h3>🎨 VYDEX Education Board <span id="wb-status" style="font-size:12px; color:var(--accent); font-weight:400; margin-left: 10px;">(View Only)</span></h3>
         
@@ -250,10 +258,12 @@
         </div>
       </section>
 
+      <!-- INTERACTIVE MAP -->
       <section id="map-box" class="card big-panel" style="grid-column: 1 / -1; height: 550px; display: none; position: relative;">
         <h3>🌍 VYDEX Geography Explorer</h3>
-        <div style="position: absolute; top: 80px; left: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 15px;">
-          <button id="toggleLabelsBtn" title="Toggle Place Names (ON/OFF)" style="background: var(--primary); color: white; border: 2px solid white; border-radius: 50%; width: 50px; height: 50px; cursor: pointer; font-size: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);">🏷️</button>
+        <!-- NAYA FIX: Maximize icon ab map container ke bahar box me hai taki chhupe nahi! -->
+        <div style="position: absolute; top: 80px; left: 20px; z-index: 10000; display: flex; flex-direction: column; gap: 15px;">
+          <button id="toggleLabelsBtn" title="Toggle Place Names" style="background: var(--primary); color: white; border: 2px solid white; border-radius: 50%; width: 50px; height: 50px; cursor: pointer; font-size: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);">🏷️</button>
           <button id="screenshotMapBtn" title="Take Map Screenshot" style="background: var(--accent-dark); color: white; border: 2px solid white; border-radius: 50%; width: 50px; height: 50px; cursor: pointer; font-size: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);">📸</button>
         </div>
         <div id="map-container" style="width: 100%; height: 450px; border-radius: 12px; overflow: hidden; box-shadow: inset 0 5px 15px rgba(0,0,0,0.1); z-index: 1;"></div>
@@ -270,7 +280,9 @@
   </footer>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- NAYA: Leaflet Geocoder for Maps Search -->
   <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+  
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
