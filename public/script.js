@@ -35,7 +35,7 @@ const openMathBtn = document.getElementById("openMathBtn");
 const toggleCalcBtn = document.getElementById("toggleCalcBtn"); 
 
 // ==========================================
-// 🚀 Hamburger Menu Scroll Logic
+// 🚀 NAYA 1: Hamburger Menu Scroll + Click Outside Auto Close
 // ==========================================
 const controlRowInner = document.getElementById("controlRowInner");
 const hamburgerBtn = document.getElementById("hamburgerBtn");
@@ -57,20 +57,27 @@ window.addEventListener("scroll", () => {
         if (controlRowInner.parentElement === document.body) {
             controlsSection.insertBefore(controlRowInner, controlsSection.firstChild);
             controlRowInner.classList.remove("vertical-controls-mode", "hide-vertical");
+            controlRowInner.dataset.manualToggle = "false";
         }
     }
 });
 
-hamburgerBtn.addEventListener("click", () => {
+hamburgerBtn.addEventListener("click", (e) => {
+    e.stopPropagation(); // Stop click from bubbling to document
     controlRowInner.classList.toggle("hide-vertical");
     controlRowInner.dataset.manualToggle = controlRowInner.classList.contains("hide-vertical") ? "false" : "true";
 });
 
-// Fullscreen update fix for Map
-document.addEventListener("fullscreenchange", () => {
-    if (geoMap) setTimeout(() => geoMap.invalidateSize(), 300);
+// Click Outside Event Listener
+document.addEventListener("click", (e) => {
+    if (hamburgerBtn.style.display === "block" && !controlRowInner.classList.contains("hide-vertical")) {
+        // If clicked outside of the menu list AND not on the hamburger button itself
+        if (!controlRowInner.contains(e.target) && e.target !== hamburgerBtn) {
+            controlRowInner.classList.add("hide-vertical");
+            controlRowInner.dataset.manualToggle = "false";
+        }
+    }
 });
-
 // ==========================================
 
 const sendMsgBtn = document.getElementById("sendMsg");
@@ -240,6 +247,7 @@ socket.on("wb-page-sync", (data) => {
         img.src = data.image;
     }
 });
+
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
@@ -454,6 +462,7 @@ socket.on("laser-pointer", (data) => {
 });
 
 // ---------- ADVANCED PRO WHITEBOARD ----------
+
 const toggleShapesBtn = document.getElementById("toggleShapesBtn");
 const wbShapesMenu = document.getElementById("wb-shapes-menu");
 const toggleSubjectsBtn = document.getElementById("toggleSubjectsBtn");
@@ -491,16 +500,13 @@ const subjectCategory = document.getElementById("subjectCategory");
 const subjectAssetsList = document.getElementById("subjectAssetsList");
 
 // ==========================================
-// 🚀 NAYA: Json Base64 Asset Fetcher
-// (Server se Text Data lekar image banayega)
+// 🚀 NAYA 3: PERFECT ASSET FETCHER (DIRECT BROWSER FETCH)
+// Wikipedia allows direct browser fetch using crossOrigin="Anonymous"
+// Bypassing server totally to avoid Bot-Blocker
 // ==========================================
 function prepareStamp(src) {
     const img = new Image();
-    
-    // NAYA: Data uri string par cors bypass kaam nahi karta, isliye condition lagayi hai.
-    if (!src.startsWith("data:")) {
-        img.crossOrigin = "Anonymous"; 
-    }
+    img.crossOrigin = "Anonymous"; // Native CORS Support
     
     img.onload = () => {
         stampImage = img;
@@ -513,24 +519,15 @@ function prepareStamp(src) {
         showNotification("🖱️ Ready! Click on board to paste.", "info");
         canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); 
     };
-    img.onerror = () => showNotification("Image error. Server failed to send proper image data.", "danger");
+    img.onerror = () => showNotification("Image error. Try again.", "danger");
     img.src = src; 
 }
 
 async function loadAssetToCanvas(url, name) {
-    try {
-        showNotification(`Downloading ${name} from Wikipedia...`, "info");
-        const response = await fetch(`/proxy-image?url=${encodeURIComponent(url)}`);
-        const data = await response.json();
-        
-        if (data.base64) {
-            prepareStamp(data.base64); // Ye kabhi block nahi hoga
-        } else {
-            throw new Error("Invalid response");
-        }
-    } catch(e) {
-        showNotification(`Failed to load ${name}. Wikipedia blocked the request.`, "danger");
-    }
+    showNotification(`Downloading ${name} safely...`, "info");
+    // Directly passing the URL to image.src. Wikimedia allows this!
+    prepareStamp(url);
+    wbSubjectsMenu.style.display = "none";
 }
 // ==========================================
 
@@ -727,7 +724,7 @@ canvas.addEventListener('mousedown', (e) => {
       
       let sendSrc = tempCanvas.toDataURL("image/jpeg", 0.5); 
       socket.emit("wb-stamp", { room: currentRoom, image: sendSrc, x: pt.x - w/2, y: pt.y - h/2, w: w, h: h });
-      
+
       wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5);
       
       isStamping = false;
@@ -805,6 +802,7 @@ socket.on("wb-pointer", (data) => {
     clearTimeout(wbLaserTimeout); wbLaserTimeout = setTimeout(() => { wbLaser.style.display = "none"; }, 2000);
 });
 
+// PDF Rendering
 document.getElementById('tool-pdf').addEventListener("click", () => document.getElementById('wbPdfUpload').click());
 document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
   const file = e.target.files[0]; if(!file) return; showNotification("Loading File...", "info");
@@ -826,23 +824,35 @@ document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
   }
 });
 
-// ---------- INITIALIZE LEAFLET WORLD MAP ----------
+// ==========================================
+// 🚀 NAYA 2: Map Search Center Alignment
+// ==========================================
 function initWorldMap() {
   geoMap = L.map('map-container', { center: [20.0, 0.0], zoom: 3, zoomControl: false });
   L.control.zoom({ position: 'bottomleft' }).addTo(geoMap);
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '&copy; Esri', crossOrigin: true }).addTo(geoMap);
   labelsLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { pane: 'markerPane', crossOrigin: true }).addTo(geoMap);
   
-  // 🚀 NAYA: Map Search Feature Fully Added
-  L.Control.geocoder({ defaultMarkGeocode: true, position: 'topleft' }).addTo(geoMap);
+  // Geocoder Centering Logic
+  const geocoder = L.Control.geocoder({ defaultMarkGeocode: true }).addTo(geoMap);
+  const gcContainer = geocoder.getContainer();
+  gcContainer.style.position = "absolute";
+  gcContainer.style.left = "50%";
+  gcContainer.style.transform = "translateX(-50%)";
+  gcContainer.style.top = "15px";
+  gcContainer.style.zIndex = "10000";
+  
+  document.getElementById('map-container').appendChild(gcContainer);
 }
+
 initWorldMap();
+
 document.getElementById("toggleLabelsBtn")?.addEventListener("click", function() {
   labelsVisible = !labelsVisible;
   if (labelsVisible) { geoMap.addLayer(labelsLayer); this.style.background = "var(--primary)"; } 
   else { geoMap.removeLayer(labelsLayer); this.style.background = "var(--danger)"; }
 });
-
+// ==========================================
 
 // ---------- VIDEO UI HELPERS ----------
 function createLocalCard(name) {
