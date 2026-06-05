@@ -34,10 +34,7 @@ const togglePresBtn = document.getElementById("togglePresBtn");
 const openMathBtn = document.getElementById("openMathBtn"); 
 const toggleCalcBtn = document.getElementById("toggleCalcBtn"); 
 
-// ==========================================
-// 🚀 NAYA: FOOLPROOF Side Menu Logic
-// Menu is now totally isolated from .card traps
-// ==========================================
+// Hamburger Menu Logic
 const controlRowInner = document.getElementById("controlRowInner");
 const hamburgerBtn = document.getElementById("hamburgerBtn");
 const sideMenuContainer = document.getElementById("side-menu-container");
@@ -49,7 +46,6 @@ window.addEventListener("scroll", () => {
     
     if (scrollY > 80) {
         hamburgerBtn.style.setProperty("display", "block", "important");
-        // Move controls into pure body container
         if (controlRowInner.parentElement === controlsSection) {
             sideMenuContainer.appendChild(controlRowInner);
             controlRowInner.style.display = "flex";
@@ -61,7 +57,6 @@ window.addEventListener("scroll", () => {
         }
     } else {
         hamburgerBtn.style.setProperty("display", "none", "important");
-        // Restore
         if (controlRowInner.parentElement === sideMenuContainer) {
             controlsSection.insertBefore(controlRowInner, controlsSection.firstChild);
             controlRowInner.style.flexDirection = "row";
@@ -82,7 +77,6 @@ hamburgerBtn.addEventListener("click", (e) => {
     }
 });
 
-// Click Outside Auto Close
 document.addEventListener("click", (e) => {
     if (hamburgerBtn.style.display === "block" && sideMenuContainer.style.display === "flex") {
         if (!sideMenuContainer.contains(e.target) && e.target !== hamburgerBtn) {
@@ -91,7 +85,6 @@ document.addEventListener("click", (e) => {
         }
     }
 });
-// ==========================================
 
 const sendMsgBtn = document.getElementById("sendMsg");
 const chatInput = document.getElementById("chatInput");
@@ -260,7 +253,6 @@ socket.on("wb-page-sync", (data) => {
         img.src = data.image;
     }
 });
-
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
@@ -502,34 +494,32 @@ toggleSubjectsBtn.addEventListener("click", () => {
     wbShapesMenu.style.display = "none";
 });
 
+// ==========================================
+// 🚀 SMART ASSET ENGINE: Handles PNG, JPG, and PDF smoothly
+// ==========================================
 const subjectAssets = {
     geography: [
-        {name: "World Map", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/World_map_-_low_resolution.svg/1024px-World_map_-_low_resolution.svg.png"},
-        {name: "India Political", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/India_political_map_en.svg/800px-India_political_map_en.svg.png"},
-        {name: "India Physical", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/India_relief_map.svg/800px-India_relief_map.svg.png"}
+        {name: "World Map", url: "assets/subjects/world_map.png"},
+        {name: "India Political", url: "assets/subjects/india_political.pdf"}, // Mixed example!
+        {name: "India Physical", url: "assets/subjects/india_physical.jpg"}
     ],
     biology: [
-        {name: "Human Skeleton", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Human_skeleton_front_en.svg/600px-Human_skeleton_front_en.svg.png"},
-        {name: "Respiratory System", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Respiratory_system_complete_en.svg/600px-Respiratory_system_complete_en.svg.png"},
-        {name: "Human Heart", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Diagram_of_the_human_heart_%28cropped%29.svg/800px-Diagram_of_the_human_heart_%28cropped%29.svg.png"},
-        {name: "Plant Cell", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Plant_cell_structure_svg.svg/800px-Plant_cell_structure_svg.svg.png"}
+        {name: "Human Skeleton", url: "assets/subjects/human_skeleton.png"},
+        {name: "Respiratory System", url: "assets/subjects/respiratory_system.pdf"},
+        {name: "Human Heart", url: "assets/subjects/human_heart.jpg"},
+        {name: "Plant Cell", url: "assets/subjects/plant_cell.png"}
     ],
-    chemistry: [ {name: "Periodic Table", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Periodic_table_large.svg/1024px-Periodic_table_large.svg.png"} ],
-    physics: [ {name: "Electric Circuit", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Simple_circuit.svg/600px-Simple_circuit.svg.png"} ],
-    maths: [ {name: "Graph Paper", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Graph_paper_mm_A4.svg/800px-Graph_paper_mm_A4.svg.png"} ],
-    commerce: [ {name: "Supply & Demand", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Supply-and-demand.svg/800px-Supply-and-demand.svg.png"} ]
+    chemistry: [ {name: "Periodic Table", url: "assets/subjects/periodic_table.pdf"} ],
+    physics: [ {name: "Electric Circuit", url: "assets/subjects/electric_circuit.png"} ],
+    maths: [ {name: "Graph Paper", url: "assets/subjects/graph_paper.pdf"} ],
+    commerce: [ {name: "Supply & Demand", url: "assets/subjects/supply_demand.png"} ]
 };
 
 const subjectCategory = document.getElementById("subjectCategory");
 const subjectAssetsList = document.getElementById("subjectAssetsList");
 
-// ==========================================
-// 🚀 NAYA: JSON Base64 Asset Fetcher
-// Bypass ALL CORS checks by sending as Text JSON
-// ==========================================
 function prepareStamp(src) {
     const img = new Image();
-    // Do NOT set crossOrigin if it is a base64 string.
     if (!src.startsWith("data:")) {
         img.crossOrigin = "Anonymous"; 
     }
@@ -542,27 +532,44 @@ function prepareStamp(src) {
         currentTool = 'stamp';
         document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active-tool'));
         
-        showNotification("🖱️ Ready! Click on board to paste.", "info");
+        showNotification("🖱️ Ready! Scroll to resize, Click to paste.", "info");
         canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); 
     };
-    img.onerror = () => showNotification("Image Decode Error.", "danger");
+    img.onerror = () => showNotification("Image error. File missing or corrupt.", "danger");
     img.src = src; 
 }
 
+// 🚀 SMART CHECKER: Identifies if it's an Image or a PDF automatically
 async function loadAssetToCanvas(url, name) {
     try {
-        showNotification(`Downloading ${name} safely...`, "info");
-        // Hamara apna secure backend isko text (JSON) me badal kar bhejega
-        const response = await fetch(`/proxy-image?url=${encodeURIComponent(url)}`);
-        const data = await response.json();
+        showNotification(`Loading ${name}...`, "info");
+        const lowerUrl = url.toLowerCase();
         
-        if (data.dataUri) {
-            prepareStamp(data.dataUri); // Successfully loaded as Text!
+        // Agar Image hai (png, jpg, jpeg) toh direct render
+        if (lowerUrl.endsWith('.png') || lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg')) {
+            prepareStamp(url);
+            wbSubjectsMenu.style.display = "none";
+        } 
+        // Agar PDF hai toh PDF engine se render
+        else if (lowerUrl.endsWith('.pdf')) {
+            const pdf = await pdfjsLib.getDocument(url).promise;
+            const page = await pdf.getPage(1);
+            const viewport = page.getViewport({scale: 2.0}); 
+            
+            const tc = document.createElement('canvas');
+            const tCtx = tc.getContext('2d');
+            tc.height = viewport.height; 
+            tc.width = viewport.width;
+            
+            await page.render({canvasContext: tCtx, viewport: viewport}).promise; 
+            prepareStamp(tc.toDataURL("image/jpeg", 0.8));
+            wbSubjectsMenu.style.display = "none";
         } else {
-            throw new Error("Server blocked request");
+            showNotification(`Unsupported format for ${name}`, "danger");
         }
     } catch(e) {
-        showNotification(`Failed to load ${name}. Connection Error.`, "danger");
+        console.error(e);
+        showNotification(`Failed to load ${name}. Make sure ${url} exists!`, "danger");
     }
 }
 // ==========================================
@@ -575,11 +582,11 @@ function loadSubjectAssets(cat) {
         btn.style.cssText = "background: rgba(255,255,255,0.1); color: white; border: 1px solid var(--accent); padding: 8px; border-radius: 6px; cursor: pointer; text-align: left; font-size: 13px;";
         btn.onclick = () => {
             loadAssetToCanvas(asset.url, asset.name);
-            wbSubjectsMenu.style.display = "none";
         };
         subjectAssetsList.appendChild(btn);
     });
 }
+
 subjectCategory.addEventListener("change", (e) => loadSubjectAssets(e.target.value));
 loadSubjectAssets("geography");
 
@@ -648,7 +655,7 @@ function floodFill(startX, startY, fillColorHex, emit=false) {
     const pixelStack = [[sx, sy]];
 
     while (pixelStack.length) {
-        const newPos = pop();
+        const newPos = pixelStack.pop();
         const x = newPos[0]; let y = newPos[1];
         let pixelPos = (y * width + x) * 4;
         while (y-- >= 0 && matchColor(pixelPos)) { pixelPos -= width * 4; }
@@ -838,6 +845,7 @@ socket.on("wb-pointer", (data) => {
     clearTimeout(wbLaserTimeout); wbLaserTimeout = setTimeout(() => { wbLaser.style.display = "none"; }, 2000);
 });
 
+// Upload tool supports Image + PDF
 document.getElementById('tool-pdf').addEventListener("click", () => document.getElementById('wbPdfUpload').click());
 document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
   const file = e.target.files[0]; if(!file) return; showNotification("Loading File...", "info");
@@ -859,24 +867,16 @@ document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
   }
 });
 
-// ==========================================
-// 🚀 NAYA: Map Search Centered & Floating Fullscreen Button
-// ==========================================
 function initWorldMap() {
   geoMap = L.map('map-container', { center: [20.0, 0.0], zoom: 3, zoomControl: false });
   L.control.zoom({ position: 'bottomleft' }).addTo(geoMap);
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '&copy; Esri', crossOrigin: true }).addTo(geoMap);
   labelsLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { pane: 'markerPane', crossOrigin: true }).addTo(geoMap);
   
-  // Geocoder in center
   const geocoder = L.Control.geocoder({ defaultMarkGeocode: true }).addTo(geoMap);
   const gcContainer = geocoder.getContainer();
-  gcContainer.style.position = "absolute";
-  gcContainer.style.left = "50%";
-  gcContainer.style.transform = "translateX(-50%)";
-  gcContainer.style.top = "15px";
-  gcContainer.style.zIndex = "10000";
-  document.getElementById('map-container').appendChild(gcContainer);
+  gcContainer.style.position = "static"; 
+  document.getElementById('map-controls-container').appendChild(gcContainer);
 }
 initWorldMap();
 document.getElementById("toggleLabelsBtn")?.addEventListener("click", function() {
@@ -884,6 +884,7 @@ document.getElementById("toggleLabelsBtn")?.addEventListener("click", function()
   if (labelsVisible) { geoMap.addLayer(labelsLayer); this.style.background = "var(--primary)"; } 
   else { geoMap.removeLayer(labelsLayer); this.style.background = "var(--danger)"; }
 });
+
 
 // ---------- VIDEO UI HELPERS ----------
 function createLocalCard(name) {
