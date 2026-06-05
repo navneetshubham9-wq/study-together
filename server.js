@@ -8,7 +8,7 @@ const fs = require("fs");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { maxHttpBufferSize: 2e7 }); // 20MB limit
+const io = new Server(server, { maxHttpBufferSize: 2e7 }); 
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, "uploads");
 const PORT = process.env.PORT || 3000;
@@ -40,9 +40,6 @@ const roomMapState = new Map();
 const roomPresState = new Map(); 
 const roomChartData = new Map(); 
 
-// ==========================================
-// 🚀 NAYA: DIRECT IMAGE STREAM PROXY (100% CORS BYPASS)
-// ==========================================
 app.get("/proxy-image", (req, res) => {
   const imgUrl = req.query.url;
   if (!imgUrl) return res.status(400).send("URL required");
@@ -50,13 +47,11 @@ app.get("/proxy-image", (req, res) => {
   const fetchImage = (targetUrl) => {
     const client = targetUrl.startsWith("https") ? https : http;
     client.get(targetUrl, { headers: { "User-Agent": "Mozilla/5.0" } }, (response) => {
-      // Follow Redirects
       if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
         let redirectUrl = response.headers.location;
         if (!redirectUrl.startsWith("http")) redirectUrl = new URL(redirectUrl, targetUrl).href;
         fetchImage(redirectUrl);
       } else {
-        // Direct stream setup
         res.setHeader("Access-Control-Allow-Origin", "*");
         res.setHeader("Content-Type", response.headers["content-type"] || "image/png");
         response.pipe(res);
@@ -68,7 +63,6 @@ app.get("/proxy-image", (req, res) => {
 
   fetchImage(imgUrl);
 });
-// ==========================================
 
 app.post("/upload", upload.single("file"), (req, res) => {
   const room = req.body.room || "";
@@ -77,9 +71,12 @@ app.post("/upload", upload.single("file"), (req, res) => {
   const uploader = req.body.uploader || "Host";
   
   if (room) {
-    if (!roomFiles.has(room)) roomFiles.set(room, []);
-    roomFiles.get(room).push({ filename, url, uploader });
-    io.to(room).emit("file-uploaded", { filename, url, uploader });
+    // 🚀 FIX: Agar Host-Music ne upload kiya hai toh use Shared Files me mat dalo!
+    if (uploader !== "Host-Music") {
+        if (!roomFiles.has(room)) roomFiles.set(room, []);
+        roomFiles.get(room).push({ filename, url, uploader });
+        io.to(room).emit("file-uploaded", { filename, url, uploader });
+    }
   }
   res.json({ filename, url });
 });

@@ -12,6 +12,7 @@ let isSharing = false;
 const remoteUsers = {}; 
 let currentMusicUrl = null;
 
+// DOM Elements
 const joinBtn = document.getElementById("joinBtn");
 const joinSection = document.getElementById("join-section"); 
 const workspace = document.getElementById("workspace"); 
@@ -34,24 +35,31 @@ const openMathBtn = document.getElementById("openMathBtn");
 const toggleCalcBtn = document.getElementById("toggleCalcBtn"); 
 
 // ==========================================
-// 🚀 NAYA: Simple Scroll logic for Hamburger Menu
+// 🚀 NAYA: Solid Hamburger Scroll Logic
 // ==========================================
 const controlRowInner = document.getElementById("controlRowInner");
 const hamburgerBtn = document.getElementById("hamburgerBtn");
 
 window.addEventListener("scroll", () => {
     if(!joined) return;
-    if (window.scrollY > 100) {
+    const scrollY = window.scrollY || document.documentElement.scrollTop;
+    if (scrollY > 80) {
         hamburgerBtn.style.display = "block";
-        controlRowInner.classList.add("vertical-controls-mode", "hide-vertical");
+        controlRowInner.classList.add("vertical-controls-mode");
+        if (controlRowInner.dataset.manualToggle !== "true") {
+            controlRowInner.classList.add("hide-vertical");
+        }
     } else {
         hamburgerBtn.style.display = "none";
-        controlRowInner.classList.remove("vertical-controls-mode", "hide-vertical");
+        controlRowInner.classList.remove("vertical-controls-mode");
+        controlRowInner.classList.remove("hide-vertical");
+        controlRowInner.dataset.manualToggle = "false";
     }
 });
 
 hamburgerBtn.addEventListener("click", () => {
     controlRowInner.classList.toggle("hide-vertical");
+    controlRowInner.dataset.manualToggle = controlRowInner.classList.contains("hide-vertical") ? "false" : "true";
 });
 // ==========================================
 
@@ -476,11 +484,10 @@ const subjectCategory = document.getElementById("subjectCategory");
 const subjectAssetsList = document.getElementById("subjectAssetsList");
 
 // ==========================================
-// 🚀 THE ULTIMATE ASSET FETCHER (Using our internal server proxy!)
+// 🚀 THE ULTIMATE ASSET FETCHER (Bypasses all CORS issues!)
 // ==========================================
 function prepareStamp(src) {
     const img = new Image();
-    img.crossOrigin = "Anonymous"; // Allow canvas interaction
     img.onload = () => {
         stampImage = img;
         stampScale = Math.min((canvas.width * 0.6) / img.width, (canvas.height * 0.6) / img.height);
@@ -489,19 +496,34 @@ function prepareStamp(src) {
         currentTool = 'stamp';
         document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active-tool'));
         
-        showNotification("🖱️ Ready! Click on board to paste.", "join");
+        showNotification("🖱️ Ready! Scroll to resize, Click to stamp.", "info");
         canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); 
     };
     img.onerror = () => showNotification("Image error. Try again.", "danger");
     img.src = src; 
 }
 
-function loadAssetToCanvas(url, name) {
-    showNotification(`Downloading ${name} safely...`, "info");
-    // Connect direct to our own backend proxy API
-    const safeProxyUrl = `/proxy-image?url=${encodeURIComponent(url)}`;
-    prepareStamp(safeProxyUrl);
-    wbSubjectsMenu.style.display = "none";
+async function loadAssetToCanvas(url, name) {
+    try {
+        showNotification(`Downloading ${name} safely...`, "info");
+        
+        // 🚀 NAYA: Ab browser ki jagah tumhara server (backend) image download karega
+        // aur direct bina kisi security problem ke image dega
+        const response = await fetch(`/proxy-image?url=${encodeURIComponent(url)}`);
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                prepareStamp(reader.result); // Base64 me convert karke load karenge
+            };
+            reader.readAsDataURL(blob);
+        } else {
+            throw new Error("Server blocked request");
+        }
+    } catch(e) {
+        showNotification(`Failed to load ${name}.`, "danger");
+    }
 }
 // ==========================================
 
@@ -511,7 +533,10 @@ function loadSubjectAssets(cat) {
         const btn = document.createElement("button");
         btn.textContent = "➕ Insert " + asset.name;
         btn.style.cssText = "background: rgba(255,255,255,0.1); color: white; border: 1px solid var(--accent); padding: 8px; border-radius: 6px; cursor: pointer; text-align: left; font-size: 13px;";
-        btn.onclick = () => { loadAssetToCanvas(asset.url, asset.name); };
+        btn.onclick = () => {
+            loadAssetToCanvas(asset.url, asset.name);
+            wbSubjectsMenu.style.display = "none";
+        };
         subjectAssetsList.appendChild(btn);
     });
 }
@@ -689,14 +714,15 @@ canvas.addEventListener('mousedown', (e) => {
       // 🚀 NAYA: 1MB Socket Crash Fix (Compressed Syncing)
       // ==========================================
       let tempCanvas = document.createElement("canvas");
-      let syncScale = Math.min(1, 1000 / Math.max(w, h)); // Restrict max size
+      // Scale down large images drastically for syncing to avoid socket limit
+      let syncScale = Math.min(1, 800 / Math.max(w, h)); 
       tempCanvas.width = w * syncScale; 
       tempCanvas.height = h * syncScale;
       let tCtx = tempCanvas.getContext("2d");
       tCtx.fillStyle = "#ffffff"; tCtx.fillRect(0,0, tempCanvas.width, tempCanvas.height);
       tCtx.drawImage(stampImage, 0, 0, tempCanvas.width, tempCanvas.height);
       
-      let sendSrc = tempCanvas.toDataURL("image/jpeg", 0.5); // COMPRESS TO PREVENT SOCKET DROP
+      let sendSrc = tempCanvas.toDataURL("image/jpeg", 0.4); // COMPRESS
       socket.emit("wb-stamp", { room: currentRoom, image: sendSrc, x: pt.x - w/2, y: pt.y - h/2, w: w, h: h });
       // ==========================================
 
@@ -777,6 +803,7 @@ socket.on("wb-pointer", (data) => {
     clearTimeout(wbLaserTimeout); wbLaserTimeout = setTimeout(() => { wbLaser.style.display = "none"; }, 2000);
 });
 
+// PDF Rendering
 document.getElementById('tool-pdf').addEventListener("click", () => document.getElementById('wbPdfUpload').click());
 document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
   const file = e.target.files[0]; if(!file) return; showNotification("Loading File...", "info");
@@ -811,6 +838,7 @@ document.getElementById("toggleLabelsBtn")?.addEventListener("click", function()
   if (labelsVisible) { geoMap.addLayer(labelsLayer); this.style.background = "var(--primary)"; } 
   else { geoMap.removeLayer(labelsLayer); this.style.background = "var(--danger)"; }
 });
+
 
 // ---------- VIDEO UI HELPERS ----------
 function createLocalCard(name) {
@@ -955,13 +983,26 @@ shareBtn.addEventListener("click", async () => {
   } catch(e) { if (localTracks.videoTrack) { await client.publish(localTracks.videoTrack); localTracks.videoTrack.play(document.getElementById("local-player")); } }
 });
 
+// NAYA FIX: Music Playback with Relative URL
 socket.on("control", async (data) => {
   if (!joined || !data) return;
   if (data.action === "share-start") { const w = document.getElementById(`remote-wrapper-${data.uid}`); if (w) w.classList.add("video-wrapper-large"); }
   if (data.action === "share-stop") { const w = document.getElementById(`remote-wrapper-${data.uid}`); if (w) w.classList.remove("video-wrapper-large"); }
-  if (data.action === "music-play" && !isHost) { localMusicMuteBtn.style.display = "inline-block"; remoteMusicPlayer.src = window.location.origin + data.url; remoteMusicPlayer.currentTime = data.time || 0; remoteMusicPlayer.play().catch(() => { showNotification("🎵 Click screen to allow music!", "danger"); document.body.addEventListener('click', () => remoteMusicPlayer.play().catch(e=>e), { once: true }); }); }
+  
+  if (data.action === "music-play" && !isHost) { 
+      localMusicMuteBtn.style.display = "inline-block"; 
+      remoteMusicPlayer.src = data.url; // Use simple relative URL
+      remoteMusicPlayer.currentTime = data.time || 0; 
+      try {
+          await remoteMusicPlayer.play();
+      } catch(e) {
+          showNotification("🎵 Click screen to allow music!", "danger"); 
+          document.body.addEventListener('click', () => remoteMusicPlayer.play().catch(console.error), { once: true });
+      }
+  }
   if (data.action === "music-pause" && !isHost) remoteMusicPlayer.pause();
   if (data.action === "music-seek" && !isHost) remoteMusicPlayer.currentTime = data.time || 0;
+  
   if (data.action === "mute-all" && localTracks.audioTrack) { await localTracks.audioTrack.setEnabled(false); muteBtn.textContent = "🔇 Mic"; muteBtn.style.background = "rgba(231, 76, 60, 0.7)"; }
   if (data.action === "unmute-all" && localTracks.audioTrack) { await localTracks.audioTrack.setEnabled(true); muteBtn.textContent = "🎙️ Mic"; muteBtn.style.background = ""; }
   if (data.targetUid === localUid) {
