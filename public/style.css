@@ -1,25 +1,32 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
 
 :root { --primary: #3498db; --accent: #00d2d3; --accent-dark: #01a3a4; --danger: #ff6b6b; --glass-bg: rgba(20, 30, 48, 0.65); --glass-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); --3d-border: 1px solid rgba(255, 255, 255, 0.15); --text-main: #f1f2f6; --text-muted: #bdc3c7; }
-body { margin: 0; font-family: 'Poppins', sans-serif; color: var(--text-main); background: linear-gradient(135deg, #4158D0 0%, #C850C0 46%, #FFCC70 100%); background-attachment: fixed; background-size: cover; background-position: center; line-height: 1.6; overflow-x: hidden; perspective: 1500px; }
+
+/* FIX: Removed 'perspective' to allow 'position: fixed' to work perfectly */
+body { margin: 0; font-family: 'Poppins', sans-serif; color: var(--text-main); background: linear-gradient(135deg, #4158D0 0%, #C850C0 46%, #FFCC70 100%); background-attachment: fixed; background-size: cover; background-position: center; line-height: 1.6; overflow-x: hidden; }
+
 header { background: var(--glass-bg); -webkit-backdrop-filter: blur(15px); backdrop-filter: blur(15px); padding: 25px 20px; text-align: center; border-bottom: 2px solid rgba(255, 255, 255, 0.1); box-shadow: 0 10px 30px rgba(0,0,0,0.3); margin-bottom: 20px; }
 header h1 { margin: 0; font-family: 'Poppins', sans-serif; font-size: 3.5rem; font-weight: 800; letter-spacing: 3px; background: linear-gradient(to right, #00d2d3, #3498db); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3)); display: inline-block; vertical-align: middle; }
 header h2 { margin: 5px 0 0; font-size: 1rem; font-weight: 400; color: var(--text-muted); }
 main { max-width: 1450px; margin: 0 auto; padding: 0 20px 40px; }
 .card { background: var(--glass-bg); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border-radius: 20px; padding: 25px; border: var(--3d-border); border-top: 1px solid rgba(255,255,255,0.3); border-left: 1px solid rgba(255,255,255,0.3); box-shadow: var(--glass-shadow), inset 0 2px 5px rgba(255,255,255,0.05); transition: transform 0.4s ease, box-shadow 0.4s ease; transform-style: preserve-3d; }
-.card:hover { transform: translateY(-5px) translateZ(10px); box-shadow: 0 30px 60px rgba(0,0,0,0.6), inset 0 2px 5px rgba(255,255,255,0.1); }
+.card:hover { transform: translateY(-5px); box-shadow: 0 30px 60px rgba(0,0,0,0.6), inset 0 2px 5px rgba(255,255,255,0.1); }
 #join-section { max-width: 480px; margin: 100px auto; text-align: center; display: flex; flex-direction: column; gap: 18px; transition: opacity 0.5s ease, transform 0.5s ease; }
 #join-section input { padding: 16px; border-radius: 12px; border: var(--3d-border); background: rgba(0, 0, 0, 0.3); color: #fff; font-size: 16px; box-shadow: inset 0 3px 6px rgba(0,0,0,0.4); }
 #join-section button { padding: 16px; background: linear-gradient(135deg, var(--accent), var(--accent-dark)); color: #fff; border: none; border-radius: 12px; font-size: 18px; font-weight: 600; cursor: pointer; box-shadow: 0 5px 15px rgba(0, 210, 211, 0.4); transition: all 0.3s; }
 #join-section button:hover { transform: scale(1.05); box-shadow: 0 8px 25px rgba(0, 210, 211, 0.6); }
-.form-out { opacity: 0 !important; transform: rotateY(-30deg) translateZ(-100px) scale(0.8) !important; pointer-events: none; }
+.form-out { opacity: 0 !important; transform: scale(0.8) !important; pointer-events: none; }
 #workspace { width: 100%; display: none; grid-template-columns: 2.5fr 1fr; grid-template-rows: auto auto auto; gap: 25px; margin-top: 15px; }
 #workspace.workspace-active { display: grid; }
 
 /* 🚀 NAYA: STRICT HAMBURGER MENU CSS */
-.hamburger-btn { display: none !important; position: fixed !important; top: 20px !important; left: 20px !important; z-index: 999999 !important; background: var(--danger) !important; color: white !important; border: 2px solid white !important; border-radius: 8px !important; padding: 10px 15px !important; font-size: 18px !important; font-weight: bold !important; cursor: pointer !important; box-shadow: 0 5px 15px rgba(0,0,0,0.5) !important; }
+.hamburger-btn { display: none !important; position: fixed !important; top: 20px !important; left: 20px !important; z-index: 999999 !important; background: var(--danger) !important; color: white !important; border: 2px solid white !important; border-radius: 8px !important; padding: 10px 15px !important; font-size: 18px !important; font-weight: bold !important; cursor: pointer !important; box-shadow: 0 5px 15px rgba(0,0,0,0.5) !important; transition: background 0.3s ease; }
+.hamburger-btn:hover { background: #c0392b !important; }
 .vertical-controls-mode { position: fixed !important; top: 75px !important; left: 20px !important; flex-direction: column !important; background: rgba(20,30,48,0.98) !important; padding: 15px !important; border-radius: 12px !important; border: 2px solid var(--primary) !important; z-index: 99999 !important; box-shadow: 0 10px 30px rgba(0,0,0,0.8) !important; max-height: 80vh !important; overflow-y: auto !important; display: flex !important; align-items: flex-start !important; }
 .hide-vertical { display: none !important; }
+
+/* Music Popup Pulse Animation */
+@keyframes pulseMusic { 0% { transform: translateX(-50%) scale(1); box-shadow: 0 0 10px #2ecc71; } 50% { transform: translateX(-50%) scale(1.05); box-shadow: 0 0 25px #2ecc71; } 100% { transform: translateX(-50%) scale(1); box-shadow: 0 0 10px #2ecc71; } }
 
 #controls { grid-column: 1 / span 2; grid-row: 1; transition: all 0.3s ease; }
 #video-area { grid-column: 1; grid-row: 2 / span 2; }
@@ -49,14 +56,12 @@ main { max-width: 1450px; margin: 0 auto; padding: 0 20px 40px; }
 .file-upload-footer { display: flex; gap: 10px; }
 .file-upload-footer button { padding: 12px 15px; border: none; border-radius: 8px; color: white; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; }
 .file-upload-footer button:hover { filter: brightness(1.2); }
-.entry-animation { opacity: 0; transform: rotateX(20deg) translateY(60px) translateZ(-50px) scale(0.95); animation: complexFlyIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
-@keyframes complexFlyIn { to { opacity: 1; transform: rotateX(0deg) translateY(0) translateZ(0) scale(1); } }
+.entry-animation { opacity: 0; transform: translateY(60px) scale(0.95); animation: complexFlyIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+@keyframes complexFlyIn { to { opacity: 1; transform: translateY(0) scale(1); } }
 .delay-controls { animation-delay: 0.1s; }
 .delay-video    { animation-delay: 0.2s; }
 .delay-chat     { animation-delay: 0.3s; }
 .delay-files    { animation-delay: 0.4s; }
-.fly-out-3d { animation: flyOut3D 0.6s cubic-bezier(0.55, 0.085, 0.68, 0.53) forwards !important; pointer-events: none; }
-@keyframes flyOut3D { 0% { opacity: 1; transform: scale(1) translateZ(0) rotateX(0); } 100% { opacity: 0; transform: scale(0.5) translateZ(-300px) rotateX(45deg) translateY(-100px); filter: blur(8px); } }
 .control-row { display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
 .control-row button, .small-btn { padding: 12px 22px; border: none; border-radius: 30px; background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05)); color: var(--text-main); font-weight: 600; font-size: 14px; cursor: pointer; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: all 0.3s ease; }
 .control-row button:hover, .small-btn:hover { background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1)); transform: translateY(-3px) scale(1.02); box-shadow: 0 8px 20px rgba(0,0,0,0.4); }
@@ -71,13 +76,11 @@ footer { text-align: center; padding: 30px 20px; color: var(--text-main); font-s
 .toast-exit { animation: toastExit 0.4s ease forwards !important; }
 @keyframes toastExit { 100% { opacity: 0; transform: translateX(100px) scale(0.8); } }
 :fullscreen .video-card, :fullscreen #whiteboard-container, :fullscreen #map-container, :fullscreen #presentation-container { width: 100vw !important; height: 100vh !important; border-radius: 0; border: none; }
-
 .excel-table { width: 100%; border-collapse: collapse; font-family: 'Segoe UI', sans-serif; color: #333; margin-top: 10px; }
 .excel-table th { background: #27ae60; color: white; padding: 12px; border: 1px solid #ddd; text-align: center; position: sticky; top: 0; }
 .excel-table td { background: #fdfdfd; padding: 12px; border: 1px solid #ddd; text-align: center; }
 .excel-table tr:nth-child(even) td { background: #f2f2f2; }
 .excel-table tr:hover td { background: #e8f5e9; }
-
 .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .calc-btn { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); padding: 15px 0; font-size: 18px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
 .calc-btn:hover { background: rgba(255,255,255,0.2); }
