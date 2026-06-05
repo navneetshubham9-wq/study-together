@@ -16,9 +16,9 @@ main { max-width: 1450px; margin: 0 auto; padding: 0 20px 40px; }
 #workspace { width: 100%; display: none; grid-template-columns: 2.5fr 1fr; grid-template-rows: auto auto auto; gap: 25px; margin-top: 15px; }
 #workspace.workspace-active { display: grid; }
 
-/* 🚀 NAYA: HAMBURGER & VERTICAL MENU CSS */
-.hamburger-btn { display: none; position: fixed; top: 15px; left: 15px; z-index: 100000; background: var(--danger); color: white; border: 2px solid white; border-radius: 8px; padding: 10px 15px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
-.vertical-controls-mode { position: fixed !important; top: 70px !important; left: 15px !important; flex-direction: column !important; background: rgba(20,30,48,0.95); padding: 15px; border-radius: 12px; border: 1px solid var(--primary); z-index: 99999; box-shadow: 0 10px 30px rgba(0,0,0,0.6); max-height: 85vh; overflow-y: auto; display: flex !important; align-items: flex-start;}
+/* 🚀 NAYA: STRICT HAMBURGER MENU CSS */
+.hamburger-btn { display: none !important; position: fixed !important; top: 20px !important; left: 20px !important; z-index: 999999 !important; background: var(--danger) !important; color: white !important; border: 2px solid white !important; border-radius: 8px !important; padding: 10px 15px !important; font-size: 18px !important; font-weight: bold !important; cursor: pointer !important; box-shadow: 0 5px 15px rgba(0,0,0,0.5) !important; }
+.vertical-controls-mode { position: fixed !important; top: 75px !important; left: 20px !important; flex-direction: column !important; background: rgba(20,30,48,0.98) !important; padding: 15px !important; border-radius: 12px !important; border: 2px solid var(--primary) !important; z-index: 99999 !important; box-shadow: 0 10px 30px rgba(0,0,0,0.8) !important; max-height: 80vh !important; overflow-y: auto !important; display: flex !important; align-items: flex-start !important; }
 .hide-vertical { display: none !important; }
 
 #controls { grid-column: 1 / span 2; grid-row: 1; transition: all 0.3s ease; }

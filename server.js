@@ -29,7 +29,6 @@ const upload = multer({ storage });
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(UPLOAD_DIR));
 
-// Memory State
 const uidToSocket = new Map();
 const roomHosts = new Map();
 const socketUsers = new Map();
@@ -40,29 +39,49 @@ const roomMapState = new Map();
 const roomPresState = new Map(); 
 const roomChartData = new Map(); 
 
+// ==========================================
+// 🚀 SUPER PROXY: Browser Spoofing
+// ==========================================
 app.get("/proxy-image", (req, res) => {
   const imgUrl = req.query.url;
-  if (!imgUrl) return res.status(400).send("URL required");
+  if (!imgUrl) return res.status(400).json({error: "URL required"});
 
   const fetchImage = (targetUrl) => {
     const client = targetUrl.startsWith("https") ? https : http;
-    client.get(targetUrl, { headers: { "User-Agent": "Mozilla/5.0" } }, (response) => {
+    const options = {
+        headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "image/*",
+            "Connection": "keep-alive"
+        }
+    };
+
+    client.get(targetUrl, options, (response) => {
       if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
         let redirectUrl = response.headers.location;
         if (!redirectUrl.startsWith("http")) redirectUrl = new URL(redirectUrl, targetUrl).href;
         fetchImage(redirectUrl);
+      } 
+      else if (response.statusCode === 200) {
+        const chunks = [];
+        response.on("data", chunk => chunks.push(chunk));
+        response.on("end", () => {
+          const buffer = Buffer.concat(chunks);
+          const contentType = response.headers["content-type"] || "image/png";
+          const base64 = `data:${contentType};base64,${buffer.toString("base64")}`;
+          res.json({ base64: base64 }); 
+        });
       } else {
-        res.setHeader("Access-Control-Allow-Origin", "*");
-        res.setHeader("Content-Type", response.headers["content-type"] || "image/png");
-        response.pipe(res);
+        res.status(500).json({error: `Failed with status ${response.statusCode}`});
       }
     }).on("error", (err) => {
-      res.status(500).send("Error fetching image");
+      res.status(500).json({error: err.message});
     });
   };
 
   fetchImage(imgUrl);
 });
+// ==========================================
 
 app.post("/upload", upload.single("file"), (req, res) => {
   const room = req.body.room || "";
@@ -71,7 +90,6 @@ app.post("/upload", upload.single("file"), (req, res) => {
   const uploader = req.body.uploader || "Host";
   
   if (room) {
-    // 🚀 FIX: Agar Host-Music ne upload kiya hai toh use Shared Files me mat dalo!
     if (uploader !== "Host-Music") {
         if (!roomFiles.has(room)) roomFiles.set(room, []);
         roomFiles.get(room).push({ filename, url, uploader });
@@ -82,7 +100,6 @@ app.post("/upload", upload.single("file"), (req, res) => {
 });
 
 io.on("connection", socket => {
-  
   socket.on("join-room", info => {
     const { room, uid, name } = info;
     socket.join(room);
