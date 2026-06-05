@@ -34,9 +34,7 @@ const togglePresBtn = document.getElementById("togglePresBtn");
 const openMathBtn = document.getElementById("openMathBtn"); 
 const toggleCalcBtn = document.getElementById("toggleCalcBtn"); 
 
-// ==========================================
-// 🚀 NAYA: 100% BULLETPROOF SCROLL & MENU LOGIC
-// ==========================================
+// Hamburger Menu Logic
 const controlRowInner = document.getElementById("controlRowInner");
 const hamburgerBtn = document.getElementById("hamburgerBtn");
 const sideMenuContainer = document.getElementById("side-menu-container");
@@ -45,46 +43,44 @@ const controlsSection = document.getElementById("controls");
 window.addEventListener("scroll", () => {
     if(!joined) return;
     const scrollY = window.scrollY || document.documentElement.scrollTop;
-    
-    if (scrollY > 60) {
-        // Javascript CSS Override to destroy any hidden rules
-        hamburgerBtn.style.cssText = "display: block !important; position: fixed; top: 20px; left: 20px; z-index: 2147483647; background: var(--danger); color: white; border: 2px solid white; border-radius: 8px; padding: 10px 15px; font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.5);";
-        
+    if (scrollY > 80) {
+        hamburgerBtn.style.setProperty("display", "block", "important");
         if (controlRowInner.parentElement === controlsSection) {
             sideMenuContainer.appendChild(controlRowInner);
             controlRowInner.style.display = "flex";
             controlRowInner.style.flexDirection = "column";
-            sideMenuContainer.style.setProperty("display", "none", "important");
+            if (sideMenuContainer.dataset.manualToggle !== "true") sideMenuContainer.style.setProperty("display", "none", "important");
         }
     } else {
         hamburgerBtn.style.setProperty("display", "none", "important");
-        
         if (controlRowInner.parentElement === sideMenuContainer) {
             controlsSection.insertBefore(controlRowInner, controlsSection.firstChild);
             controlRowInner.style.flexDirection = "row";
             sideMenuContainer.style.setProperty("display", "none", "important");
+            sideMenuContainer.dataset.manualToggle = "false";
         }
     }
 });
 
 hamburgerBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    if (sideMenuContainer.style.display === "none" || sideMenuContainer.style.display === "") {
+    if (sideMenuContainer.style.display === "none") {
         sideMenuContainer.style.setProperty("display", "flex", "important");
+        sideMenuContainer.dataset.manualToggle = "true";
     } else {
         sideMenuContainer.style.setProperty("display", "none", "important");
+        sideMenuContainer.dataset.manualToggle = "false";
     }
 });
 
-// Click Outside Auto Close
 document.addEventListener("click", (e) => {
-    if (hamburgerBtn.style.display.includes("block") && sideMenuContainer.style.display.includes("flex")) {
+    if (hamburgerBtn.style.display === "block" && sideMenuContainer.style.display === "flex") {
         if (!sideMenuContainer.contains(e.target) && e.target !== hamburgerBtn) {
             sideMenuContainer.style.setProperty("display", "none", "important");
+            sideMenuContainer.dataset.manualToggle = "false";
         }
     }
 });
-// ==========================================
 
 const sendMsgBtn = document.getElementById("sendMsg");
 const chatInput = document.getElementById("chatInput");
@@ -93,54 +89,30 @@ const uploadBtn = document.getElementById("uploadBtn");
 const fileUpload = document.getElementById("fileUpload");
 const fileList = document.getElementById("fileList");
 
-// Draggable Personal Calculator
+// Calculator
 const calcModal = document.getElementById("calc-modal");
 const calcDisplay = document.getElementById("calc-display");
 const calcHeader = document.getElementById("calc-header");
 
-toggleCalcBtn.addEventListener("click", () => {
-    calcModal.style.display = calcModal.style.display === "none" || calcModal.style.display === "" ? "block" : "none";
-});
+toggleCalcBtn.addEventListener("click", () => { calcModal.style.display = calcModal.style.display === "none" || calcModal.style.display === "" ? "block" : "none"; });
 window.calcAppend = (val) => { calcDisplay.value += val; };
 window.calcClear = () => { calcDisplay.value = ""; };
-window.calcCalculate = () => { 
-    try { calcDisplay.value = eval(calcDisplay.value); } 
-    catch(e) { calcDisplay.value = "Error"; setTimeout(calcClear, 1000); } 
-};
+window.calcCalculate = () => { try { calcDisplay.value = eval(calcDisplay.value); } catch(e) { calcDisplay.value = "Error"; setTimeout(calcClear, 1000); } };
 
-// Keyboard Numpad Listeners
 document.addEventListener("keydown", (e) => {
     if (calcModal.style.display === "block") {
         const key = e.key;
-        if (/^[0-9\.\+\-\*\/]$/.test(key)) {
-            calcAppend(key);
-        } else if (key === "Enter" || key === "=") {
-            e.preventDefault();
-            calcCalculate();
-        } else if (key === "Escape" || key === "Clear" || key === "Delete") {
-            calcClear();
-        } else if (key === "Backspace") {
-            calcDisplay.value = calcDisplay.value.slice(0, -1);
-        }
+        if (/^[0-9\.\+\-\*\/]$/.test(key)) calcAppend(key);
+        else if (key === "Enter" || key === "=") { e.preventDefault(); calcCalculate(); } 
+        else if (key === "Escape" || key === "Clear" || key === "Delete") calcClear();
+        else if (key === "Backspace") calcDisplay.value = calcDisplay.value.slice(0, -1);
     }
 });
 
 let isCalcDragging = false;
 let calcStartX, calcStartY, calcInitialX, calcInitialY;
-calcHeader.addEventListener("mousedown", (e) => {
-    isCalcDragging = true;
-    calcStartX = e.clientX; calcStartY = e.clientY;
-    const rect = calcModal.getBoundingClientRect();
-    calcInitialX = rect.left; calcInitialY = rect.top;
-    calcModal.style.right = "auto"; 
-    calcModal.style.left = calcInitialX + "px";
-    calcModal.style.top = calcInitialY + "px";
-});
-document.addEventListener("mousemove", (e) => {
-    if(!isCalcDragging) return;
-    calcModal.style.left = (calcInitialX + e.clientX - calcStartX) + "px";
-    calcModal.style.top = (calcInitialY + e.clientY - calcStartY) + "px";
-});
+calcHeader.addEventListener("mousedown", (e) => { isCalcDragging = true; calcStartX = e.clientX; calcStartY = e.clientY; const rect = calcModal.getBoundingClientRect(); calcInitialX = rect.left; calcInitialY = rect.top; calcModal.style.right = "auto"; calcModal.style.left = calcInitialX + "px"; calcModal.style.top = calcInitialY + "px"; });
+document.addEventListener("mousemove", (e) => { if(!isCalcDragging) return; calcModal.style.left = (calcInitialX + e.clientX - calcStartX) + "px"; calcModal.style.top = (calcInitialY + e.clientY - calcStartY) + "px"; });
 document.addEventListener("mouseup", () => isCalcDragging = false);
 
 // Math Modal
@@ -153,7 +125,7 @@ const mathDisplay = document.getElementById("mathDisplay");
 const mathCategory = document.getElementById("mathCategory");
 const formulaLibrary = document.getElementById("formulaLibrary");
 
-// Presentation & Graph
+// Presentation
 const presentationBox = document.getElementById("presentation-box");
 const presInputForm = document.getElementById("pres-input-form");
 const generateGraphBtn = document.getElementById("generateGraphBtn");
@@ -202,7 +174,6 @@ let stampImage = null;
 let stampScale = 1.0;
 let isStamping = false;
 
-// Multiple Whiteboards
 let wbPages = []; 
 let currentWbPage = 0;
 const wbPrevPageBtn = document.getElementById("wbPrevPage");
@@ -275,31 +246,17 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
   const controlsDiv = document.createElement("div");
   controlsDiv.className = "local-controls";
   if(targetWrapper !== mapBox) {
-      const enlargeBtn = document.createElement("button");
-      enlargeBtn.className = "icon-btn"; enlargeBtn.innerHTML = "➕";
-      enlargeBtn.onclick = () => {
-        targetWrapper.classList.remove("video-wrapper-small");
-        targetWrapper.classList.toggle("video-wrapper-large");
-      };
-      const shrinkBtn = document.createElement("button");
-      shrinkBtn.className = "icon-btn"; shrinkBtn.innerHTML = "➖";
-      shrinkBtn.onclick = () => {
-        targetWrapper.classList.remove("video-wrapper-large");
-        targetWrapper.classList.toggle("video-wrapper-small");
-      };
+      const enlargeBtn = document.createElement("button"); enlargeBtn.className = "icon-btn"; enlargeBtn.innerHTML = "➕";
+      enlargeBtn.onclick = () => { targetWrapper.classList.remove("video-wrapper-small"); targetWrapper.classList.toggle("video-wrapper-large"); };
+      const shrinkBtn = document.createElement("button"); shrinkBtn.className = "icon-btn"; shrinkBtn.innerHTML = "➖";
+      shrinkBtn.onclick = () => { targetWrapper.classList.remove("video-wrapper-large"); targetWrapper.classList.toggle("video-wrapper-small"); };
       controlsDiv.appendChild(enlargeBtn); controlsDiv.appendChild(shrinkBtn);
   }
-  
   if(targetWrapper !== mapBox) {
-      const maxBtn = document.createElement("button");
-      maxBtn.className = "icon-btn"; maxBtn.innerHTML = "🖥️";
-      maxBtn.onclick = () => {
-        if (!document.fullscreenElement) { targetWrapper.requestFullscreen().catch(e => e); } 
-        else { document.exitFullscreen(); }
-      };
+      const maxBtn = document.createElement("button"); maxBtn.className = "icon-btn"; maxBtn.innerHTML = "🖥️";
+      maxBtn.onclick = () => { if (!document.fullscreenElement) { targetWrapper.requestFullscreen().catch(e => e); } else { document.exitFullscreen(); } };
       controlsDiv.appendChild(maxBtn);
   }
-  
   targetWrapper.appendChild(controlsDiv);
 }
 
@@ -322,20 +279,9 @@ function hideAllBigPanels() {
     togglePresBtn.dataset.show = "false"; togglePresBtn.style.background = "linear-gradient(135deg, #f1c40f, #f39c12)";
 }
 
-togglePresBtn.addEventListener("click", () => {
-  const isShowing = togglePresBtn.dataset.show === "true";
-  socket.emit("pres-toggle", { room: currentRoom, show: !isShowing });
-});
-
-toggleWbBtn.addEventListener("click", () => {
-  const isShowing = toggleWbBtn.dataset.show === "true";
-  socket.emit("wb-toggle", { room: currentRoom, show: !isShowing });
-});
-
-toggleMapBtn.addEventListener("click", () => {
-  const isShowing = toggleMapBtn.dataset.show === "true";
-  socket.emit("map-toggle", { room: currentRoom, show: !isShowing });
-});
+togglePresBtn.addEventListener("click", () => { const isShowing = togglePresBtn.dataset.show === "true"; socket.emit("pres-toggle", { room: currentRoom, show: !isShowing }); });
+toggleWbBtn.addEventListener("click", () => { const isShowing = toggleWbBtn.dataset.show === "true"; socket.emit("wb-toggle", { room: currentRoom, show: !isShowing }); });
+toggleMapBtn.addEventListener("click", () => { const isShowing = toggleMapBtn.dataset.show === "true"; socket.emit("map-toggle", { room: currentRoom, show: !isShowing }); });
 
 socket.on("pres-toggle", (data) => {
   if(data.show) { hideAllBigPanels(); presentationBox.style.display = "block"; if(isHost){togglePresBtn.dataset.show="true"; togglePresBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
@@ -494,22 +440,49 @@ toggleSubjectsBtn.addEventListener("click", () => {
     wbShapesMenu.style.display = "none";
 });
 
+// ==========================================
+// 🚀 EXPANDED SUBJECT ASSETS LIST
+// ==========================================
 const subjectAssets = {
     geography: [
         {name: "World Map", url: "assets/subjects/world_map.pdf"},
         {name: "India Political", url: "assets/subjects/india_political.pdf"},
-        {name: "India Physical", url: "assets/subjects/india_physical.pdf"}
+        {name: "India Physical", url: "assets/subjects/india_physical.pdf"},
+        {name: "Solar System", url: "assets/subjects/solar_system.pdf"},
+        {name: "Earth Layers", url: "assets/subjects/earth_layers.pdf"},
+        {name: "Water Cycle", url: "assets/subjects/water_cycle.pdf"}
     ],
     biology: [
         {name: "Human Skeleton", url: "assets/subjects/human_skeleton.pdf"},
         {name: "Respiratory System", url: "assets/subjects/respiratory_system.pdf"},
         {name: "Human Heart", url: "assets/subjects/human_heart.pdf"},
-        {name: "Plant Cell", url: "assets/subjects/plant_cell.pdf"}
+        {name: "Plant Cell", url: "assets/subjects/plant_cell.pdf"},
+        {name: "Human Brain", url: "assets/subjects/human_brain.pdf"},
+        {name: "Digestive System", url: "assets/subjects/digestive_system.pdf"},
+        {name: "DNA Structure", url: "assets/subjects/dna_structure.pdf"},
+        {name: "Human Eye", url: "assets/subjects/human_eye.pdf"}
     ],
-    chemistry: [ {name: "Periodic Table", url: "assets/subjects/periodic_table.pdf"} ],
-    physics: [ {name: "Electric Circuit", url: "assets/subjects/electric_circuit.pdf"} ],
-    maths: [ {name: "Graph Paper", url: "assets/subjects/graph_paper.pdf"} ],
-    commerce: [ {name: "Supply & Demand", url: "assets/subjects/supply_demand.pdf"} ]
+    chemistry: [ 
+        {name: "Periodic Table", url: "assets/subjects/periodic_table.pdf"},
+        {name: "Distillation Process", url: "assets/subjects/distillation.pdf"},
+        {name: "Atom Model", url: "assets/subjects/atom_model.pdf"}
+    ],
+    physics: [ 
+        {name: "Electric Circuit", url: "assets/subjects/electric_circuit.pdf"},
+        {name: "Magnetic Field", url: "assets/subjects/magnetic_field.pdf"},
+        {name: "Light Prism", url: "assets/subjects/light_prism.pdf"},
+        {name: "Pendulum", url: "assets/subjects/pendulum.pdf"}
+    ],
+    maths: [ 
+        {name: "Graph Paper", url: "assets/subjects/graph_paper.pdf"},
+        {name: "Protractor", url: "assets/subjects/protractor.pdf"},
+        {name: "Unit Circle", url: "assets/subjects/unit_circle.pdf"},
+        {name: "Geometry Shapes", url: "assets/subjects/geometry_shapes.pdf"}
+    ],
+    commerce: [ 
+        {name: "Supply & Demand", url: "assets/subjects/supply_demand.pdf"},
+        {name: "Business Cycle", url: "assets/subjects/business_cycle.pdf"}
+    ]
 };
 
 const subjectCategory = document.getElementById("subjectCategory");
@@ -517,9 +490,7 @@ const subjectAssetsList = document.getElementById("subjectAssetsList");
 
 function prepareStamp(src) {
     const img = new Image();
-    if (!src.startsWith("data:")) {
-        img.crossOrigin = "Anonymous"; 
-    }
+    if (!src.startsWith("data:")) { img.crossOrigin = "Anonymous"; }
     
     img.onload = () => {
         stampImage = img;
@@ -532,7 +503,7 @@ function prepareStamp(src) {
         showNotification("🖱️ Ready! Scroll to resize, Click to paste.", "info");
         canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); 
     };
-    img.onerror = () => showNotification("Image error. File missing or corrupt.", "danger");
+    img.onerror = () => showNotification("Image error. File missing in folder.", "danger");
     img.src = src; 
 }
 
@@ -558,12 +529,9 @@ async function loadAssetToCanvas(url, name) {
             await page.render({canvasContext: tCtx, viewport: viewport}).promise; 
             prepareStamp(tc.toDataURL("image/jpeg", 0.8));
             wbSubjectsMenu.style.display = "none";
-        } else {
-            showNotification(`Unsupported format for ${name}`, "danger");
         }
     } catch(e) {
-        console.error(e);
-        showNotification(`Failed to load ${name}. Make sure the PDF file exists in assets/subjects folder!`, "danger");
+        showNotification(`Failed to load ${name}. Make sure the file exists!`, "danger");
     }
 }
 
@@ -573,9 +541,7 @@ function loadSubjectAssets(cat) {
         const btn = document.createElement("button");
         btn.textContent = "➕ Insert " + asset.name;
         btn.style.cssText = "background: rgba(255,255,255,0.1); color: white; border: 1px solid var(--accent); padding: 8px; border-radius: 6px; cursor: pointer; text-align: left; font-size: 13px;";
-        btn.onclick = () => {
-            loadAssetToCanvas(asset.url, asset.name);
-        };
+        btn.onclick = () => { loadAssetToCanvas(asset.url, asset.name); };
         subjectAssetsList.appendChild(btn);
     });
 }
@@ -838,26 +804,87 @@ socket.on("wb-pointer", (data) => {
     clearTimeout(wbLaserTimeout); wbLaserTimeout = setTimeout(() => { wbLaser.style.display = "none"; }, 2000);
 });
 
+// ==========================================
+// 🚀 NAYA: MULTI-PAGE PDF TO MULTI-BOARD PAGES ENGINE
+// ==========================================
 document.getElementById('tool-pdf').addEventListener("click", () => document.getElementById('wbPdfUpload').click());
 document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
-  const file = e.target.files[0]; if(!file) return; showNotification("Loading File...", "info");
+  const file = e.target.files[0]; if(!file) return; 
   
   if (file.type.startsWith('image/')) {
+      showNotification("Loading Image...", "info");
       const reader = new FileReader();
       reader.onload = (event) => { prepareStamp(event.target.result); };
       reader.readAsDataURL(file);
-  } else if (file.type === 'application/pdf') {
+  } 
+  else if (file.type === 'application/pdf') {
       const fileReader = new FileReader();
       fileReader.onload = async function() {
-          const typedarray = new Uint8Array(this.result); const pdf = await pdfjsLib.getDocument(typedarray).promise; const page = await pdf.getPage(1); 
-          const viewport = page.getViewport({scale: 2.0}); 
-          const tc = document.createElement('canvas'); const tCtx = tc.getContext('2d'); tc.height = viewport.height; tc.width = viewport.width;
-          await page.render({canvasContext: tCtx, viewport: viewport}).promise; 
-          prepareStamp(tc.toDataURL("image/jpeg", 0.8));
+          const typedarray = new Uint8Array(this.result); 
+          const pdf = await pdfjsLib.getDocument(typedarray).promise; 
+          
+          if (pdf.numPages === 1) {
+              // 1 Page -> Stamp it
+              showNotification("Loading PDF...", "info");
+              const page = await pdf.getPage(1); 
+              const viewport = page.getViewport({scale: 2.0}); 
+              const tc = document.createElement('canvas'); const tCtx = tc.getContext('2d'); tc.height = viewport.height; tc.width = viewport.width;
+              await page.render({canvasContext: tCtx, viewport: viewport}).promise; 
+              prepareStamp(tc.toDataURL("image/jpeg", 0.8));
+          } else {
+              // Multi-page -> Make separate boards automatically!
+              showNotification(`Processing ${pdf.numPages} Pages into Slides...`, "info");
+              
+              saveCurrentPage(); // Save current work
+              
+              let startNewPageIndex = wbPages.length;
+              if (wbPages.length === 1 && (wbPages[0] === '' || !wbPages[0])) {
+                  startNewPageIndex = 0; // Override if it's a completely fresh blank board
+              }
+
+              for (let i = 1; i <= pdf.numPages; i++) {
+                  const page = await pdf.getPage(i);
+                  const viewport = page.getViewport({scale: 2.0}); 
+                  
+                  const tc = document.createElement('canvas');
+                  tc.width = canvas.width; // 1920
+                  tc.height = canvas.height; // 1080
+                  const tCtx = tc.getContext('2d');
+                  
+                  tCtx.fillStyle = "#ffffff"; 
+                  tCtx.fillRect(0, 0, tc.width, tc.height); // White background
+                  
+                  // Render PDF onto temp canvas
+                  const tempCanvas = document.createElement('canvas');
+                  tempCanvas.width = viewport.width; tempCanvas.height = viewport.height;
+                  await page.render({canvasContext: tempCanvas.getContext('2d'), viewport: viewport}).promise; 
+                  
+                  // Fit inside 1920x1080 properly
+                  const scaleToFit = Math.min(tc.width / viewport.width, tc.height / viewport.height) * 0.95;
+                  const fw = viewport.width * scaleToFit; 
+                  const fh = viewport.height * scaleToFit;
+                  const dx = (tc.width - fw) / 2; 
+                  const dy = (tc.height - fh) / 2;
+                  
+                  tCtx.drawImage(tempCanvas, dx, dy, fw, fh);
+                  const pageData = tc.toDataURL("image/jpeg", 0.7);
+                  
+                  if (startNewPageIndex === 0 && i === 1) {
+                      wbPages[0] = pageData;
+                  } else {
+                      wbPages.push(pageData);
+                  }
+              }
+              
+              loadPage(startNewPageIndex); // Jump to first page of the new PDF
+              showNotification(`✅ Uploaded ${pdf.numPages} Pages as separate boards!`, "join");
+              document.getElementById('wbPdfUpload').value = ""; // Reset input
+          }
       };
       fileReader.readAsArrayBuffer(file);
   }
 });
+// ==========================================
 
 function initWorldMap() {
   geoMap = L.map('map-container', { center: [20.0, 0.0], zoom: 3, zoomControl: false });
@@ -876,6 +903,7 @@ document.getElementById("toggleLabelsBtn")?.addEventListener("click", function()
   if (labelsVisible) { geoMap.addLayer(labelsLayer); this.style.background = "var(--primary)"; } 
   else { geoMap.removeLayer(labelsLayer); this.style.background = "var(--danger)"; }
 });
+
 
 function createLocalCard(name) {
   let el = document.getElementById("local-player"); if (el) return el;
