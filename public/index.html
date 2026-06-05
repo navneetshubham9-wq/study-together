@@ -4,7 +4,6 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>VYDEX Workspace</title>
-  
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
   <link rel="stylesheet" href="style.css" />
@@ -21,6 +20,8 @@
     <h2>Advanced Collaboration & Communication</h2>
   </header>
 
+  <button id="hamburgerBtn" class="hamburger-btn" title="Open Controls">☰ Menu</button>
+
   <main>
     <section id="join-section" class="card">
       <input id="username" placeholder="Enter Your Name" />
@@ -28,15 +29,12 @@
       <button id="joinBtn">🚀 Join Room</button>
     </section>
 
-    <button id="hamburgerBtn" class="hamburger-btn" title="Open Controls">☰ Menu</button>
-
     <div id="workspace" class="hidden">
       
       <audio id="remoteMusicPlayer" style="display: none;" crossorigin="anonymous"></audio>
 
       <div id="calc-modal" class="card" style="display: none; position: fixed; top: 15%; right: 5%; z-index: 9999; width: 250px; background: rgba(20,30,48,0.98); border: 2px solid #16a085; box-shadow: 0 20px 50px rgba(0,0,0,0.8); padding: 15px;">
         <h4 id="calc-header" style="margin: 0 0 10px 0; color: #1abc9c; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; cursor: move; user-select: none;">🧮 Calculator (Drag)</h4>
-        
         <input type="text" id="calc-display" disabled style="width: 100%; padding: 15px; font-size: 20px; text-align: right; background: #000; color: #fff; border: 1px solid #16a085; border-radius: 8px; margin-bottom: 10px; box-sizing: border-box;">
         <div class="calc-grid">
           <button class="calc-btn" onclick="calcAppend('7')">7</button>
@@ -84,6 +82,7 @@
           <button id="cameraBtn" title="Toggle Camera">📹 Camera</button>
           <button id="muteBtn" title="Toggle Microphone">🎙️ Mic</button>
           <button id="shareBtn" title="Share Screen">🖥️ Share Screen</button>
+          
           <button id="openMathBtn" title="Open Math Board" style="background: linear-gradient(135deg, #8e44ad, #9b59b6); color: white;">∑ Math</button>
           <button id="toggleCalcBtn" title="Open Calculator" style="background: linear-gradient(135deg, #16a085, #2ecc71); color: white;">🧮 Calculator</button>
           

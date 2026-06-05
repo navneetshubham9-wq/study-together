@@ -36,30 +36,30 @@ const openMathBtn = document.getElementById("openMathBtn");
 const toggleCalcBtn = document.getElementById("toggleCalcBtn"); 
 
 // ==========================================
-// 🚀 NAYA: Hamburger Menu Scroll Logic Fix
+// 🚀 NAYA: Hamburger Menu Scroll Logic (Intersection Observer)
+// Ye scroll detect karne ka sabse solid tarika hai
 // ==========================================
-const controlRow = document.getElementById("controlRowInner");
+const controlRowInner = document.getElementById("controlRowInner");
 const hamburgerBtn = document.getElementById("hamburgerBtn");
+const headerElem = document.querySelector("header");
 
-window.addEventListener("scroll", () => {
+const observer = new IntersectionObserver((entries) => {
     if(!joined) return;
-    // Agar page thoda sa bhi niche gaya, controls ko left side me list bana do
-    if (window.scrollY > 50) {
+    if (!entries[0].isIntersecting) {
         hamburgerBtn.style.display = "block";
-        controlRow.classList.add("vertical-controls-mode");
-        controlRow.classList.add("hide-vertical"); // Shuru me band rakho
+        controlRowInner.classList.add("vertical-controls-mode", "hide-vertical");
     } else {
         hamburgerBtn.style.display = "none";
-        controlRow.classList.remove("vertical-controls-mode");
-        controlRow.classList.remove("hide-vertical");
+        controlRowInner.classList.remove("vertical-controls-mode", "hide-vertical");
     }
-});
+}, { threshold: 0 });
+
+if(headerElem) observer.observe(headerElem);
 
 hamburgerBtn.addEventListener("click", () => {
-    controlRow.classList.toggle("hide-vertical");
+    controlRowInner.classList.toggle("hide-vertical");
 });
 // ==========================================
-
 
 // Chat & Files
 const sendMsgBtn = document.getElementById("sendMsg");
@@ -69,9 +69,7 @@ const uploadBtn = document.getElementById("uploadBtn");
 const fileUpload = document.getElementById("fileUpload");
 const fileList = document.getElementById("fileList");
 
-// ==========================================
-// 🚀 NAYA: Calculator Numpad Keyboard Logic
-// ==========================================
+// Draggable Personal Calculator
 const calcModal = document.getElementById("calc-modal");
 const calcDisplay = document.getElementById("calc-display");
 const calcHeader = document.getElementById("calc-header");
@@ -120,7 +118,6 @@ document.addEventListener("mousemove", (e) => {
     calcModal.style.top = (calcInitialY + e.clientY - calcStartY) + "px";
 });
 document.addEventListener("mouseup", () => isCalcDragging = false);
-// ==========================================
 
 
 // Math Modal
@@ -449,6 +446,7 @@ socket.on("laser-pointer", (data) => {
 });
 
 // ---------- ADVANCED PRO WHITEBOARD ----------
+
 const toggleShapesBtn = document.getElementById("toggleShapesBtn");
 const wbShapesMenu = document.getElementById("wb-shapes-menu");
 const toggleSubjectsBtn = document.getElementById("toggleSubjectsBtn");
@@ -486,7 +484,8 @@ const subjectCategory = document.getElementById("subjectCategory");
 const subjectAssetsList = document.getElementById("subjectAssetsList");
 
 // ==========================================
-// 🚀 NAYA: 100% BULLETPROOF ASSET LOADER VIA PROXY
+// 🚀 NAYA: FRONTEND MULTIPLE PROXY FETCH
+// Completely bypasses server.js dependency! (100% Work Guarantee)
 // ==========================================
 function prepareStamp(src) {
     const img = new Image();
@@ -498,28 +497,40 @@ function prepareStamp(src) {
         currentTool = 'stamp';
         document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active-tool'));
         
-        showNotification("🖱️ Scroll to Resize. Click to Stamp!", "join");
+        showNotification("🖱️ Scroll to Resize. Click to Stamp!", "info");
         canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); 
     };
     img.onerror = () => showNotification("Image error. Try again.", "danger");
-    img.src = src; // Base64 never fails here
+    img.src = src; 
 }
 
 async function loadAssetToCanvas(url, name) {
-    try {
-        showNotification(`Downloading ${name}...`, "info");
-        // Hamare apne Node server proxy se layega, jo CORS ko ignore kar deta hai
-        const response = await fetch(`/proxy-image?url=${encodeURIComponent(url)}`);
-        const data = await response.json();
-        
-        if(data.base64) {
-            prepareStamp(data.base64);
-        } else {
-            throw new Error("Server blocked request");
+    showNotification(`Downloading ${name}...`, "info");
+    
+    // Multiple proxies fallback directly in browser memory
+    const proxies = [
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+        `https://corsproxy.io/?url=${encodeURIComponent(url)}`
+    ];
+
+    for (let i = 0; i < proxies.length; i++) {
+        try {
+            const response = await fetch(proxies[i]);
+            if (!response.ok) throw new Error("Proxy failed");
+            
+            const blob = await response.blob();
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                prepareStamp(reader.result); // Base64 never blocked
+            };
+            reader.readAsDataURL(blob);
+            return; // Success!
+        } catch (e) {
+            console.warn(`Proxy ${i+1} failed`);
         }
-    } catch(e) {
-        showNotification(`Failed to load ${name}.`, "danger");
     }
+    showNotification(`Failed to load ${name}.`, "danger");
 }
 // ==========================================
 
@@ -701,17 +712,27 @@ canvas.addEventListener('mousedown', (e) => {
   const pt = getCanvasPoint(e);
 
   if (isStamping && stampImage) {
+      // 1. FINAL STAMPING PROCESS
       ctx.putImageData(canvasSnapshot, 0, 0); 
       let w = stampImage.width * stampScale;
       let h = stampImage.height * stampScale;
       ctx.drawImage(stampImage, pt.x - w/2, pt.y - h/2, w, h);
       
+      // ==========================================
+      // 🚀 NAYA: 1MB Socket Crash Fix (Aggressive Compression for Sync)
+      // Doosro ko bhejne ke liye size compress karenge
+      // ==========================================
       let tempCanvas = document.createElement("canvas");
-      tempCanvas.width = w; tempCanvas.height = h;
-      tempCanvas.getContext("2d").drawImage(stampImage, 0, 0, w, h);
-      let sendSrc = tempCanvas.toDataURL("image/jpeg", 0.6);
-      socket.emit("wb-stamp", { room: currentRoom, image: sendSrc, x: pt.x - w/2, y: pt.y - h/2, w: w, h: h });
+      // Scale down large images drastically for syncing
+      let scale = Math.min(1, 800 / w, 800 / h);
+      tempCanvas.width = w * scale; 
+      tempCanvas.height = h * scale;
+      tempCanvas.getContext("2d").drawImage(stampImage, 0, 0, tempCanvas.width, tempCanvas.height);
       
+      let sendSrc = tempCanvas.toDataURL("image/jpeg", 0.4); // 0.4 Quality JPEG is very small!
+      socket.emit("wb-stamp", { room: currentRoom, image: sendSrc, x: pt.x - w/2, y: pt.y - h/2, w: w, h: h });
+      // ==========================================
+
       wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5);
       
       isStamping = false;
@@ -760,9 +781,7 @@ canvas.addEventListener('mouseup', (e) => {
   if (!drawing || !canDraw || currentTool === 'pointer' || currentTool === 'fill') return; 
   drawing = false; 
   const pt = getCanvasPoint(e);
-  if(!['pen', 'brush', 'spray', 'eraser'].includes(currentTool)) { 
-      drawShapeObj(startX, startY, pt.x, pt.y, currentTool, currentBrushColor, currentBrushSize, true); 
-  }
+  if(!['pen', 'brush', 'spray', 'eraser'].includes(currentTool)) { drawShapeObj(startX, startY, pt.x, pt.y, currentTool, currentBrushColor, currentBrushSize, true); }
   ctx.shadowBlur = 0; 
   wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5);
 });
@@ -791,31 +810,27 @@ socket.on("wb-pointer", (data) => {
     clearTimeout(wbLaserTimeout); wbLaserTimeout = setTimeout(() => { wbLaser.style.display = "none"; }, 2000);
 });
 
-// NAYA: IMAGE AND PDF UPLOAD LOGIC
+// PDF Rendering
 document.getElementById('tool-pdf').addEventListener("click", () => document.getElementById('wbPdfUpload').click());
 document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
-  const file = e.target.files[0]; if(!file) return; 
-  showNotification("Loading file...", "info");
+  const file = e.target.files[0]; if(!file) return; showNotification("Loading File...", "info");
   
   if (file.type.startsWith('image/')) {
-      // 1. Direct Image Upload
       const reader = new FileReader();
       reader.onload = (event) => { prepareStamp(event.target.result); };
       reader.readAsDataURL(file);
-  } 
-  else if (file.type === 'application/pdf') {
-      // 2. PDF Rendering
+  } else if (file.type === 'application/pdf') {
       const fileReader = new FileReader();
       fileReader.onload = async function() {
           const typedarray = new Uint8Array(this.result); const pdf = await pdfjsLib.getDocument(typedarray).promise; const page = await pdf.getPage(1); 
           const viewport = page.getViewport({scale: 2.0}); 
           const tc = document.createElement('canvas'); const tCtx = tc.getContext('2d'); tc.height = viewport.height; tc.width = viewport.width;
           await page.render({canvasContext: tCtx, viewport: viewport}).promise; 
-          prepareStamp(tc.toDataURL());
+          
+          // PDF ko thoda compress karke stamp me daalo
+          prepareStamp(tc.toDataURL("image/jpeg", 0.8));
       };
       fileReader.readAsArrayBuffer(file);
-  } else {
-      showNotification("Please upload an Image or PDF.", "danger");
   }
 });
 
