@@ -35,34 +35,59 @@ const openMathBtn = document.getElementById("openMathBtn");
 const toggleCalcBtn = document.getElementById("toggleCalcBtn"); 
 
 // ==========================================
-// 🚀 NAYA: Hamburger Click-Outside Closing Logic
+// 🚀 NAYA: FOOLPROOF Side Menu Logic
+// Menu is now totally isolated from .card traps
 // ==========================================
 const controlRowInner = document.getElementById("controlRowInner");
 const hamburgerBtn = document.getElementById("hamburgerBtn");
-const topAnchor = document.getElementById("top-anchor");
+const sideMenuContainer = document.getElementById("side-menu-container");
+const controlsSection = document.getElementById("controls");
 
-const observer = new IntersectionObserver((entries) => {
+window.addEventListener("scroll", () => {
     if(!joined) return;
-    if (!entries[0].isIntersecting) {
+    const scrollY = window.scrollY || document.documentElement.scrollTop;
+    
+    if (scrollY > 80) {
         hamburgerBtn.style.setProperty("display", "block", "important");
-        controlRowInner.classList.add("vertical-controls-mode", "hide-vertical");
+        // Move controls into pure body container
+        if (controlRowInner.parentElement === controlsSection) {
+            sideMenuContainer.appendChild(controlRowInner);
+            controlRowInner.style.display = "flex";
+            controlRowInner.style.flexDirection = "column";
+            
+            if (sideMenuContainer.dataset.manualToggle !== "true") {
+                sideMenuContainer.style.setProperty("display", "none", "important");
+            }
+        }
     } else {
         hamburgerBtn.style.setProperty("display", "none", "important");
-        controlRowInner.classList.remove("vertical-controls-mode", "hide-vertical");
+        // Restore
+        if (controlRowInner.parentElement === sideMenuContainer) {
+            controlsSection.insertBefore(controlRowInner, controlsSection.firstChild);
+            controlRowInner.style.flexDirection = "row";
+            sideMenuContainer.style.setProperty("display", "none", "important");
+            sideMenuContainer.dataset.manualToggle = "false";
+        }
     }
-}, { threshold: 0 });
-
-if(topAnchor) observer.observe(topAnchor);
-
-hamburgerBtn.addEventListener("click", (e) => {
-    e.stopPropagation(); 
-    controlRowInner.classList.toggle("hide-vertical");
 });
 
+hamburgerBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (sideMenuContainer.style.display === "none") {
+        sideMenuContainer.style.setProperty("display", "flex", "important");
+        sideMenuContainer.dataset.manualToggle = "true";
+    } else {
+        sideMenuContainer.style.setProperty("display", "none", "important");
+        sideMenuContainer.dataset.manualToggle = "false";
+    }
+});
+
+// Click Outside Auto Close
 document.addEventListener("click", (e) => {
-    if (hamburgerBtn.style.display === "block" && !controlRowInner.classList.contains("hide-vertical")) {
-        if (!controlRowInner.contains(e.target) && e.target !== hamburgerBtn) {
-            controlRowInner.classList.add("hide-vertical");
+    if (hamburgerBtn.style.display === "block" && sideMenuContainer.style.display === "flex") {
+        if (!sideMenuContainer.contains(e.target) && e.target !== hamburgerBtn) {
+            sideMenuContainer.style.setProperty("display", "none", "important");
+            sideMenuContainer.dataset.manualToggle = "false";
         }
     }
 });
@@ -257,7 +282,6 @@ function appendMessage(text) {
 function addSizeControls(targetWrapper, elementToFullscreen) {
   const controlsDiv = document.createElement("div");
   controlsDiv.className = "local-controls";
-  // Enlarge/Shrink hidden for map box explicitly to prevent duplicate fullscreen buttons
   if(targetWrapper !== mapBox) {
       const enlargeBtn = document.createElement("button");
       enlargeBtn.className = "icon-btn"; enlargeBtn.innerHTML = "➕";
@@ -274,12 +298,11 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
       controlsDiv.appendChild(enlargeBtn); controlsDiv.appendChild(shrinkBtn);
   }
   
-  // Custom Map Fullscreen handled separately below
   if(targetWrapper !== mapBox) {
       const maxBtn = document.createElement("button");
       maxBtn.className = "icon-btn"; maxBtn.innerHTML = "🖥️";
       maxBtn.onclick = () => {
-        if (!document.fullscreenElement) { elementToFullscreen.requestFullscreen().catch(e => e); } 
+        if (!document.fullscreenElement) { targetWrapper.requestFullscreen().catch(e => e); } 
         else { document.exitFullscreen(); }
       };
       controlsDiv.appendChild(maxBtn);
@@ -292,7 +315,6 @@ addSizeControls(whiteboardBox, whiteboardBox);
 addSizeControls(mapBox, mapBox); 
 addSizeControls(presentationBox, presentationBox); 
 
-// Map specific Fullscreen button
 document.getElementById("mapFullscreenBtn")?.addEventListener("click", () => {
     const mapCont = document.getElementById("map-container");
     if (!document.fullscreenElement) { mapCont.requestFullscreen().catch(e => e); } 
@@ -502,11 +524,15 @@ const subjectCategory = document.getElementById("subjectCategory");
 const subjectAssetsList = document.getElementById("subjectAssetsList");
 
 // ==========================================
-// 🚀 NAYA: FOOLPROOF MULTI-PROXY ASSET FETCHER (No Server Restart Needed)
+// 🚀 NAYA: JSON Base64 Asset Fetcher
+// Bypass ALL CORS checks by sending as Text JSON
 // ==========================================
 function prepareStamp(src) {
     const img = new Image();
-    img.crossOrigin = "Anonymous"; // Crucial for canvas
+    // Do NOT set crossOrigin if it is a base64 string.
+    if (!src.startsWith("data:")) {
+        img.crossOrigin = "Anonymous"; 
+    }
     
     img.onload = () => {
         stampImage = img;
@@ -519,30 +545,25 @@ function prepareStamp(src) {
         showNotification("🖱️ Ready! Click on board to paste.", "info");
         canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); 
     };
-    img.onerror = () => showNotification("Image error. CORS block hit.", "danger");
+    img.onerror = () => showNotification("Image Decode Error.", "danger");
     img.src = src; 
 }
 
 async function loadAssetToCanvas(url, name) {
-    showNotification(`Downloading ${name}...`, "info");
-    
-    // Auto-fallback dual proxy system!
-    const proxies = [
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-        `https://corsproxy.io/?url=${encodeURIComponent(url)}`
-    ];
-
-    for (let proxy of proxies) {
-        try {
-            // Using image directly without base64 to avoid string size issues
-            prepareStamp(proxy);
-            wbSubjectsMenu.style.display = "none";
-            return; 
-        } catch(e) {
-            console.warn("Proxy failed, trying next...");
+    try {
+        showNotification(`Downloading ${name} safely...`, "info");
+        // Hamara apna secure backend isko text (JSON) me badal kar bhejega
+        const response = await fetch(`/proxy-image?url=${encodeURIComponent(url)}`);
+        const data = await response.json();
+        
+        if (data.dataUri) {
+            prepareStamp(data.dataUri); // Successfully loaded as Text!
+        } else {
+            throw new Error("Server blocked request");
         }
+    } catch(e) {
+        showNotification(`Failed to load ${name}. Connection Error.`, "danger");
     }
-    showNotification(`Failed to load ${name}. All proxies blocked.`, "danger");
 }
 // ==========================================
 
@@ -627,7 +648,7 @@ function floodFill(startX, startY, fillColorHex, emit=false) {
     const pixelStack = [[sx, sy]];
 
     while (pixelStack.length) {
-        const newPos = pixelStack.pop();
+        const newPos = pop();
         const x = newPos[0]; let y = newPos[1];
         let pixelPos = (y * width + x) * 4;
         while (y-- >= 0 && matchColor(pixelPos)) { pixelPos -= width * 4; }
@@ -817,7 +838,6 @@ socket.on("wb-pointer", (data) => {
     clearTimeout(wbLaserTimeout); wbLaserTimeout = setTimeout(() => { wbLaser.style.display = "none"; }, 2000);
 });
 
-// PDF Rendering
 document.getElementById('tool-pdf').addEventListener("click", () => document.getElementById('wbPdfUpload').click());
 document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
   const file = e.target.files[0]; if(!file) return; showNotification("Loading File...", "info");
@@ -840,7 +860,7 @@ document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
 });
 
 // ==========================================
-// 🚀 NAYA: Map Layout Fixing (Search & Maximize)
+// 🚀 NAYA: Map Search Centered & Floating Fullscreen Button
 // ==========================================
 function initWorldMap() {
   geoMap = L.map('map-container', { center: [20.0, 0.0], zoom: 3, zoomControl: false });
@@ -848,14 +868,15 @@ function initWorldMap() {
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '&copy; Esri', crossOrigin: true }).addTo(geoMap);
   labelsLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { pane: 'markerPane', crossOrigin: true }).addTo(geoMap);
   
-  // Create search geocoder
+  // Geocoder in center
   const geocoder = L.Control.geocoder({ defaultMarkGeocode: true }).addTo(geoMap);
-  
-  // Move geocoder to exactly below the screenshot button
   const gcContainer = geocoder.getContainer();
-  // Ensure it does not have leaflet absolute positioning messing it up
-  gcContainer.style.position = "static"; 
-  document.getElementById('map-controls-container').appendChild(gcContainer);
+  gcContainer.style.position = "absolute";
+  gcContainer.style.left = "50%";
+  gcContainer.style.transform = "translateX(-50%)";
+  gcContainer.style.top = "15px";
+  gcContainer.style.zIndex = "10000";
+  document.getElementById('map-container').appendChild(gcContainer);
 }
 initWorldMap();
 document.getElementById("toggleLabelsBtn")?.addEventListener("click", function() {
@@ -863,7 +884,6 @@ document.getElementById("toggleLabelsBtn")?.addEventListener("click", function()
   if (labelsVisible) { geoMap.addLayer(labelsLayer); this.style.background = "var(--primary)"; } 
   else { geoMap.removeLayer(labelsLayer); this.style.background = "var(--danger)"; }
 });
-
 
 // ---------- VIDEO UI HELPERS ----------
 function createLocalCard(name) {

@@ -40,25 +40,21 @@ const roomPresState = new Map();
 const roomChartData = new Map(); 
 
 // ==========================================
-// 🚀 NAYA: Wikipedia Block Bypass (Direct to Base64)
-// Wikipedia needs a verified User-Agent, so we give them yours!
+// 🚀 NAYA FIX: 100% CORS-FREE BASE64 ENGINE
+// Ye image ko text me convert karke JSON me bhejta hai. Browser ise block nahi kar sakta!
 // ==========================================
 app.get("/proxy-image", (req, res) => {
   const imgUrl = req.query.url;
-  if (!imgUrl) return res.status(400).json({error: "URL required"});
+  if (!imgUrl) return res.status(400).json({ error: "URL missing" });
 
   const fetchImage = (targetUrl) => {
     const client = targetUrl.startsWith("https") ? https : http;
-    
     const options = {
-        headers: {
-            // Wikipedia strictly needs a valid User-Agent, this makes your app an approved crawler!
-            "User-Agent": "VYDEX-Education-App/1.0 (navneetshubham9@gmail.com)",
-            "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"
-        }
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" }
     };
 
     client.get(targetUrl, options, (response) => {
+      // Handle redirects
       if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
         let redirectUrl = response.headers.location;
         if (!redirectUrl.startsWith("http")) redirectUrl = new URL(redirectUrl, targetUrl).href;
@@ -70,15 +66,14 @@ app.get("/proxy-image", (req, res) => {
         response.on("end", () => {
           const buffer = Buffer.concat(chunks);
           const contentType = response.headers["content-type"] || "image/png";
-          const base64 = `data:${contentType};base64,${buffer.toString("base64")}`;
-          res.json({ base64: base64 }); 
+          const base64 = buffer.toString("base64");
+          // Sending as JSON payload
+          res.json({ dataUri: `data:${contentType};base64,${base64}` }); 
         });
       } else {
-        res.status(500).json({error: `Failed to load image. Wikipedia Server Status: ${response.statusCode}`});
+        res.status(500).json({ error: `Server failed with status: ${response.statusCode}` });
       }
-    }).on("error", (err) => {
-      res.status(500).json({error: err.message});
-    });
+    }).on("error", (err) => res.status(500).json({ error: err.message }));
   };
 
   fetchImage(imgUrl);
