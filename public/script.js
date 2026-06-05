@@ -35,46 +35,34 @@ const openMathBtn = document.getElementById("openMathBtn");
 const toggleCalcBtn = document.getElementById("toggleCalcBtn"); 
 
 // ==========================================
-// 🚀 NAYA 1: Hamburger Menu Scroll + Click Outside Auto Close
+// 🚀 NAYA: Hamburger Click-Outside Closing Logic
 // ==========================================
 const controlRowInner = document.getElementById("controlRowInner");
 const hamburgerBtn = document.getElementById("hamburgerBtn");
-const controlsSection = document.getElementById("controls");
+const topAnchor = document.getElementById("top-anchor");
 
-window.addEventListener("scroll", () => {
+const observer = new IntersectionObserver((entries) => {
     if(!joined) return;
-    const scrollY = window.scrollY || document.documentElement.scrollTop;
-    
-    if (scrollY > 80) {
+    if (!entries[0].isIntersecting) {
         hamburgerBtn.style.setProperty("display", "block", "important");
-        if (controlRowInner.parentElement === controlsSection) {
-            document.body.appendChild(controlRowInner);
-            controlRowInner.classList.add("vertical-controls-mode", "hide-vertical");
-            controlRowInner.dataset.manualToggle = "false";
-        }
+        controlRowInner.classList.add("vertical-controls-mode", "hide-vertical");
     } else {
         hamburgerBtn.style.setProperty("display", "none", "important");
-        if (controlRowInner.parentElement === document.body) {
-            controlsSection.insertBefore(controlRowInner, controlsSection.firstChild);
-            controlRowInner.classList.remove("vertical-controls-mode", "hide-vertical");
-            controlRowInner.dataset.manualToggle = "false";
-        }
+        controlRowInner.classList.remove("vertical-controls-mode", "hide-vertical");
     }
-});
+}, { threshold: 0 });
+
+if(topAnchor) observer.observe(topAnchor);
 
 hamburgerBtn.addEventListener("click", (e) => {
-    e.stopPropagation(); // Stop click from bubbling to document
+    e.stopPropagation(); 
     controlRowInner.classList.toggle("hide-vertical");
-    controlRowInner.dataset.manualToggle = controlRowInner.classList.contains("hide-vertical") ? "false" : "true";
 });
 
-// Click Outside Event Listener
 document.addEventListener("click", (e) => {
     if (hamburgerBtn.style.display === "block" && !controlRowInner.classList.contains("hide-vertical")) {
-        // If clicked outside of the menu list AND not on the hamburger button itself
         if (!controlRowInner.contains(e.target) && e.target !== hamburgerBtn) {
             controlRowInner.classList.add("hide-vertical");
-            controlRowInner.dataset.manualToggle = "false";
         }
     }
 });
@@ -269,33 +257,47 @@ function appendMessage(text) {
 function addSizeControls(targetWrapper, elementToFullscreen) {
   const controlsDiv = document.createElement("div");
   controlsDiv.className = "local-controls";
-  const enlargeBtn = document.createElement("button");
-  enlargeBtn.className = "icon-btn"; enlargeBtn.innerHTML = "➕";
-  enlargeBtn.onclick = () => {
-    targetWrapper.classList.remove("video-wrapper-small");
-    targetWrapper.classList.toggle("video-wrapper-large");
-    if(geoMap) setTimeout(() => geoMap.invalidateSize(), 300); 
-  };
-  const shrinkBtn = document.createElement("button");
-  shrinkBtn.className = "icon-btn"; shrinkBtn.innerHTML = "➖";
-  shrinkBtn.onclick = () => {
-    targetWrapper.classList.remove("video-wrapper-large");
-    targetWrapper.classList.toggle("video-wrapper-small");
-    if(geoMap) setTimeout(() => geoMap.invalidateSize(), 300);
-  };
-  const maxBtn = document.createElement("button");
-  maxBtn.className = "icon-btn"; maxBtn.innerHTML = "🖥️";
-  maxBtn.onclick = () => {
-    if (!document.fullscreenElement) { targetWrapper.requestFullscreen().catch(e => e); } 
-    else { document.exitFullscreen(); }
-  };
-  controlsDiv.appendChild(enlargeBtn); controlsDiv.appendChild(shrinkBtn); controlsDiv.appendChild(maxBtn);
+  // Enlarge/Shrink hidden for map box explicitly to prevent duplicate fullscreen buttons
+  if(targetWrapper !== mapBox) {
+      const enlargeBtn = document.createElement("button");
+      enlargeBtn.className = "icon-btn"; enlargeBtn.innerHTML = "➕";
+      enlargeBtn.onclick = () => {
+        targetWrapper.classList.remove("video-wrapper-small");
+        targetWrapper.classList.toggle("video-wrapper-large");
+      };
+      const shrinkBtn = document.createElement("button");
+      shrinkBtn.className = "icon-btn"; shrinkBtn.innerHTML = "➖";
+      shrinkBtn.onclick = () => {
+        targetWrapper.classList.remove("video-wrapper-large");
+        targetWrapper.classList.toggle("video-wrapper-small");
+      };
+      controlsDiv.appendChild(enlargeBtn); controlsDiv.appendChild(shrinkBtn);
+  }
+  
+  // Custom Map Fullscreen handled separately below
+  if(targetWrapper !== mapBox) {
+      const maxBtn = document.createElement("button");
+      maxBtn.className = "icon-btn"; maxBtn.innerHTML = "🖥️";
+      maxBtn.onclick = () => {
+        if (!document.fullscreenElement) { elementToFullscreen.requestFullscreen().catch(e => e); } 
+        else { document.exitFullscreen(); }
+      };
+      controlsDiv.appendChild(maxBtn);
+  }
+  
   targetWrapper.appendChild(controlsDiv);
 }
 
 addSizeControls(whiteboardBox, whiteboardBox);
 addSizeControls(mapBox, mapBox); 
 addSizeControls(presentationBox, presentationBox); 
+
+// Map specific Fullscreen button
+document.getElementById("mapFullscreenBtn")?.addEventListener("click", () => {
+    const mapCont = document.getElementById("map-container");
+    if (!document.fullscreenElement) { mapCont.requestFullscreen().catch(e => e); } 
+    else { document.exitFullscreen(); }
+});
 
 function hideAllBigPanels() {
     whiteboardBox.style.display = "none";
@@ -500,13 +502,11 @@ const subjectCategory = document.getElementById("subjectCategory");
 const subjectAssetsList = document.getElementById("subjectAssetsList");
 
 // ==========================================
-// 🚀 NAYA 3: PERFECT ASSET FETCHER (DIRECT BROWSER FETCH)
-// Wikipedia allows direct browser fetch using crossOrigin="Anonymous"
-// Bypassing server totally to avoid Bot-Blocker
+// 🚀 NAYA: FOOLPROOF MULTI-PROXY ASSET FETCHER (No Server Restart Needed)
 // ==========================================
 function prepareStamp(src) {
     const img = new Image();
-    img.crossOrigin = "Anonymous"; // Native CORS Support
+    img.crossOrigin = "Anonymous"; // Crucial for canvas
     
     img.onload = () => {
         stampImage = img;
@@ -519,15 +519,30 @@ function prepareStamp(src) {
         showNotification("🖱️ Ready! Click on board to paste.", "info");
         canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); 
     };
-    img.onerror = () => showNotification("Image error. Try again.", "danger");
+    img.onerror = () => showNotification("Image error. CORS block hit.", "danger");
     img.src = src; 
 }
 
 async function loadAssetToCanvas(url, name) {
-    showNotification(`Downloading ${name} safely...`, "info");
-    // Directly passing the URL to image.src. Wikimedia allows this!
-    prepareStamp(url);
-    wbSubjectsMenu.style.display = "none";
+    showNotification(`Downloading ${name}...`, "info");
+    
+    // Auto-fallback dual proxy system!
+    const proxies = [
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        `https://corsproxy.io/?url=${encodeURIComponent(url)}`
+    ];
+
+    for (let proxy of proxies) {
+        try {
+            // Using image directly without base64 to avoid string size issues
+            prepareStamp(proxy);
+            wbSubjectsMenu.style.display = "none";
+            return; 
+        } catch(e) {
+            console.warn("Proxy failed, trying next...");
+        }
+    }
+    showNotification(`Failed to load ${name}. All proxies blocked.`, "danger");
 }
 // ==========================================
 
@@ -825,7 +840,7 @@ document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
 });
 
 // ==========================================
-// 🚀 NAYA 2: Map Search Center Alignment
+// 🚀 NAYA: Map Layout Fixing (Search & Maximize)
 // ==========================================
 function initWorldMap() {
   geoMap = L.map('map-container', { center: [20.0, 0.0], zoom: 3, zoomControl: false });
@@ -833,26 +848,22 @@ function initWorldMap() {
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '&copy; Esri', crossOrigin: true }).addTo(geoMap);
   labelsLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { pane: 'markerPane', crossOrigin: true }).addTo(geoMap);
   
-  // Geocoder Centering Logic
+  // Create search geocoder
   const geocoder = L.Control.geocoder({ defaultMarkGeocode: true }).addTo(geoMap);
-  const gcContainer = geocoder.getContainer();
-  gcContainer.style.position = "absolute";
-  gcContainer.style.left = "50%";
-  gcContainer.style.transform = "translateX(-50%)";
-  gcContainer.style.top = "15px";
-  gcContainer.style.zIndex = "10000";
   
-  document.getElementById('map-container').appendChild(gcContainer);
+  // Move geocoder to exactly below the screenshot button
+  const gcContainer = geocoder.getContainer();
+  // Ensure it does not have leaflet absolute positioning messing it up
+  gcContainer.style.position = "static"; 
+  document.getElementById('map-controls-container').appendChild(gcContainer);
 }
-
 initWorldMap();
-
 document.getElementById("toggleLabelsBtn")?.addEventListener("click", function() {
   labelsVisible = !labelsVisible;
   if (labelsVisible) { geoMap.addLayer(labelsLayer); this.style.background = "var(--primary)"; } 
   else { geoMap.removeLayer(labelsLayer); this.style.background = "var(--danger)"; }
 });
-// ==========================================
+
 
 // ---------- VIDEO UI HELPERS ----------
 function createLocalCard(name) {
