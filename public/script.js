@@ -34,7 +34,6 @@ const togglePresBtn = document.getElementById("togglePresBtn");
 const openMathBtn = document.getElementById("openMathBtn"); 
 const toggleCalcBtn = document.getElementById("toggleCalcBtn"); 
 
-// Hamburger Menu Logic
 const controlRowInner = document.getElementById("controlRowInner");
 const hamburgerBtn = document.getElementById("hamburgerBtn");
 const sideMenuContainer = document.getElementById("side-menu-container");
@@ -43,17 +42,13 @@ const controlsSection = document.getElementById("controls");
 window.addEventListener("scroll", () => {
     if(!joined) return;
     const scrollY = window.scrollY || document.documentElement.scrollTop;
-    
     if (scrollY > 80) {
         hamburgerBtn.style.setProperty("display", "block", "important");
         if (controlRowInner.parentElement === controlsSection) {
             sideMenuContainer.appendChild(controlRowInner);
             controlRowInner.style.display = "flex";
             controlRowInner.style.flexDirection = "column";
-            
-            if (sideMenuContainer.dataset.manualToggle !== "true") {
-                sideMenuContainer.style.setProperty("display", "none", "important");
-            }
+            if (sideMenuContainer.dataset.manualToggle !== "true") sideMenuContainer.style.setProperty("display", "none", "important");
         }
     } else {
         hamburgerBtn.style.setProperty("display", "none", "important");
@@ -93,57 +88,30 @@ const uploadBtn = document.getElementById("uploadBtn");
 const fileUpload = document.getElementById("fileUpload");
 const fileList = document.getElementById("fileList");
 
-// Draggable Personal Calculator
+// Calculator
 const calcModal = document.getElementById("calc-modal");
 const calcDisplay = document.getElementById("calc-display");
 const calcHeader = document.getElementById("calc-header");
 
-toggleCalcBtn.addEventListener("click", () => {
-    calcModal.style.display = calcModal.style.display === "none" || calcModal.style.display === "" ? "block" : "none";
-});
+toggleCalcBtn.addEventListener("click", () => { calcModal.style.display = calcModal.style.display === "none" || calcModal.style.display === "" ? "block" : "none"; });
 window.calcAppend = (val) => { calcDisplay.value += val; };
 window.calcClear = () => { calcDisplay.value = ""; };
-window.calcCalculate = () => { 
-    try { calcDisplay.value = eval(calcDisplay.value); } 
-    catch(e) { calcDisplay.value = "Error"; setTimeout(calcClear, 1000); } 
-};
+window.calcCalculate = () => { try { calcDisplay.value = eval(calcDisplay.value); } catch(e) { calcDisplay.value = "Error"; setTimeout(calcClear, 1000); } };
 
-// Keyboard Numpad Listeners
 document.addEventListener("keydown", (e) => {
     if (calcModal.style.display === "block") {
         const key = e.key;
-        if (/^[0-9\.\+\-\*\/]$/.test(key)) {
-            calcAppend(key);
-        } else if (key === "Enter" || key === "=") {
-            e.preventDefault();
-            calcCalculate();
-        } else if (key === "Escape" || key === "Clear" || key === "Delete") {
-            calcClear();
-        } else if (key === "Backspace") {
-            calcDisplay.value = calcDisplay.value.slice(0, -1);
-        }
+        if (/^[0-9\.\+\-\*\/]$/.test(key)) calcAppend(key);
+        else if (key === "Enter" || key === "=") { e.preventDefault(); calcCalculate(); } 
+        else if (key === "Escape" || key === "Clear" || key === "Delete") calcClear();
+        else if (key === "Backspace") calcDisplay.value = calcDisplay.value.slice(0, -1);
     }
 });
 
 let isCalcDragging = false;
 let calcStartX, calcStartY, calcInitialX, calcInitialY;
-// TOUCH FIX: Changed mousedown to pointerdown
-calcHeader.addEventListener("pointerdown", (e) => {
-    isCalcDragging = true;
-    calcStartX = e.clientX; calcStartY = e.clientY;
-    const rect = calcModal.getBoundingClientRect();
-    calcInitialX = rect.left; calcInitialY = rect.top;
-    calcModal.style.right = "auto"; 
-    calcModal.style.left = calcInitialX + "px";
-    calcModal.style.top = calcInitialY + "px";
-});
-// TOUCH FIX: Changed mousemove to pointermove
-document.addEventListener("pointermove", (e) => {
-    if(!isCalcDragging) return;
-    calcModal.style.left = (calcInitialX + e.clientX - calcStartX) + "px";
-    calcModal.style.top = (calcInitialY + e.clientY - calcStartY) + "px";
-});
-// TOUCH FIX: Changed mouseup to pointerup
+calcHeader.addEventListener("pointerdown", (e) => { isCalcDragging = true; calcStartX = e.clientX; calcStartY = e.clientY; const rect = calcModal.getBoundingClientRect(); calcInitialX = rect.left; calcInitialY = rect.top; calcModal.style.right = "auto"; calcModal.style.left = calcInitialX + "px"; calcModal.style.top = calcInitialY + "px"; });
+document.addEventListener("pointermove", (e) => { if(!isCalcDragging) return; calcModal.style.left = (calcInitialX + e.clientX - calcStartX) + "px"; calcModal.style.top = (calcInitialY + e.clientY - calcStartY) + "px"; });
 document.addEventListener("pointerup", () => isCalcDragging = false);
 
 // Math Modal
@@ -156,7 +124,7 @@ const mathDisplay = document.getElementById("mathDisplay");
 const mathCategory = document.getElementById("mathCategory");
 const formulaLibrary = document.getElementById("formulaLibrary");
 
-// Presentation & Graph
+// Presentation
 const presentationBox = document.getElementById("presentation-box");
 const presInputForm = document.getElementById("pres-input-form");
 const generateGraphBtn = document.getElementById("generateGraphBtn");
@@ -204,6 +172,11 @@ let canvasSnapshot;
 let stampImage = null;
 let stampScale = 1.0;
 let isStamping = false;
+
+// 🚀 NAYA: Eraser Defaults
+let currentEraserSize = 30; // 0.5cm equivalent
+let isRightClickErasing = false;
+let prevToolState = 'pen';
 
 // Multiple Whiteboards
 let wbPages = []; 
@@ -278,31 +251,17 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
   const controlsDiv = document.createElement("div");
   controlsDiv.className = "local-controls";
   if(targetWrapper !== mapBox) {
-      const enlargeBtn = document.createElement("button");
-      enlargeBtn.className = "icon-btn"; enlargeBtn.innerHTML = "➕";
-      enlargeBtn.onclick = () => {
-        targetWrapper.classList.remove("video-wrapper-small");
-        targetWrapper.classList.toggle("video-wrapper-large");
-      };
-      const shrinkBtn = document.createElement("button");
-      shrinkBtn.className = "icon-btn"; shrinkBtn.innerHTML = "➖";
-      shrinkBtn.onclick = () => {
-        targetWrapper.classList.remove("video-wrapper-large");
-        targetWrapper.classList.toggle("video-wrapper-small");
-      };
+      const enlargeBtn = document.createElement("button"); enlargeBtn.className = "icon-btn"; enlargeBtn.innerHTML = "➕";
+      enlargeBtn.onclick = () => { targetWrapper.classList.remove("video-wrapper-small"); targetWrapper.classList.toggle("video-wrapper-large"); };
+      const shrinkBtn = document.createElement("button"); shrinkBtn.className = "icon-btn"; shrinkBtn.innerHTML = "➖";
+      shrinkBtn.onclick = () => { targetWrapper.classList.remove("video-wrapper-large"); targetWrapper.classList.toggle("video-wrapper-small"); };
       controlsDiv.appendChild(enlargeBtn); controlsDiv.appendChild(shrinkBtn);
   }
-  
   if(targetWrapper !== mapBox) {
-      const maxBtn = document.createElement("button");
-      maxBtn.className = "icon-btn"; maxBtn.innerHTML = "🖥️";
-      maxBtn.onclick = () => {
-        if (!document.fullscreenElement) { targetWrapper.requestFullscreen().catch(e => e); } 
-        else { document.exitFullscreen(); }
-      };
+      const maxBtn = document.createElement("button"); maxBtn.className = "icon-btn"; maxBtn.innerHTML = "🖥️";
+      maxBtn.onclick = () => { if (!document.fullscreenElement) { targetWrapper.requestFullscreen().catch(e => e); } else { document.exitFullscreen(); } };
       controlsDiv.appendChild(maxBtn);
   }
-  
   targetWrapper.appendChild(controlsDiv);
 }
 
@@ -325,20 +284,9 @@ function hideAllBigPanels() {
     togglePresBtn.dataset.show = "false"; togglePresBtn.style.background = "linear-gradient(135deg, #f1c40f, #f39c12)";
 }
 
-togglePresBtn.addEventListener("click", () => {
-  const isShowing = togglePresBtn.dataset.show === "true";
-  socket.emit("pres-toggle", { room: currentRoom, show: !isShowing });
-});
-
-toggleWbBtn.addEventListener("click", () => {
-  const isShowing = toggleWbBtn.dataset.show === "true";
-  socket.emit("wb-toggle", { room: currentRoom, show: !isShowing });
-});
-
-toggleMapBtn.addEventListener("click", () => {
-  const isShowing = toggleMapBtn.dataset.show === "true";
-  socket.emit("map-toggle", { room: currentRoom, show: !isShowing });
-});
+togglePresBtn.addEventListener("click", () => { const isShowing = togglePresBtn.dataset.show === "true"; socket.emit("pres-toggle", { room: currentRoom, show: !isShowing }); });
+toggleWbBtn.addEventListener("click", () => { const isShowing = toggleWbBtn.dataset.show === "true"; socket.emit("wb-toggle", { room: currentRoom, show: !isShowing }); });
+toggleMapBtn.addEventListener("click", () => { const isShowing = toggleMapBtn.dataset.show === "true"; socket.emit("map-toggle", { room: currentRoom, show: !isShowing }); });
 
 socket.on("pres-toggle", (data) => {
   if(data.show) { hideAllBigPanels(); presentationBox.style.display = "block"; if(isHost){togglePresBtn.dataset.show="true"; togglePresBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
@@ -468,13 +416,11 @@ socket.on("presentation-data", (data) => {
 });
 
 let laserTimeout;
-// TOUCH FIX: Changed mousemove to pointermove
 presentationContainer.addEventListener("pointermove", (e) => {
     if(!isHost || presentationBox.style.display === "none") return;
     const rect = presentationContainer.getBoundingClientRect();
     socket.emit("laser-pointer", { room: currentRoom, x: (e.clientX - rect.left) / rect.width, y: (e.clientY - rect.top) / rect.height });
 });
-// TOUCH FIX: Changed mouseleave to pointerleave
 presentationContainer.addEventListener("pointerleave", () => { if(isHost) socket.emit("laser-pointer", { room: currentRoom, hide: true }); });
 socket.on("laser-pointer", (data) => {
     if(data.hide) { laserPointer.style.display = "none"; return; }
@@ -488,15 +434,18 @@ const toggleShapesBtn = document.getElementById("toggleShapesBtn");
 const wbShapesMenu = document.getElementById("wb-shapes-menu");
 const toggleSubjectsBtn = document.getElementById("toggleSubjectsBtn");
 const wbSubjectsMenu = document.getElementById("wb-subjects-menu");
+const wbEraserMenu = document.getElementById("wb-eraser-menu");
 
 toggleShapesBtn.addEventListener("click", () => {
     wbShapesMenu.style.display = wbShapesMenu.style.display === "none" ? "block" : "none";
     wbSubjectsMenu.style.display = "none"; 
+    wbEraserMenu.style.display = "none";
 });
 
 toggleSubjectsBtn.addEventListener("click", () => {
     wbSubjectsMenu.style.display = wbSubjectsMenu.style.display === "none" ? "block" : "none";
     wbShapesMenu.style.display = "none";
+    wbEraserMenu.style.display = "none";
 });
 
 const subjectAssets = {
@@ -546,9 +495,7 @@ const subjectAssetsList = document.getElementById("subjectAssetsList");
 
 function prepareStamp(src) {
     const img = new Image();
-    if (!src.startsWith("data:")) {
-        img.crossOrigin = "Anonymous"; 
-    }
+    if (!src.startsWith("data:")) { img.crossOrigin = "Anonymous"; }
     
     img.onload = () => {
         stampImage = img;
@@ -561,7 +508,7 @@ function prepareStamp(src) {
         showNotification("🖱️ Ready! Scroll to resize, Click to paste.", "info");
         canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); 
     };
-    img.onerror = () => showNotification("Image error. File missing or corrupt.", "danger");
+    img.onerror = () => showNotification("Image error. File missing in folder.", "danger");
     img.src = src; 
 }
 
@@ -587,12 +534,9 @@ async function loadAssetToCanvas(url, name) {
             await page.render({canvasContext: tCtx, viewport: viewport}).promise; 
             prepareStamp(tc.toDataURL("image/jpeg", 0.8));
             wbSubjectsMenu.style.display = "none";
-        } else {
-            showNotification(`Unsupported format for ${name}`, "danger");
         }
     } catch(e) {
-        console.error(e);
-        showNotification(`Failed to load ${name}. Make sure the PDF file exists in assets/subjects folder!`, "danger");
+        showNotification(`Failed to load ${name}. Make sure the file exists!`, "danger");
     }
 }
 
@@ -602,9 +546,7 @@ function loadSubjectAssets(cat) {
         const btn = document.createElement("button");
         btn.textContent = "➕ Insert " + asset.name;
         btn.style.cssText = "background: rgba(255,255,255,0.1); color: white; border: 1px solid var(--accent); padding: 8px; border-radius: 6px; cursor: pointer; text-align: left; font-size: 13px;";
-        btn.onclick = () => {
-            loadAssetToCanvas(asset.url, asset.name);
-        };
+        btn.onclick = () => { loadAssetToCanvas(asset.url, asset.name); };
         subjectAssetsList.appendChild(btn);
     });
 }
@@ -612,17 +554,39 @@ function loadSubjectAssets(cat) {
 subjectCategory.addEventListener("change", (e) => loadSubjectAssets(e.target.value));
 loadSubjectAssets("geography");
 
+// Tool selection Logic updated for Eraser
 document.querySelectorAll('.tool-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
+        let clickedTool = btn.id.replace('tool-', '');
+        
+        // Handle Eraser Drop-up Menu
+        if (clickedTool === 'eraser' && currentTool === 'eraser') {
+            wbEraserMenu.style.display = wbEraserMenu.style.display === "none" ? "block" : "none";
+            return;
+        }
+
         document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active-tool'));
         btn.classList.add('active-tool');
-        currentTool = btn.id.replace('tool-', ''); 
+        currentTool = clickedTool; 
+        
         wbShapesMenu.style.display = "none"; 
+        wbSubjectsMenu.style.display = "none";
+        wbEraserMenu.style.display = currentTool === 'eraser' ? "block" : "none";
         
         if(isStamping) {
             isStamping = false;
             if(canvasSnapshot) ctx.putImageData(canvasSnapshot, 0, 0); 
         }
+    });
+});
+
+// Eraser Size Selectors
+document.querySelectorAll('.eraser-size-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.eraser-size-btn').forEach(b => b.classList.remove('active-tool'));
+        btn.classList.add('active-tool');
+        currentEraserSize = parseInt(btn.dataset.size);
+        wbEraserMenu.style.display = "none";
     });
 });
 
@@ -699,7 +663,7 @@ socket.on("wb-fill", (data) => floodFill(data.x, data.y, data.color, false));
 function drawFreehand(x0, y0, x1, y1, color, size, toolType, emit = false) {
   if(toolType === 'eraser') {
       ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
-      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = size * 3; ctx.lineCap = 'round'; 
+      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = size; ctx.lineCap = 'round'; 
       ctx.shadowBlur = 0; ctx.stroke(); ctx.closePath();
   } 
   else if (toolType === 'spray') {
@@ -766,15 +730,29 @@ function drawShapeObj(x0, y0, x1, y1, type, color, size, emit = false) {
   if (emit) socket.emit('drawing', { type: type, x0, y0, x1, y1, color, size, room: currentRoom });
 }
 
+// Prevent Context Menu on canvas to allow right-click erasing
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
 const wbLaser = document.getElementById("wb-laser");
 let wbLaserTimeout;
 
-// TOUCH FIX: Changed mousedown to pointerdown
+// 🚀 NAYA: POINTER EVENTS FOR TOUCH, PEN, MOUSE & RIGHT-CLICK ERASER
 canvas.addEventListener('pointerdown', (e) => { 
   if (!canDraw) return; 
+
+  // Right-Click Erasing Check
+  if (e.button === 2 || e.buttons === 2 || (e.pointerType === 'pen' && e.button === 5)) {
+      isRightClickErasing = true;
+      prevToolState = currentTool;
+      currentTool = 'eraser';
+      e.preventDefault();
+  } else if (e.button !== 0 && e.pointerType !== 'touch') {
+      return; 
+  }
+
   const pt = getCanvasPoint(e);
 
-  if (isStamping && stampImage) {
+  if (isStamping && stampImage && !isRightClickErasing) {
       ctx.putImageData(canvasSnapshot, 0, 0); 
       let w = stampImage.width * stampScale;
       let h = stampImage.height * stampScale;
@@ -803,16 +781,18 @@ canvas.addEventListener('pointerdown', (e) => {
 
   if(currentTool === 'pointer') return; 
   if(currentTool === 'fill') { floodFill(pt.x, pt.y, currentBrushColor, true); return; }
-  drawing = true; startX = pt.x; startY = pt.y; 
+  
+  drawing = true; 
+  startX = pt.x; 
+  startY = pt.y; 
   canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
 });
 
-// TOUCH FIX: Changed mousemove to pointermove
 canvas.addEventListener('pointermove', (e) => {
   if (!canDraw) return;
   const pt = getCanvasPoint(e);
 
-  if (isStamping && stampImage) {
+  if (isStamping && stampImage && !isRightClickErasing) {
       ctx.putImageData(canvasSnapshot, 0, 0);
       let w = stampImage.width * stampScale;
       let h = stampImage.height * stampScale;
@@ -828,7 +808,15 @@ canvas.addEventListener('pointermove', (e) => {
   if (!drawing || currentTool === 'fill') return;
 
   if(['pen', 'brush', 'spray', 'eraser'].includes(currentTool)) {
-      drawFreehand(startX, startY, pt.x, pt.y, currentBrushColor, currentBrushSize, currentTool, true);
+      
+      // 🚀 NAYA: PRESSURE SENSITIVITY LOGIC
+      let pressure = (e.pointerType === 'pen' && e.pressure > 0) ? e.pressure : 0.5;
+      let pressureMult = e.pointerType === 'pen' ? (pressure * 2.5) : 1; 
+      
+      let activeSize = currentTool === 'eraser' ? currentEraserSize : (currentBrushSize * pressureMult);
+      if(activeSize < 1) activeSize = 1;
+
+      drawFreehand(startX, startY, pt.x, pt.y, currentBrushColor, activeSize, currentTool, true);
       startX = pt.x; startY = pt.y;
   } else {
       ctx.putImageData(canvasSnapshot, 0, 0);
@@ -836,19 +824,30 @@ canvas.addEventListener('pointermove', (e) => {
   }
 });
 
-// TOUCH FIX: Changed mouseup to pointerup
 canvas.addEventListener('pointerup', (e) => { 
-  if (!drawing || !canDraw || currentTool === 'pointer' || currentTool === 'fill') return; 
-  drawing = false; 
-  const pt = getCanvasPoint(e);
-  if(!['pen', 'brush', 'spray', 'eraser'].includes(currentTool)) { drawShapeObj(startX, startY, pt.x, pt.y, currentTool, currentBrushColor, currentBrushSize, true); }
-  ctx.shadowBlur = 0; 
-  wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5);
+  if (drawing && canDraw && currentTool !== 'pointer' && currentTool !== 'fill') {
+      drawing = false; 
+      const pt = getCanvasPoint(e);
+      if(!['pen', 'brush', 'spray', 'eraser'].includes(currentTool)) { 
+          drawShapeObj(startX, startY, pt.x, pt.y, currentTool, currentBrushColor, currentBrushSize, true); 
+      }
+      ctx.shadowBlur = 0; 
+      wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5);
+  }
+
+  // Restore tool after right-click erase
+  if (isRightClickErasing) {
+      currentTool = prevToolState;
+      isRightClickErasing = false;
+  }
 });
 
-// TOUCH FIX: Changed mouseout to pointerout
-canvas.addEventListener('pointerout', () => { 
+canvas.addEventListener('pointerout', (e) => { 
   drawing = false; 
+  if (isRightClickErasing) {
+      currentTool = prevToolState;
+      isRightClickErasing = false;
+  }
   if(currentTool === 'pointer' && canDraw) socket.emit("wb-pointer", { room: currentRoom, hide: true }); 
 });
 
@@ -949,6 +948,7 @@ document.getElementById("toggleLabelsBtn")?.addEventListener("click", function()
   if (labelsVisible) { geoMap.addLayer(labelsLayer); this.style.background = "var(--primary)"; } 
   else { geoMap.removeLayer(labelsLayer); this.style.background = "var(--danger)"; }
 });
+
 
 function createLocalCard(name) {
   let el = document.getElementById("local-player"); if (el) return el;
