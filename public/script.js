@@ -43,13 +43,17 @@ const controlsSection = document.getElementById("controls");
 window.addEventListener("scroll", () => {
     if(!joined) return;
     const scrollY = window.scrollY || document.documentElement.scrollTop;
+    
     if (scrollY > 80) {
         hamburgerBtn.style.setProperty("display", "block", "important");
         if (controlRowInner.parentElement === controlsSection) {
             sideMenuContainer.appendChild(controlRowInner);
             controlRowInner.style.display = "flex";
             controlRowInner.style.flexDirection = "column";
-            if (sideMenuContainer.dataset.manualToggle !== "true") sideMenuContainer.style.setProperty("display", "none", "important");
+            
+            if (sideMenuContainer.dataset.manualToggle !== "true") {
+                sideMenuContainer.style.setProperty("display", "none", "important");
+            }
         }
     } else {
         hamburgerBtn.style.setProperty("display", "none", "important");
@@ -89,31 +93,58 @@ const uploadBtn = document.getElementById("uploadBtn");
 const fileUpload = document.getElementById("fileUpload");
 const fileList = document.getElementById("fileList");
 
-// Calculator
+// Draggable Personal Calculator
 const calcModal = document.getElementById("calc-modal");
 const calcDisplay = document.getElementById("calc-display");
 const calcHeader = document.getElementById("calc-header");
 
-toggleCalcBtn.addEventListener("click", () => { calcModal.style.display = calcModal.style.display === "none" || calcModal.style.display === "" ? "block" : "none"; });
+toggleCalcBtn.addEventListener("click", () => {
+    calcModal.style.display = calcModal.style.display === "none" || calcModal.style.display === "" ? "block" : "none";
+});
 window.calcAppend = (val) => { calcDisplay.value += val; };
 window.calcClear = () => { calcDisplay.value = ""; };
-window.calcCalculate = () => { try { calcDisplay.value = eval(calcDisplay.value); } catch(e) { calcDisplay.value = "Error"; setTimeout(calcClear, 1000); } };
+window.calcCalculate = () => { 
+    try { calcDisplay.value = eval(calcDisplay.value); } 
+    catch(e) { calcDisplay.value = "Error"; setTimeout(calcClear, 1000); } 
+};
 
+// Keyboard Numpad Listeners
 document.addEventListener("keydown", (e) => {
     if (calcModal.style.display === "block") {
         const key = e.key;
-        if (/^[0-9\.\+\-\*\/]$/.test(key)) calcAppend(key);
-        else if (key === "Enter" || key === "=") { e.preventDefault(); calcCalculate(); } 
-        else if (key === "Escape" || key === "Clear" || key === "Delete") calcClear();
-        else if (key === "Backspace") calcDisplay.value = calcDisplay.value.slice(0, -1);
+        if (/^[0-9\.\+\-\*\/]$/.test(key)) {
+            calcAppend(key);
+        } else if (key === "Enter" || key === "=") {
+            e.preventDefault();
+            calcCalculate();
+        } else if (key === "Escape" || key === "Clear" || key === "Delete") {
+            calcClear();
+        } else if (key === "Backspace") {
+            calcDisplay.value = calcDisplay.value.slice(0, -1);
+        }
     }
 });
 
 let isCalcDragging = false;
 let calcStartX, calcStartY, calcInitialX, calcInitialY;
-calcHeader.addEventListener("mousedown", (e) => { isCalcDragging = true; calcStartX = e.clientX; calcStartY = e.clientY; const rect = calcModal.getBoundingClientRect(); calcInitialX = rect.left; calcInitialY = rect.top; calcModal.style.right = "auto"; calcModal.style.left = calcInitialX + "px"; calcModal.style.top = calcInitialY + "px"; });
-document.addEventListener("mousemove", (e) => { if(!isCalcDragging) return; calcModal.style.left = (calcInitialX + e.clientX - calcStartX) + "px"; calcModal.style.top = (calcInitialY + e.clientY - calcStartY) + "px"; });
-document.addEventListener("mouseup", () => isCalcDragging = false);
+// TOUCH FIX: Changed mousedown to pointerdown
+calcHeader.addEventListener("pointerdown", (e) => {
+    isCalcDragging = true;
+    calcStartX = e.clientX; calcStartY = e.clientY;
+    const rect = calcModal.getBoundingClientRect();
+    calcInitialX = rect.left; calcInitialY = rect.top;
+    calcModal.style.right = "auto"; 
+    calcModal.style.left = calcInitialX + "px";
+    calcModal.style.top = calcInitialY + "px";
+});
+// TOUCH FIX: Changed mousemove to pointermove
+document.addEventListener("pointermove", (e) => {
+    if(!isCalcDragging) return;
+    calcModal.style.left = (calcInitialX + e.clientX - calcStartX) + "px";
+    calcModal.style.top = (calcInitialY + e.clientY - calcStartY) + "px";
+});
+// TOUCH FIX: Changed mouseup to pointerup
+document.addEventListener("pointerup", () => isCalcDragging = false);
 
 // Math Modal
 const mathModal = document.getElementById("math-modal");
@@ -125,7 +156,7 @@ const mathDisplay = document.getElementById("mathDisplay");
 const mathCategory = document.getElementById("mathCategory");
 const formulaLibrary = document.getElementById("formulaLibrary");
 
-// Presentation
+// Presentation & Graph
 const presentationBox = document.getElementById("presentation-box");
 const presInputForm = document.getElementById("pres-input-form");
 const generateGraphBtn = document.getElementById("generateGraphBtn");
@@ -174,6 +205,7 @@ let stampImage = null;
 let stampScale = 1.0;
 let isStamping = false;
 
+// Multiple Whiteboards
 let wbPages = []; 
 let currentWbPage = 0;
 const wbPrevPageBtn = document.getElementById("wbPrevPage");
@@ -246,17 +278,31 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
   const controlsDiv = document.createElement("div");
   controlsDiv.className = "local-controls";
   if(targetWrapper !== mapBox) {
-      const enlargeBtn = document.createElement("button"); enlargeBtn.className = "icon-btn"; enlargeBtn.innerHTML = "➕";
-      enlargeBtn.onclick = () => { targetWrapper.classList.remove("video-wrapper-small"); targetWrapper.classList.toggle("video-wrapper-large"); };
-      const shrinkBtn = document.createElement("button"); shrinkBtn.className = "icon-btn"; shrinkBtn.innerHTML = "➖";
-      shrinkBtn.onclick = () => { targetWrapper.classList.remove("video-wrapper-large"); targetWrapper.classList.toggle("video-wrapper-small"); };
+      const enlargeBtn = document.createElement("button");
+      enlargeBtn.className = "icon-btn"; enlargeBtn.innerHTML = "➕";
+      enlargeBtn.onclick = () => {
+        targetWrapper.classList.remove("video-wrapper-small");
+        targetWrapper.classList.toggle("video-wrapper-large");
+      };
+      const shrinkBtn = document.createElement("button");
+      shrinkBtn.className = "icon-btn"; shrinkBtn.innerHTML = "➖";
+      shrinkBtn.onclick = () => {
+        targetWrapper.classList.remove("video-wrapper-large");
+        targetWrapper.classList.toggle("video-wrapper-small");
+      };
       controlsDiv.appendChild(enlargeBtn); controlsDiv.appendChild(shrinkBtn);
   }
+  
   if(targetWrapper !== mapBox) {
-      const maxBtn = document.createElement("button"); maxBtn.className = "icon-btn"; maxBtn.innerHTML = "🖥️";
-      maxBtn.onclick = () => { if (!document.fullscreenElement) { targetWrapper.requestFullscreen().catch(e => e); } else { document.exitFullscreen(); } };
+      const maxBtn = document.createElement("button");
+      maxBtn.className = "icon-btn"; maxBtn.innerHTML = "🖥️";
+      maxBtn.onclick = () => {
+        if (!document.fullscreenElement) { targetWrapper.requestFullscreen().catch(e => e); } 
+        else { document.exitFullscreen(); }
+      };
       controlsDiv.appendChild(maxBtn);
   }
+  
   targetWrapper.appendChild(controlsDiv);
 }
 
@@ -279,9 +325,20 @@ function hideAllBigPanels() {
     togglePresBtn.dataset.show = "false"; togglePresBtn.style.background = "linear-gradient(135deg, #f1c40f, #f39c12)";
 }
 
-togglePresBtn.addEventListener("click", () => { const isShowing = togglePresBtn.dataset.show === "true"; socket.emit("pres-toggle", { room: currentRoom, show: !isShowing }); });
-toggleWbBtn.addEventListener("click", () => { const isShowing = toggleWbBtn.dataset.show === "true"; socket.emit("wb-toggle", { room: currentRoom, show: !isShowing }); });
-toggleMapBtn.addEventListener("click", () => { const isShowing = toggleMapBtn.dataset.show === "true"; socket.emit("map-toggle", { room: currentRoom, show: !isShowing }); });
+togglePresBtn.addEventListener("click", () => {
+  const isShowing = togglePresBtn.dataset.show === "true";
+  socket.emit("pres-toggle", { room: currentRoom, show: !isShowing });
+});
+
+toggleWbBtn.addEventListener("click", () => {
+  const isShowing = toggleWbBtn.dataset.show === "true";
+  socket.emit("wb-toggle", { room: currentRoom, show: !isShowing });
+});
+
+toggleMapBtn.addEventListener("click", () => {
+  const isShowing = toggleMapBtn.dataset.show === "true";
+  socket.emit("map-toggle", { room: currentRoom, show: !isShowing });
+});
 
 socket.on("pres-toggle", (data) => {
   if(data.show) { hideAllBigPanels(); presentationBox.style.display = "block"; if(isHost){togglePresBtn.dataset.show="true"; togglePresBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
@@ -411,12 +468,14 @@ socket.on("presentation-data", (data) => {
 });
 
 let laserTimeout;
-presentationContainer.addEventListener("mousemove", (e) => {
+// TOUCH FIX: Changed mousemove to pointermove
+presentationContainer.addEventListener("pointermove", (e) => {
     if(!isHost || presentationBox.style.display === "none") return;
     const rect = presentationContainer.getBoundingClientRect();
     socket.emit("laser-pointer", { room: currentRoom, x: (e.clientX - rect.left) / rect.width, y: (e.clientY - rect.top) / rect.height });
 });
-presentationContainer.addEventListener("mouseleave", () => { if(isHost) socket.emit("laser-pointer", { room: currentRoom, hide: true }); });
+// TOUCH FIX: Changed mouseleave to pointerleave
+presentationContainer.addEventListener("pointerleave", () => { if(isHost) socket.emit("laser-pointer", { room: currentRoom, hide: true }); });
 socket.on("laser-pointer", (data) => {
     if(data.hide) { laserPointer.style.display = "none"; return; }
     laserPointer.style.display = "block"; laserPointer.style.left = (data.x * 100) + "%"; laserPointer.style.top = (data.y * 100) + "%";
@@ -440,9 +499,6 @@ toggleSubjectsBtn.addEventListener("click", () => {
     wbShapesMenu.style.display = "none";
 });
 
-// ==========================================
-// 🚀 EXPANDED SUBJECT ASSETS LIST
-// ==========================================
 const subjectAssets = {
     geography: [
         {name: "World Map", url: "assets/subjects/world_map.pdf"},
@@ -490,7 +546,9 @@ const subjectAssetsList = document.getElementById("subjectAssetsList");
 
 function prepareStamp(src) {
     const img = new Image();
-    if (!src.startsWith("data:")) { img.crossOrigin = "Anonymous"; }
+    if (!src.startsWith("data:")) {
+        img.crossOrigin = "Anonymous"; 
+    }
     
     img.onload = () => {
         stampImage = img;
@@ -503,7 +561,7 @@ function prepareStamp(src) {
         showNotification("🖱️ Ready! Scroll to resize, Click to paste.", "info");
         canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); 
     };
-    img.onerror = () => showNotification("Image error. File missing in folder.", "danger");
+    img.onerror = () => showNotification("Image error. File missing or corrupt.", "danger");
     img.src = src; 
 }
 
@@ -529,9 +587,12 @@ async function loadAssetToCanvas(url, name) {
             await page.render({canvasContext: tCtx, viewport: viewport}).promise; 
             prepareStamp(tc.toDataURL("image/jpeg", 0.8));
             wbSubjectsMenu.style.display = "none";
+        } else {
+            showNotification(`Unsupported format for ${name}`, "danger");
         }
     } catch(e) {
-        showNotification(`Failed to load ${name}. Make sure the file exists!`, "danger");
+        console.error(e);
+        showNotification(`Failed to load ${name}. Make sure the PDF file exists in assets/subjects folder!`, "danger");
     }
 }
 
@@ -541,7 +602,9 @@ function loadSubjectAssets(cat) {
         const btn = document.createElement("button");
         btn.textContent = "➕ Insert " + asset.name;
         btn.style.cssText = "background: rgba(255,255,255,0.1); color: white; border: 1px solid var(--accent); padding: 8px; border-radius: 6px; cursor: pointer; text-align: left; font-size: 13px;";
-        btn.onclick = () => { loadAssetToCanvas(asset.url, asset.name); };
+        btn.onclick = () => {
+            loadAssetToCanvas(asset.url, asset.name);
+        };
         subjectAssetsList.appendChild(btn);
     });
 }
@@ -706,7 +769,8 @@ function drawShapeObj(x0, y0, x1, y1, type, color, size, emit = false) {
 const wbLaser = document.getElementById("wb-laser");
 let wbLaserTimeout;
 
-canvas.addEventListener('mousedown', (e) => { 
+// TOUCH FIX: Changed mousedown to pointerdown
+canvas.addEventListener('pointerdown', (e) => { 
   if (!canDraw) return; 
   const pt = getCanvasPoint(e);
 
@@ -743,7 +807,8 @@ canvas.addEventListener('mousedown', (e) => {
   canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
 });
 
-canvas.addEventListener('mousemove', (e) => {
+// TOUCH FIX: Changed mousemove to pointermove
+canvas.addEventListener('pointermove', (e) => {
   if (!canDraw) return;
   const pt = getCanvasPoint(e);
 
@@ -771,7 +836,8 @@ canvas.addEventListener('mousemove', (e) => {
   }
 });
 
-canvas.addEventListener('mouseup', (e) => { 
+// TOUCH FIX: Changed mouseup to pointerup
+canvas.addEventListener('pointerup', (e) => { 
   if (!drawing || !canDraw || currentTool === 'pointer' || currentTool === 'fill') return; 
   drawing = false; 
   const pt = getCanvasPoint(e);
@@ -780,7 +846,11 @@ canvas.addEventListener('mouseup', (e) => {
   wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5);
 });
 
-canvas.addEventListener('mouseout', () => { drawing = false; if(currentTool === 'pointer' && canDraw) socket.emit("wb-pointer", { room: currentRoom, hide: true }); });
+// TOUCH FIX: Changed mouseout to pointerout
+canvas.addEventListener('pointerout', () => { 
+  drawing = false; 
+  if(currentTool === 'pointer' && canDraw) socket.emit("wb-pointer", { room: currentRoom, hide: true }); 
+});
 
 socket.on('drawing', (data) => {
   if(data.type === 'free') drawFreehand(data.x0, data.y0, data.x1, data.y1, data.color, data.size, data.toolType, false);
@@ -804,9 +874,7 @@ socket.on("wb-pointer", (data) => {
     clearTimeout(wbLaserTimeout); wbLaserTimeout = setTimeout(() => { wbLaser.style.display = "none"; }, 2000);
 });
 
-// ==========================================
-// 🚀 NAYA: MULTI-PAGE PDF TO MULTI-BOARD PAGES ENGINE
-// ==========================================
+// PDF Rendering -> Multi-Board Auto Pages Setup
 document.getElementById('tool-pdf').addEventListener("click", () => document.getElementById('wbPdfUpload').click());
 document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
   const file = e.target.files[0]; if(!file) return; 
@@ -824,7 +892,6 @@ document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
           const pdf = await pdfjsLib.getDocument(typedarray).promise; 
           
           if (pdf.numPages === 1) {
-              // 1 Page -> Stamp it
               showNotification("Loading PDF...", "info");
               const page = await pdf.getPage(1); 
               const viewport = page.getViewport({scale: 2.0}); 
@@ -832,59 +899,38 @@ document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
               await page.render({canvasContext: tCtx, viewport: viewport}).promise; 
               prepareStamp(tc.toDataURL("image/jpeg", 0.8));
           } else {
-              // Multi-page -> Make separate boards automatically!
               showNotification(`Processing ${pdf.numPages} Pages into Slides...`, "info");
-              
-              saveCurrentPage(); // Save current work
-              
+              saveCurrentPage();
               let startNewPageIndex = wbPages.length;
-              if (wbPages.length === 1 && (wbPages[0] === '' || !wbPages[0])) {
-                  startNewPageIndex = 0; // Override if it's a completely fresh blank board
-              }
+              if (wbPages.length === 1 && (wbPages[0] === '' || !wbPages[0])) { startNewPageIndex = 0; }
 
               for (let i = 1; i <= pdf.numPages; i++) {
                   const page = await pdf.getPage(i);
                   const viewport = page.getViewport({scale: 2.0}); 
-                  
-                  const tc = document.createElement('canvas');
-                  tc.width = canvas.width; // 1920
-                  tc.height = canvas.height; // 1080
+                  const tc = document.createElement('canvas'); tc.width = canvas.width; tc.height = canvas.height;
                   const tCtx = tc.getContext('2d');
+                  tCtx.fillStyle = "#ffffff"; tCtx.fillRect(0, 0, tc.width, tc.height); 
                   
-                  tCtx.fillStyle = "#ffffff"; 
-                  tCtx.fillRect(0, 0, tc.width, tc.height); // White background
-                  
-                  // Render PDF onto temp canvas
                   const tempCanvas = document.createElement('canvas');
                   tempCanvas.width = viewport.width; tempCanvas.height = viewport.height;
                   await page.render({canvasContext: tempCanvas.getContext('2d'), viewport: viewport}).promise; 
                   
-                  // Fit inside 1920x1080 properly
                   const scaleToFit = Math.min(tc.width / viewport.width, tc.height / viewport.height) * 0.95;
-                  const fw = viewport.width * scaleToFit; 
-                  const fh = viewport.height * scaleToFit;
-                  const dx = (tc.width - fw) / 2; 
-                  const dy = (tc.height - fh) / 2;
+                  const fw = viewport.width * scaleToFit; const fh = viewport.height * scaleToFit;
+                  const dx = (tc.width - fw) / 2; const dy = (tc.height - fh) / 2;
                   
                   tCtx.drawImage(tempCanvas, dx, dy, fw, fh);
                   const pageData = tc.toDataURL("image/jpeg", 0.7);
-                  
-                  if (startNewPageIndex === 0 && i === 1) {
-                      wbPages[0] = pageData;
-                  } else {
-                      wbPages.push(pageData);
-                  }
+                  if (startNewPageIndex === 0 && i === 1) { wbPages[0] = pageData; } else { wbPages.push(pageData); }
               }
-              
-              loadPage(startNewPageIndex); // Jump to first page of the new PDF
+              loadPage(startNewPageIndex); 
               showNotification(`✅ Uploaded ${pdf.numPages} Pages as separate boards!`, "join");
-              document.getElementById('wbPdfUpload').value = ""; // Reset input
+              document.getElementById('wbPdfUpload').value = ""; 
           }
       };
       fileReader.readAsArrayBuffer(file);
   }
 });
-// ==========================================
 
 function initWorldMap() {
   geoMap = L.map('map-container', { center: [20.0, 0.0], zoom: 3, zoomControl: false });
@@ -903,7 +949,6 @@ document.getElementById("toggleLabelsBtn")?.addEventListener("click", function()
   if (labelsVisible) { geoMap.addLayer(labelsLayer); this.style.background = "var(--primary)"; } 
   else { geoMap.removeLayer(labelsLayer); this.style.background = "var(--danger)"; }
 });
-
 
 function createLocalCard(name) {
   let el = document.getElementById("local-player"); if (el) return el;
