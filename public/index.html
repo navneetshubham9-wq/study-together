@@ -184,16 +184,19 @@
         </div>
       </section>
 
-      <!-- ADVANCED PRO WHITEBOARD WITH PAGINATION -->
+      <!-- ADVANCED PRO WHITEBOARD WITH DUAL LAYERS -->
       <section id="whiteboard-box" class="card big-panel" style="grid-column: 1 / -1; height: 600px; display: none; position: relative;">
         <h3>🎨 VYDEX Education Board <span id="wb-status" style="font-size:12px; color:var(--accent); font-weight:400; margin-left: 10px;">(View Only)</span></h3>
         
         <div id="whiteboard-container" style="position: relative; width: 100%; height: 500px; background: #fdfdfd; border-radius: 12px; overflow: hidden; box-shadow: inset 0 5px 15px rgba(0,0,0,0.1);">
           
-          <canvas id="whiteboard" width="1920" height="1080" style="width: 100%; height: 100%; cursor: crosshair; display: block; touch-action: none; object-fit: fill;"></canvas>
+          <!-- 🚀 DUAL LAYER SYSTEM: Background Canvas for PDFs, Foreground Canvas for Drawing & Erasing -->
+          <canvas id="bg-whiteboard" width="1920" height="1080" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; touch-action: none; object-fit: fill; z-index: 1;"></canvas>
+          <canvas id="whiteboard" width="1920" height="1080" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: crosshair; display: block; touch-action: none; object-fit: fill; z-index: 2; background: transparent;"></canvas>
+          
           <div id="wb-laser" style="position: absolute; width: 15px; height: 15px; background: red; border-radius: 50%; box-shadow: 0 0 10px red, 0 0 20px red; pointer-events: none; display: none; transform: translate(-50%, -50%); z-index: 10;"></div>
           
-          <!-- 🚀 NAYA: ERASER SIZE MENU -->
+          <!-- ERASER SIZE MENU -->
           <div id="wb-eraser-menu" style="display: none; position: absolute; bottom: 75px; left: 55%; transform: translateX(-50%); background: rgba(20,30,48,0.95); padding: 10px 15px; border-radius: 12px; border: 1px solid var(--primary); z-index: 25; width: auto;">
             <div style="color: var(--accent); font-size: 12px; margin-bottom: 8px; font-weight: bold; text-align:center;">Eraser Size</div>
             <div style="display: flex; gap: 15px; justify-content: center; align-items: center;">
@@ -266,7 +269,7 @@
             <button id="tool-pdf" class="icon-btn" title="Upload PDF or Image to Board">📄 / 🖼️ File</button>
             
             <button id="tool-eraser" class="icon-btn tool-btn" title="Eraser (Hold Right-Click also works)">🧽</button>
-            <button id="wb-clear" class="icon-btn" style="background: var(--danger);" title="Clear Board">🗑️</button>
+            <button id="wb-clear" class="icon-btn" style="background: var(--danger);" title="Clear Annotations">🗑️</button>
           </div>
         </div>
       </section>
@@ -277,14 +280,11 @@
         
         <div id="map-container" style="position:relative; width: 100%; height: 450px; border-radius: 12px; overflow: hidden; box-shadow: inset 0 5px 15px rgba(0,0,0,0.1); z-index: 1;">
             
-            <!-- Floating Maximize Button inside Map -->
             <button id="mapFullscreenBtn" title="Maximize Map" style="position: absolute; top: 10px; right: 10px; z-index: 10000; background: rgba(0,0,0,0.7); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; padding: 6px 12px; font-size: 16px; cursor: pointer; backdrop-filter: blur(5px); box-shadow: 0 2px 10px rgba(0,0,0,0.5); transition: background 0.2s;">🖥️ Fullscreen</button>
 
-            <!-- Map Controls Stacked -->
             <div id="map-controls-container" style="position: absolute; top: 80px; left: 15px; z-index: 10000; display: flex; flex-direction: column; gap: 15px; align-items: flex-start;">
                 <button id="toggleLabelsBtn" title="Toggle Place Names" style="background: var(--primary); color: white; border: 2px solid white; border-radius: 50%; width: 45px; height: 45px; cursor: pointer; font-size: 18px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);">🏷️</button>
                 <button id="screenshotMapBtn" title="Take Map Screenshot" style="background: var(--accent-dark); color: white; border: 2px solid white; border-radius: 50%; width: 45px; height: 45px; cursor: pointer; font-size: 18px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);">📸</button>
-                <!-- Search Box appended dynamically here -->
             </div>
             
         </div>

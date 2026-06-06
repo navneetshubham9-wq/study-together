@@ -12,7 +12,6 @@ let isSharing = false;
 const remoteUsers = {}; 
 let currentMusicUrl = null;
 
-// DOM Elements
 const joinBtn = document.getElementById("joinBtn");
 const joinSection = document.getElementById("join-section"); 
 const workspace = document.getElementById("workspace"); 
@@ -88,7 +87,6 @@ const uploadBtn = document.getElementById("uploadBtn");
 const fileUpload = document.getElementById("fileUpload");
 const fileList = document.getElementById("fileList");
 
-// Calculator
 const calcModal = document.getElementById("calc-modal");
 const calcDisplay = document.getElementById("calc-display");
 const calcHeader = document.getElementById("calc-header");
@@ -114,7 +112,6 @@ calcHeader.addEventListener("pointerdown", (e) => { isCalcDragging = true; calcS
 document.addEventListener("pointermove", (e) => { if(!isCalcDragging) return; calcModal.style.left = (calcInitialX + e.clientX - calcStartX) + "px"; calcModal.style.top = (calcInitialY + e.clientY - calcStartY) + "px"; });
 document.addEventListener("pointerup", () => isCalcDragging = false);
 
-// Math Modal
 const mathModal = document.getElementById("math-modal");
 const mathInput = document.getElementById("mathInput");
 const mathExplanationInput = document.getElementById("mathExplanationInput");
@@ -124,7 +121,6 @@ const mathDisplay = document.getElementById("mathDisplay");
 const mathCategory = document.getElementById("mathCategory");
 const formulaLibrary = document.getElementById("formulaLibrary");
 
-// Presentation
 const presentationBox = document.getElementById("presentation-box");
 const presInputForm = document.getElementById("pres-input-form");
 const generateGraphBtn = document.getElementById("generateGraphBtn");
@@ -143,7 +139,6 @@ const excelTable = document.getElementById("excelTable");
 let businessChart = null;
 let currentChartData = null;
 
-// Map Elements
 const mapBox = document.getElementById("map-box");
 const mapContainer = document.getElementById("map-container");
 const toggleLabelsBtn = document.getElementById("toggleLabelsBtn");
@@ -152,14 +147,24 @@ let geoMap;
 let labelsLayer; 
 let labelsVisible = true; 
 
-// Whiteboard Elements
+// ==========================================
+// 🚀 DUAL LAYER WHITEBOARD SYSTEM SETUP
+// ==========================================
 const whiteboardBox = document.getElementById("whiteboard-box");
+
+// 1. Background Canvas (For PDFs and Stamped Images - NEVER Erased)
+const bgCanvas = document.getElementById('bg-whiteboard');
+const bgCtx = bgCanvas.getContext('2d', { willReadFrequently: true }); 
+
+// 2. Foreground Canvas (For Pen, Shapes, and Eraser)
 const canvas = document.getElementById('whiteboard');
 const ctx = canvas.getContext('2d', { willReadFrequently: true }); 
 const wbStatus = document.getElementById('wb-status');
 
-ctx.fillStyle = "#ffffff";
-ctx.fillRect(0, 0, canvas.width, canvas.height);
+// Setup Colors
+bgCtx.fillStyle = "#ffffff";
+bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+ctx.clearRect(0, 0, canvas.width, canvas.height); // Foreground must be transparent!
 
 let canDraw = false; 
 let currentBrushColor = "#000000";
@@ -173,48 +178,67 @@ let stampImage = null;
 let stampScale = 1.0;
 let isStamping = false;
 
-// 🚀 NAYA: Eraser Defaults
 let currentEraserSize = 30; // 0.5cm equivalent
 let isRightClickErasing = false;
 let prevToolState = 'pen';
 
-// Multiple Whiteboards
-let wbPages = []; 
+// Multi-Page Dual Arrays!
+let wbPagesBg = []; 
+let wbPagesFg = []; 
 let currentWbPage = 0;
 const wbPrevPageBtn = document.getElementById("wbPrevPage");
 const wbNextPageBtn = document.getElementById("wbNextPage");
 const wbAddPageBtn = document.getElementById("wbAddPage");
 const wbPageNumText = document.getElementById("wbPageNum");
 
+// Initialize page 0
+wbPagesBg[0] = '';
+wbPagesFg[0] = '';
+
 function saveCurrentPage() {
-    wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5); 
+    wbPagesBg[currentWbPage] = bgCanvas.toDataURL("image/jpeg", 0.5); 
+    wbPagesFg[currentWbPage] = canvas.toDataURL("image/png", 0.5); // PNG retains transparency
 }
+
 function loadPage(index) {
-    if (index < 0 || index >= wbPages.length) return;
+    if (index < 0 || index >= wbPagesBg.length) return;
     saveCurrentPage();
     currentWbPage = index;
-    wbPageNumText.textContent = `${currentWbPage + 1} / ${wbPages.length}`;
+    wbPageNumText.textContent = `${currentWbPage + 1} / ${wbPagesBg.length}`;
     
-    const imgSrc = wbPages[currentWbPage];
-    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height); 
-    if(imgSrc) {
-        const img = new Image();
-        img.onload = () => { ctx.drawImage(img, 0, 0); };
-        img.src = imgSrc;
+    // Clear both
+    bgCtx.fillStyle = "#ffffff"; bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height); 
+    ctx.clearRect(0, 0, canvas.width, canvas.height); 
+
+    // Load Background Layer
+    if(wbPagesBg[currentWbPage]) {
+        const imgBg = new Image();
+        imgBg.onload = () => { bgCtx.drawImage(imgBg, 0, 0); };
+        imgBg.src = wbPagesBg[currentWbPage];
     }
-    if(isHost) socket.emit("wb-page-sync", { room: currentRoom, image: imgSrc, num: currentWbPage + 1, total: wbPages.length });
+    // Load Foreground Layer
+    if(wbPagesFg[currentWbPage]) {
+        const imgFg = new Image();
+        imgFg.onload = () => { ctx.drawImage(imgFg, 0, 0); };
+        imgFg.src = wbPagesFg[currentWbPage];
+    }
+    
+    if(isHost) socket.emit("wb-page-sync", { room: currentRoom, imageBg: wbPagesBg[currentWbPage], imageFg: wbPagesFg[currentWbPage], num: currentWbPage + 1, total: wbPagesBg.length });
 }
 
 if(wbAddPageBtn) {
     wbAddPageBtn.addEventListener("click", () => {
         saveCurrentPage();
-        wbPages.push(''); 
-        currentWbPage = wbPages.length - 1;
-        wbPageNumText.textContent = `${currentWbPage + 1} / ${wbPages.length}`;
+        wbPagesBg.push(''); 
+        wbPagesFg.push(''); 
+        currentWbPage = wbPagesBg.length - 1;
+        wbPageNumText.textContent = `${currentWbPage + 1} / ${wbPagesBg.length}`;
         
-        ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        bgCtx.fillStyle = "#ffffff"; bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
         showNotification("Created new whiteboard page!", "info");
-        socket.emit("wb-page-sync", { room: currentRoom, image: '', num: currentWbPage + 1, total: wbPages.length });
+        socket.emit("wb-page-sync", { room: currentRoom, imageBg: '', imageFg: '', num: currentWbPage + 1, total: wbPagesBg.length });
     });
 }
 if(wbPrevPageBtn) { wbPrevPageBtn.addEventListener("click", () => loadPage(currentWbPage - 1)); }
@@ -222,11 +246,19 @@ if(wbNextPageBtn) { wbNextPageBtn.addEventListener("click", () => loadPage(curre
 
 socket.on("wb-page-sync", (data) => {
     wbPageNumText.textContent = `${data.num} / ${data.total}`;
-    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    if(data.image) {
-        const img = new Image();
-        img.onload = () => { ctx.drawImage(img, 0, 0); };
-        img.src = data.image;
+    
+    bgCtx.fillStyle = "#ffffff"; bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    if(data.imageBg) {
+        const imgBg = new Image();
+        imgBg.onload = () => { bgCtx.drawImage(imgBg, 0, 0); };
+        imgBg.src = data.imageBg;
+    }
+    if(data.imageFg) {
+        const imgFg = new Image();
+        imgFg.onload = () => { ctx.drawImage(imgFg, 0, 0); };
+        imgFg.src = data.imageFg;
     }
 });
 
@@ -554,12 +586,10 @@ function loadSubjectAssets(cat) {
 subjectCategory.addEventListener("change", (e) => loadSubjectAssets(e.target.value));
 loadSubjectAssets("geography");
 
-// Tool selection Logic updated for Eraser
 document.querySelectorAll('.tool-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
         let clickedTool = btn.id.replace('tool-', '');
         
-        // Handle Eraser Drop-up Menu
         if (clickedTool === 'eraser' && currentTool === 'eraser') {
             wbEraserMenu.style.display = wbEraserMenu.style.display === "none" ? "block" : "none";
             return;
@@ -580,7 +610,6 @@ document.querySelectorAll('.tool-btn').forEach(btn => {
     });
 });
 
-// Eraser Size Selectors
 document.querySelectorAll('.eraser-size-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
         document.querySelectorAll('.eraser-size-btn').forEach(b => b.classList.remove('active-tool'));
@@ -594,12 +623,14 @@ document.getElementById('wb-color').addEventListener("input", (e) => { currentBr
 document.getElementById('wb-size').addEventListener("input", (e) => { currentBrushSize = e.target.value; });
 document.getElementById('wb-clear').addEventListener("click", () => {
   if (!canDraw) return; 
-  ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height); 
+  // 🚀 Sirf Drawings (Foreground) mitengi, Background Image wahi rahegi!
+  ctx.clearRect(0, 0, canvas.width, canvas.height); 
   socket.emit("clear-whiteboard", { room: currentRoom });
-  wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5);
+  wbPagesFg[currentWbPage] = canvas.toDataURL("image/png", 0.5);
+  showNotification("Annotations cleared. Background kept intact.", "info");
 });
 socket.on("clear-whiteboard", () => {
-    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 });
 
 function getCanvasPoint(e) {
@@ -662,9 +693,18 @@ socket.on("wb-fill", (data) => floodFill(data.x, data.y, data.color, false));
 
 function drawFreehand(x0, y0, x1, y1, color, size, toolType, emit = false) {
   if(toolType === 'eraser') {
-      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
-      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = size; ctx.lineCap = 'round'; 
-      ctx.shadowBlur = 0; ctx.stroke(); ctx.closePath();
+      // 🚀 ERASER LOGIC: Make pixels transparent to show Background PDF
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath(); 
+      ctx.moveTo(x0, y0); 
+      ctx.lineTo(x1, y1);
+      ctx.strokeStyle = "rgba(0,0,0,1)"; 
+      ctx.lineWidth = size; 
+      ctx.lineCap = 'round'; 
+      ctx.lineJoin = 'round';
+      ctx.stroke(); 
+      ctx.closePath();
+      ctx.globalCompositeOperation = 'source-over';
   } 
   else if (toolType === 'spray') {
       ctx.fillStyle = color;
@@ -730,17 +770,15 @@ function drawShapeObj(x0, y0, x1, y1, type, color, size, emit = false) {
   if (emit) socket.emit('drawing', { type: type, x0, y0, x1, y1, color, size, room: currentRoom });
 }
 
-// Prevent Context Menu on canvas to allow right-click erasing
+// Right click context menu block
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
 const wbLaser = document.getElementById("wb-laser");
 let wbLaserTimeout;
 
-// 🚀 NAYA: POINTER EVENTS FOR TOUCH, PEN, MOUSE & RIGHT-CLICK ERASER
 canvas.addEventListener('pointerdown', (e) => { 
   if (!canDraw) return; 
 
-  // Right-Click Erasing Check
   if (e.button === 2 || e.buttons === 2 || (e.pointerType === 'pen' && e.button === 5)) {
       isRightClickErasing = true;
       prevToolState = currentTool;
@@ -756,7 +794,9 @@ canvas.addEventListener('pointerdown', (e) => {
       ctx.putImageData(canvasSnapshot, 0, 0); 
       let w = stampImage.width * stampScale;
       let h = stampImage.height * stampScale;
-      ctx.drawImage(stampImage, pt.x - w/2, pt.y - h/2, w, h);
+      
+      // 🚀 PDF AND STAMPS GO TO BACKGROUND LAYER
+      bgCtx.drawImage(stampImage, pt.x - w/2, pt.y - h/2, w, h);
       
       let tempCanvas = document.createElement("canvas");
       let syncScale = Math.min(1, 800 / Math.max(w, h)); 
@@ -769,7 +809,7 @@ canvas.addEventListener('pointerdown', (e) => {
       let sendSrc = tempCanvas.toDataURL("image/jpeg", 0.5); 
       socket.emit("wb-stamp", { room: currentRoom, image: sendSrc, x: pt.x - w/2, y: pt.y - h/2, w: w, h: h });
 
-      wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5);
+      wbPagesBg[currentWbPage] = bgCanvas.toDataURL("image/jpeg", 0.5);
       
       isStamping = false;
       currentTool = 'pen';
@@ -808,11 +848,8 @@ canvas.addEventListener('pointermove', (e) => {
   if (!drawing || currentTool === 'fill') return;
 
   if(['pen', 'brush', 'spray', 'eraser'].includes(currentTool)) {
-      
-      // 🚀 NAYA: PRESSURE SENSITIVITY LOGIC
       let pressure = (e.pointerType === 'pen' && e.pressure > 0) ? e.pressure : 0.5;
       let pressureMult = e.pointerType === 'pen' ? (pressure * 2.5) : 1; 
-      
       let activeSize = currentTool === 'eraser' ? currentEraserSize : (currentBrushSize * pressureMult);
       if(activeSize < 1) activeSize = 1;
 
@@ -832,10 +869,9 @@ canvas.addEventListener('pointerup', (e) => {
           drawShapeObj(startX, startY, pt.x, pt.y, currentTool, currentBrushColor, currentBrushSize, true); 
       }
       ctx.shadowBlur = 0; 
-      wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5);
+      wbPagesFg[currentWbPage] = canvas.toDataURL("image/png", 0.5);
   }
 
-  // Restore tool after right-click erase
   if (isRightClickErasing) {
       currentTool = prevToolState;
       isRightClickErasing = false;
@@ -855,14 +891,14 @@ socket.on('drawing', (data) => {
   if(data.type === 'free') drawFreehand(data.x0, data.y0, data.x1, data.y1, data.color, data.size, data.toolType, false);
   else drawShapeObj(data.x0, data.y0, data.x1, data.y1, data.type, data.color, data.size, false);
   
-  if(isHost) wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5);
+  if(isHost) wbPagesFg[currentWbPage] = canvas.toDataURL("image/png", 0.5);
 });
 
 socket.on("wb-stamp", (data) => {
     const img = new Image();
     img.onload = () => { 
-        ctx.drawImage(img, data.x, data.y, data.w, data.h); 
-        if(isHost) wbPages[currentWbPage] = canvas.toDataURL("image/jpeg", 0.5);
+        bgCtx.drawImage(img, data.x, data.y, data.w, data.h); 
+        if(isHost) wbPagesBg[currentWbPage] = bgCanvas.toDataURL("image/jpeg", 0.5);
     };
     img.src = data.image;
 });
@@ -900,8 +936,8 @@ document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
           } else {
               showNotification(`Processing ${pdf.numPages} Pages into Slides...`, "info");
               saveCurrentPage();
-              let startNewPageIndex = wbPages.length;
-              if (wbPages.length === 1 && (wbPages[0] === '' || !wbPages[0])) { startNewPageIndex = 0; }
+              let startNewPageIndex = wbPagesBg.length;
+              if (wbPagesBg.length === 1 && (wbPagesBg[0] === '' || !wbPagesBg[0])) { startNewPageIndex = 0; }
 
               for (let i = 1; i <= pdf.numPages; i++) {
                   const page = await pdf.getPage(i);
@@ -919,8 +955,16 @@ document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
                   const dx = (tc.width - fw) / 2; const dy = (tc.height - fh) / 2;
                   
                   tCtx.drawImage(tempCanvas, dx, dy, fw, fh);
-                  const pageData = tc.toDataURL("image/jpeg", 0.7);
-                  if (startNewPageIndex === 0 && i === 1) { wbPages[0] = pageData; } else { wbPages.push(pageData); }
+                  const pageDataBg = tc.toDataURL("image/jpeg", 0.7);
+                  const pageDataFg = ""; // Empty drawing layer
+                  
+                  if (startNewPageIndex === 0 && i === 1) { 
+                      wbPagesBg[0] = pageDataBg; 
+                      wbPagesFg[0] = pageDataFg; 
+                  } else { 
+                      wbPagesBg.push(pageDataBg); 
+                      wbPagesFg.push(pageDataFg); 
+                  }
               }
               loadPage(startNewPageIndex); 
               showNotification(`✅ Uploaded ${pdf.numPages} Pages as separate boards!`, "join");
@@ -948,7 +992,6 @@ document.getElementById("toggleLabelsBtn")?.addEventListener("click", function()
   if (labelsVisible) { geoMap.addLayer(labelsLayer); this.style.background = "var(--primary)"; } 
   else { geoMap.removeLayer(labelsLayer); this.style.background = "var(--danger)"; }
 });
-
 
 function createLocalCard(name) {
   let el = document.getElementById("local-player"); if (el) return el;
