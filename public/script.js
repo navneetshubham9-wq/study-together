@@ -270,6 +270,22 @@ if(mapBox) addSizeControls(mapBox, mapBox);
 if(presentationBox) addSizeControls(presentationBox, presentationBox);
 if(officeBox) addSizeControls(officeBox, officeBox);
 
+const toggleWbBtn = document.getElementById("toggleWbBtn");
+const toggleMapBtn = document.getElementById("toggleMapBtn");
+const togglePresBtn = document.getElementById("togglePresBtn");
+const toggleOfficeBtn = document.getElementById("toggleOfficeBtn");
+const wbStatus = document.getElementById("wb-status");
+const fileList = document.getElementById("fileList");
+const muteAllBtn = document.getElementById("muteAllBtn");
+const unmuteAllBtn = document.getElementById("unmuteAllBtn");
+const cameraBtn = document.getElementById("cameraBtn");
+const muteBtn = document.getElementById("muteBtn");
+const shareBtn = document.getElementById("shareBtn");
+const sendMsgBtn = document.getElementById("sendMsgBtn");
+const chatInput = document.getElementById("chatInput");
+const fileUpload = document.getElementById("fileUpload");
+const leaveBtn = document.getElementById("leaveBtn");
+
 document.getElementById("mapFullscreenBtn")?.addEventListener("click", () => {
     const mapCont = document.getElementById("map-container");
     if (mapCont && !document.fullscreenElement) { mapCont.requestFullscreen().catch(e => console.warn(e)); } 
