@@ -243,15 +243,19 @@
               </div>
               <div class="office-ribbon-panel" id="word-layout">
                 <div class="office-ribbon-group">
-                  <button onclick="document.getElementById('wordEditor').style.padding=prompt('Margins (px):','20px')">📏 Margins</button>
-                  <button onclick="var o=prompt('Orientation (portrait/landscape):','portrait');if(o)wordEditor.style.writingMode=o==='landscape'?'vertical-rl':'horizontal-tb'">🔄 Orientation</button>
-                  <button onclick="var w=prompt('Page width (px):','794');if(w)document.getElementById('wordEditor').style.maxWidth=w+'px'">📄 Size</button>
-                  <button onclick="var c=prompt('Columns:','2');if(c)document.execCommand('formatBlock',false,'<div style=\"column-count:'+c+'\">')">☰ Columns</button>
+                  <select id="wordPaperSize" onchange="var w=this.value;if(w==='A4'){wordEditor.style.maxWidth='794px';wordEditor.style.minHeight='1123px'}else if(w==='Letter'){wordEditor.style.maxWidth='816px';wordEditor.style.minHeight='1054px'}else if(w==='Legal'){wordEditor.style.maxWidth='816px';wordEditor.style.minHeight='1344px'}else if(w==='A3'){wordEditor.style.maxWidth='1123px';wordEditor.style.minHeight='1587px'}" title="Paper Size">
+                    <option value="">Paper Size</option><option value="A4">A4</option><option value="Letter">Letter</option><option value="Legal">Legal</option><option value="A3">A3</option>
+                  </select>
+                  <button onclick="var m=prompt('Margins (px):','20');if(m)document.getElementById('wordEditor').style.padding=m+'px'">📏 Margins</button>
+                  <button onclick="var o=prompt('Orientation','portrait');if(o){wordEditor.style.writingMode='horizontal-tb';if(o==='landscape'){wordEditor.style.maxWidth='1123px';wordEditor.style.minHeight='794px'}else{wordEditor.style.maxWidth='794px';wordEditor.style.minHeight='1123px'}}">🔄 Orientation</button>
+                  <button onclick="var w=prompt('Custom width (px):','794');if(w)wordEditor.style.maxWidth=w+'px'">📐 Custom Size</button>
                   <span class="office-ribbon-group-label">Page Setup</span>
                 </div>
                 <div class="office-ribbon-group">
+                  <button onclick="var c=prompt('Columns:','2');if(c)document.execCommand('formatBlock',false,'<div style=\"column-count:'+c+'\">')">☰ Columns</button>
+                  <button onclick="var c=prompt('Page color (hex):','#ffffff');if(c)document.getElementById('wordEditor').style.backgroundColor=c">🎨 Page Color</button>
+                  <button onclick="var b=prompt('Border style (none, solid, dashed, dotted):','solid');if(b)document.getElementById('wordEditor').style.border='2px '+b+' #ccc'">⊞ Page Border</button>
                   <button onclick="wordBreaks()">⏎ Breaks</button>
-                  <button onclick="showNotification('Line Numbers - coming soon','info')"># Line#</button>
                   <span class="office-ribbon-group-label">Arrange</span>
                 </div>
               </div>
@@ -348,30 +352,30 @@
               <div class="office-ribbon-panel" id="excel-insert">
                 <div class="office-ribbon-group">
                   <button onclick="showNotification('PivotTable - coming soon','info')">📊 PivotTable</button>
-                  <button onclick="showNotification('Chart - coming soon','info')">📈 Chart</button>
-                  <button onclick="showNotification('Pictures - coming soon','info')">🖼 Picture</button>
-                  <button onclick="showNotification('Shapes - coming soon','info')">⬡ Shapes</button>
+                  <button onclick="excelChart()">📈 Chart</button>
+                  <button onclick="excelInsertPicture()">🖼 Picture</button>
+                  <button onclick="excelShape()">⬡ Shapes</button>
                   <span class="office-ribbon-group-label">Insert</span>
                 </div>
                 <div class="office-ribbon-group">
-                  <button onclick="showNotification('Sparklines - coming soon','info')">⚡ Sparklines</button>
+                  <button onclick="excelSparklines()">⚡ Sparklines</button>
                   <button onclick="showNotification('Slicer - coming soon','info')">🔪 Slicer</button>
-                  <button onclick="showNotification('Hyperlink - coming soon','info')">🔗 Link</button>
-                  <button onclick="showNotification('Text Box - coming soon','info')">📦 Text Box</button>
+                  <button onclick="excelHyperlink()">🔗 Link</button>
+                  <button onclick="excelTextBox()">📦 Text Box</button>
                   <span class="office-ribbon-group-label">Add-ins</span>
                 </div>
               </div>
               <div class="office-ribbon-panel" id="excel-layout">
                 <div class="office-ribbon-group">
-                  <button onclick="showNotification('Themes - coming soon','info')">🎨 Themes</button>
-                  <button onclick="showNotification('Margins - coming soon','info')">📏 Margins</button>
-                  <button onclick="showNotification('Orientation - coming soon','info')">🔄 Orientation</button>
+                  <button onclick="excelTheme()">🎨 Themes</button>
+                  <button onclick="excelMargins()">📏 Margins</button>
+                  <button onclick="excelOrientation()">🔄 Orientation</button>
                   <span class="office-ribbon-group-label">Page Setup</span>
                 </div>
                 <div class="office-ribbon-group">
-                  <button onclick="showNotification('Print Area - coming soon','info')">🖨 Print Area</button>
+                  <button onclick="excelPrintArea()">🖨 Print Area</button>
                   <button onclick="showNotification('Breaks - coming soon','info')">⏎ Breaks</button>
-                  <button onclick="showNotification('Background - coming soon','info')">🖼 Background</button>
+                  <button onclick="excelBackground()">🖼 Background</button>
                   <button onclick="showNotification('Print Titles - coming soon','info')">📄 Titles</button>
                   <span class="office-ribbon-group-label">Scale to Fit</span>
                 </div>
@@ -380,13 +384,13 @@
                 <div class="office-ribbon-group">
                   <button onclick="excelAutoSum()">Σ AutoSum</button>
                   <button onclick="showNotification('Recently Used - coming soon','info')">⏳ Recent</button>
-                  <button onclick="showNotification('Financial - coming soon','info')">💰 Financial</button>
-                  <button onclick="showNotification('Logical - coming soon','info')">✓ Logical</button>
+                  <button onclick="excelFinancial()">💰 Financial</button>
+                  <button onclick="excelLogical()">✓ Logical</button>
                   <span class="office-ribbon-group-label">Function Library</span>
                 </div>
                 <div class="office-ribbon-group">
-                  <button onclick="showNotification('Text - coming soon','info')">🔤 Text</button>
-                  <button onclick="showNotification('Date & Time - coming soon','info')">📅 Date &amp; Time</button>
+                  <button onclick="excelTextFunc()">🔤 Text</button>
+                  <button onclick="excelDateFunc()">📅 Date &amp; Time</button>
                   <button onclick="showNotification('Name Manager - coming soon','info')">🏷 Name Mgr</button>
                   <button onclick="showNotification('Calculation Options - coming soon','info')">⚙ Calc Opts</button>
                   <span class="office-ribbon-group-label">Defined Names</span>
@@ -394,7 +398,7 @@
               </div>
               <div class="office-ribbon-panel" id="excel-data">
                 <div class="office-ribbon-group">
-                  <button onclick="showNotification('Get Data - coming soon','info')">📥 Get Data</button>
+                  <button onclick="excelGetData()">📥 Get Data</button>
                   <button onclick="showNotification('Refresh All - coming soon','info')">🔄 Refresh</button>
                   <span class="ribbon-sep"></span>
                   <button onclick="excelSortCol(true)">⇅ A→Z</button>
@@ -403,8 +407,8 @@
                   <span class="office-ribbon-group-label">Sort &amp; Filter</span>
                 </div>
                 <div class="office-ribbon-group">
-                  <button onclick="showNotification('Text to Columns - coming soon','info')">📋 Text→Cols</button>
-                  <button onclick="showNotification('Flash Fill - coming soon','info')">⚡ Flash Fill</button>
+                  <button onclick="excelTextToColumns()">📋 Text→Cols</button>
+                  <button onclick="excelFlashFill()">⚡ Flash Fill</button>
                   <button onclick="excelRemoveDuplicates()">🗑 Rem Dup</button>
                   <button onclick="excelDataValidation()">✓ Validation</button>
                   <span class="office-ribbon-group-label">Data Tools</span>
@@ -412,14 +416,14 @@
               </div>
               <div class="office-ribbon-panel" id="excel-review">
                 <div class="office-ribbon-group">
-                  <button onclick="showNotification('Spelling - coming soon','info')">✓ Spelling</button>
+                  <button onclick="excelSpelling()">✓ Spelling</button>
                   <button onclick="showNotification('Thesaurus - coming soon','info')">📕 Thesaurus</button>
                   <span class="office-ribbon-group-label">Proofing</span>
                 </div>
                 <div class="office-ribbon-group">
                   <button onclick="excelProtectSheet()">🔒 Sheet</button>
-                  <button onclick="showNotification('Protect Workbook - coming soon','info')">🔒 Workbook</button>
-                  <button onclick="showNotification('Share Workbook - coming soon','info')">👥 Share</button>
+                  <button onclick="excelProtectWorkbook()">🔒 Workbook</button>
+                  <button onclick="excelShareWorkbook()">👥 Share</button>
                   <span class="office-ribbon-group-label">Protect</span>
                 </div>
               </div>
@@ -486,28 +490,28 @@
                   <button onclick="pptAddSlide()" style="background:#27ae60;color:#fff;">＋ Slide</button>
                   <button onclick="pptInsertTable()">⊞ Table</button>
                   <button onclick="pptInsertPicture()">🖼 Picture</button>
-                  <button onclick="showNotification('Photo Album - coming soon','info')">📸 Album</button>
+                  <button onclick="pptPhotoAlbum()">📸 Album</button>
                   <span class="office-ribbon-group-label">Insert</span>
                 </div>
                 <div class="office-ribbon-group">
                   <button onclick="pptInsertShape()">⬡ Shapes</button>
-                  <button onclick="showNotification('Icons - coming soon','info')">◎ Icons</button>
-                  <button onclick="showNotification('SmartArt - coming soon','info')">🧠 SmartArt</button>
-                  <button onclick="showNotification('Chart - coming soon','info')">📊 Chart</button>
+                  <button onclick="pptIcons()">◎ Icons</button>
+                  <button onclick="pptSmartArt()">🧠 SmartArt</button>
+                  <button onclick="pptChart()">📊 Chart</button>
                   <span class="office-ribbon-group-label">Illustrations</span>
                 </div>
                 <div class="office-ribbon-group">
                   <button onclick="showNotification('Zoom - coming soon','info')">🔍 Zoom</button>
                   <button onclick="showNotification('Link - coming soon','info')">🔗 Link</button>
-                  <button onclick="showNotification('Video - coming soon','info')">🎬 Video</button>
-                  <button onclick="showNotification('Audio - coming soon','info')">🔊 Audio</button>
+                  <button onclick="pptVideo()">🎬 Video</button>
+                  <button onclick="pptAudio()">🔊 Audio</button>
                   <span class="office-ribbon-group-label">Media</span>
                 </div>
               </div>
               <div class="office-ribbon-panel" id="ppt-design">
                 <div class="office-ribbon-group">
                   <button onclick="pptTheme()">🎨 Themes</button>
-                  <button onclick="showNotification('Variants - coming soon','info')">🌈 Variants</button>
+                  <button onclick="pptVariants()">🌈 Variants</button>
                   <span class="ribbon-sep"></span>
                   <button onclick="var s=prompt('Slide size: widescreen, standard, or custom (e.g. 1024x768):','widescreen');if(s){var e=document.getElementById('pptEditor');if(e){if(s.includes('x')){var p=s.split('x');e.style.maxWidth=p[0]+'px';e.style.maxHeight=p[1]+'px'}else if(s==='widescreen'){e.style.maxWidth='1024px';e.style.maxHeight='576px'}else{e.style.maxWidth='800px';e.style.maxHeight='600px'};showNotification('Slide size updated','info')}}">📐 Size</button>
                   <button onclick="pptFormatBg()">🖼 Format BG</button>
@@ -516,19 +520,19 @@
               </div>
               <div class="office-ribbon-panel" id="ppt-transitions">
                 <div class="office-ribbon-group">
-                  <select onchange="showNotification('Transition: '+this.value,'info')">
+                  <select id="pptTransitionSelect" onchange="pptApplyTransition(this.value)">
                     <option value="">None</option><option value="morph">Morph</option><option value="fade">Fade</option><option value="push">Push</option><option value="wipe">Wipe</option><option value="dissolve">Dissolve</option>
                   </select>
                   <span class="ribbon-sep"></span>
                   <input type="number" id="pptTransDuration" value="1" step="0.5" min="0" max="10" style="width:50px;border-radius:3px;padding:2px;"><span style="color:#111;font-size:10px;">s</span>
-                  <button onclick="showNotification('Sound - coming soon','info')">🔊 Sound</button>
-                  <button onclick="showNotification('Advance Slide - coming soon','info')">⏩ Advance</button>
+                  <button onclick="pptTransitionSound()">🔊 Sound</button>
+                  <button onclick="pptAdvanceSlide()">⏩ Advance</button>
                   <span class="office-ribbon-group-label">Transition</span>
                 </div>
               </div>
               <div class="office-ribbon-panel" id="ppt-animations">
                 <div class="office-ribbon-group">
-                  <select onchange="showNotification('Animation: '+this.value,'info')">
+                  <select id="pptAnimationSelect" onchange="pptApplyAnimation(this.value)">
                     <option value="">None</option><option value="appear">Appear</option><option value="fadeIn">Fade In</option><option value="flyIn">Fly In</option><option value="floatIn">Float In</option><option value="zoomIn">Zoom In</option>
                   </select>
                   <button onclick="showNotification('Animation Pane - coming soon','info')">📋 Pane</button>
@@ -544,10 +548,10 @@
                   <button onclick="pptSlideshow(0)">▶ From Start</button>
                   <button onclick="pptSlideshow(1)">▶ Current</button>
                   <span class="ribbon-sep"></span>
-                  <button onclick="showNotification('Present Online - coming soon','info')">🌐 Online</button>
-                  <button onclick="showNotification('Custom Slide Show - coming soon','info')">🎬 Custom</button>
-                  <button onclick="showNotification('Rehearse Timings - coming soon','info')">⏱ Rehearse</button>
-                  <button onclick="showNotification('Record - coming soon','info')">🔴 Record</button>
+                  <button onclick="pptPresentOnline()">🌐 Online</button>
+                  <button onclick="pptCustomShow()">🎬 Custom</button>
+                  <button onclick="pptRehearse()">⏱ Rehearse</button>
+                  <button onclick="pptRecord()">🔴 Record</button>
                   <span class="office-ribbon-group-label">Slide Show</span>
                 </div>
               </div>

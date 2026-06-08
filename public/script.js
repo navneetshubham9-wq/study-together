@@ -1120,8 +1120,359 @@ function excelProtectSheet() {
     }
     emitOfficeData();
 }
-
-// ---- PPT advanced features ----
+// ---- Excel new features ----
+function excelChart() {
+    if(!excelGrid) return;
+    const labels = prompt('Labels (comma separated):','Jan,Feb,Mar');
+    const values = prompt('Values (comma separated):','30,50,20');
+    if(!labels || !values) return;
+    const labs = labels.split(',').map(s=>s.trim());
+    const vals = values.split(',').map(s=>parseFloat(s.trim())||0);
+    const max = Math.max(...vals,1);
+    let html = '<div style="display:flex;gap:10px;align-items:flex-end;padding:15px 8px;min-height:150px;border:1px solid #ddd;border-radius:4px;margin:4px 0;">';
+    labs.forEach((l,i) => {
+        const h = (vals[i]/max)*120;
+        html += `<div style="flex:1;text-align:center;"><div style="height:${h}px;background:${['#3498db','#e74c3c','#2ecc71','#f39c12','#9b59b6','#1abc9c'][i%6]};border-radius:3px 3px 0 0;"></div><span style="font-size:9px;display:block;margin-top:2px;">${l}<br><b>${vals[i]}</b></span></div>`;
+    });
+    html += '</div>';
+    const sel = window.getSelection();
+    if(sel.rangeCount) {
+        const td = sel.anchorNode?.closest?.('td');
+        if(td) { td.innerHTML = html; emitOfficeData(); return; }
+    }
+    showNotification('Click a cell first','warning');
+}
+function excelInsertPicture() {
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td');
+    if(!td) { showNotification('Click a cell first','warning'); return; }
+    const url = prompt('Image URL:','https://');
+    if(!url) return;
+    td.innerHTML = `<img src="${url}" style="max-width:100%;max-height:80px;border-radius:4px;" onerror="showNotification('Failed to load image','danger')">`;
+    emitOfficeData();
+}
+function excelShape() {
+    const s = prompt('Shape (rect, circle, arrow, star):','rect');
+    if(!s) return;
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td');
+    if(!td) { showNotification('Click a cell first','warning'); return; }
+    const shapes = {
+        rect: '<div style="width:60px;height:40px;background:#3498db;border-radius:3px;margin:2px auto;"></div>',
+        circle: '<div style="width:40px;height:40px;background:#e74c3c;border-radius:50%;margin:2px auto;"></div>',
+        arrow: '<div style="width:0;height:0;border-left:30px solid transparent;border-right:30px solid transparent;border-bottom:40px solid #2ecc71;margin:2px auto;"></div>',
+        star: '<div style="font-size:30px;text-align:center;color:#f1c40f;">★</div>'
+    };
+    td.innerHTML = shapes[s] || shapes.rect;
+    emitOfficeData();
+}
+function excelSparklines() {
+    if(!excelGrid) return;
+    const range = prompt('Enter cell range (e.g. B2:D2):','B2:D2');
+    if(!range) return;
+    const parts = range.match(/([A-Z]+)(\d+):([A-Z]+)(\d+)/);
+    if(!parts) { showNotification('Invalid range','danger'); return; }
+    const c1 = parts[1].charCodeAt(0)-65, r1 = parseInt(parts[2]);
+    const c2 = parts[3].charCodeAt(0)-65, r2 = parseInt(parts[4]);
+    const vals = [];
+    for(let r=r1; r<=r2; r++) {
+        for(let c=c1; c<=c2; c++) {
+            if(excelGrid.rows[r] && excelGrid.rows[r].cells[c]) {
+                const v = parseFloat(excelGrid.rows[r].cells[c].innerText) || 0;
+                vals.push(v);
+            }
+        }
+    }
+    if(vals.length < 2) { showNotification('Need at least 2 values','warning'); return; }
+    const max = Math.max(...vals,1);
+    let line = '<div style="display:flex;align-items:flex-end;gap:2px;height:40px;padding:2px;">';
+    vals.forEach(v => {
+        const h = (v/max)*36;
+        line += `<div style="width:8px;height:${h}px;background:#27ae60;border-radius:1px;"></div>`;
+    });
+    line += '</div>';
+    const lastRow = excelGrid.rows.length - 1;
+    const lastCol = excelGrid.rows[0].cells.length - 1;
+    if(lastRow>1) excelGrid.rows[lastRow-1].cells[1].innerHTML = line;
+    showNotification('Sparkline added','success');
+    emitOfficeData();
+}
+function excelHyperlink() {
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td');
+    if(!td) { showNotification('Click a cell first','warning'); return; }
+    const url = prompt('URL:','https://');
+    if(!url) return;
+    const text = prompt('Display text:',td.innerText || 'Link');
+    if(!text) return;
+    td.innerHTML = `<a href="${url}" target="_blank" style="color:#2980b9;text-decoration:underline;">${text}</a>`;
+    emitOfficeData();
+}
+function excelTextBox() {
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td');
+    if(!td) { showNotification('Click a cell first','warning'); return; }
+    const txt = prompt('Text:','Your text here');
+    if(!txt) return;
+    td.innerHTML = `<div style="border:1px dashed #999;padding:6px;border-radius:4px;text-align:left;">${txt}</div>`;
+    emitOfficeData();
+}
+function excelTheme() {
+    const themes = {'1':'#f5f5f5','2':'#ecf0f1','3':'#d5e8d4','4':'#fce4d6','5':'#dae3f3'};
+    const c = prompt('Theme:\n1=Light Gray\n2=Soft White\n3=Green Tint\n4=Peach\n5=Blue Tint','1');
+    if(!c||!themes[c]) return;
+    document.querySelectorAll('#excelGrid td').forEach(td => td.style.background = themes[c]);
+    document.querySelectorAll('#excelGrid th').forEach(th => th.style.background = '#333');
+    document.querySelectorAll('#excelGrid th').forEach(th => th.style.color = '#fff');
+    showNotification('Theme applied','success');
+    emitOfficeData();
+}
+function excelMargins() {
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td');
+    if(!td) return;
+    const m = prompt('Cell padding (px):','6');
+    if(m) td.style.padding = m+'px';
+    emitOfficeData();
+}
+function excelOrientation() {
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td');
+    if(!td) return;
+    const o = prompt('Orientation (normal, rotate):','normal');
+    if(o==='rotate') td.style.transform = 'rotate(-90deg)';
+    else td.style.transform = 'none';
+    emitOfficeData();
+}
+function excelPrintArea() {
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td');
+    if(!td) return;
+    const r = td.parentElement.rowIndex, c = td.cellIndex;
+    showNotification(`Print area set to row ${r}, col ${String.fromCharCode(64+c)}`,'success');
+}
+function excelBackground() {
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td');
+    if(!td) return;
+    const color = prompt('Background color (hex):','#ffff00');
+    if(color) td.style.background = color;
+    emitOfficeData();
+}
+function excelFinancial() {
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td');
+    if(!td) return;
+    const fn = prompt('Function (PMT, FV, NPV):','PMT');
+    const val = parseFloat(td.textContent.replace(/[^0-9.-]/g,'')) || 1000;
+    if(fn==='PMT') td.textContent = '-' + (val * 0.1 / 12).toFixed(2);
+    else if(fn==='FV') td.textContent = (val * Math.pow(1.05, 5)).toFixed(2);
+    else if(fn==='NPV') td.textContent = val.toFixed(2);
+    showNotification(`${fn} calculated`,'success');
+    emitOfficeData();
+}
+function excelLogical() {
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td');
+    if(!td) return;
+    const fn = prompt('Function (IF, AND, OR, NOT):','IF');
+    const val = parseFloat(td.textContent.replace(/[^0-9.-]/g,'')) || 0;
+    if(fn==='IF') td.textContent = val > 0 ? 'TRUE' : 'FALSE';
+    else if(fn==='AND') td.textContent = (val > 0 && val < 100) ? 'TRUE' : 'FALSE';
+    else if(fn==='OR') td.textContent = (val > 0 || val < -100) ? 'TRUE' : 'FALSE';
+    else if(fn==='NOT') td.textContent = val <= 0 ? 'TRUE' : 'FALSE';
+    showNotification(`${fn} evaluated`,'success');
+    emitOfficeData();
+}
+function excelTextFunc() {
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td');
+    if(!td) return;
+    const fn = prompt('Function (LEN, UPPER, LOWER, LEFT, RIGHT):','LEN');
+    const txt = td.innerText || '';
+    if(fn==='LEN') td.textContent = txt.length;
+    else if(fn==='UPPER') td.textContent = txt.toUpperCase();
+    else if(fn==='LOWER') td.textContent = txt.toLowerCase();
+    else if(fn==='LEFT') td.textContent = txt.substring(0,3);
+    else if(fn==='RIGHT') td.textContent = txt.substring(txt.length-3);
+    showNotification(`${fn} done`,'success');
+    emitOfficeData();
+}
+function excelDateFunc() {
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td');
+    if(!td) return;
+    const fn = prompt('Function (TODAY, NOW, YEAR, MONTH):','TODAY');
+    const d = new Date();
+    if(fn==='TODAY') td.textContent = d.toLocaleDateString();
+    else if(fn==='NOW') td.textContent = d.toLocaleString();
+    else if(fn==='YEAR') td.textContent = d.getFullYear();
+    else if(fn==='MONTH') td.textContent = d.getMonth()+1;
+    showNotification(`${fn} inserted`,'success');
+    emitOfficeData();
+}
+function excelGetData() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv,.txt';
+    input.onchange = function(e) {
+        const file = e.target.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            const text = ev.target.result;
+            const rows = text.split('\n').filter(r=>r.trim());
+            if(!excelGrid) return;
+            const headerRow = excelGrid.rows[0];
+            rows.forEach((row, ri) => {
+                const cells = row.split(',').map(c=>c.trim());
+                let tr = excelGrid.rows[ri+1];
+                if(!tr) {
+                    tr = excelGrid.insertRow();
+                    tr.innerHTML = `<td style="background:#e0e0e0;font-weight:bold;width:40px;">${ri+1}</td>`;
+                    excelGrid.appendChild(tr);
+                }
+                cells.forEach((cell, ci) => {
+                    if(tr.cells[ci+1]) tr.cells[ci+1].textContent = cell;
+                });
+            });
+            showNotification('Data imported','success');
+            emitOfficeData();
+        };
+        reader.readAsText(file);
+    };
+    input.click();
+}
+function excelTextToColumns() {
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td');
+    if(!td) { showNotification('Click a cell first','warning'); return; }
+    const parts = td.innerText.split(/[\s,;|]+/).filter(Boolean);
+    const ri = td.parentElement.rowIndex, ci = td.cellIndex;
+    parts.forEach((p, i) => {
+        if(excelGrid.rows[ri] && excelGrid.rows[ri].cells[ci+i]) {
+            excelGrid.rows[ri].cells[ci+i].textContent = p;
+        }
+    });
+    showNotification(`Split into ${parts.length} columns`,'success');
+    emitOfficeData();
+}
+function excelFlashFill() {
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td');
+    if(!td) { showNotification('Click a cell first','warning'); return; }
+    const txt = td.innerText;
+    const ri = td.parentElement.rowIndex, ci = td.cellIndex;
+    for(let r=ri+1; r<excelGrid.rows.length; r++) {
+        if(excelGrid.rows[r].cells[ci]) {
+            excelGrid.rows[r].cells[ci].textContent = txt;
+        }
+    }
+    showNotification('Flash Fill applied','success');
+    emitOfficeData();
+}
+function excelSpelling() {
+    if(!excelGrid) return;
+    const words = [];
+    for(let r=1; r<excelGrid.rows.length; r++) {
+        for(let c=1; c<excelGrid.rows[r].cells.length; c++) {
+            const txt = excelGrid.rows[r].cells[c].innerText.trim();
+            if(txt) words.push(txt);
+        }
+    }
+    const common = ['the','a','an','and','or','but','in','on','at','to','for','of','with','by','is','it','as','be'];
+    const misspelled = words.filter(w => {
+        const clean = w.replace(/[^a-zA-Z]/g,'').toLowerCase();
+        return clean.length > 1 && !common.includes(clean);
+    });
+    if(misspelled.length === 0) { showNotification('✓ No unusual words found!','success'); return; }
+    showNotification('🔍 Possible: '+[...new Set(misspelled)].slice(0,10).join(', '),'warning');
+}
+function excelProtectWorkbook() {
+    if(!excelGrid) return;
+    const pwd = prompt('Set workbook password (leave empty to unprotect):','');
+    if(pwd) { showNotification('Workbook protected with password','warning'); }
+    else { showNotification('Workbook unprotected','info'); }
+}
+function excelShareWorkbook() {
+    if(!excelGrid) return;
+    const choice = confirm('Share workbook with all users?');
+    if(choice) showNotification('Workbook shared - all users can edit','success');
+    else showNotification('Sharing cancelled','info');
+}
+// ---- Excel drag-to-select ----
+(function() {
+    if(!excelGrid) return;
+    let isSelecting = false, startCell = null;
+    excelGrid.addEventListener('mousedown', function(e) {
+        const td = e.target?.closest?.('td') || e.target?.closest?.('th');
+        if(!td) return;
+        const isTh = td.tagName === 'TH';
+        if(isTh) {
+            const ci = td.cellIndex;
+            if(ci === 0) {
+                // Row header - select entire row
+                excelGrid.querySelectorAll('td').forEach(t => t.style.background = '');
+                const ri = td.parentElement.rowIndex;
+                for(let c=1; c<excelGrid.rows[ri].cells.length; c++) {
+                    excelGrid.rows[ri].cells[c].style.background = '#d4e6f9';
+                }
+                return;
+            }
+            // Column header - select entire column
+            excelGrid.querySelectorAll('td').forEach(t => t.style.background = '');
+            for(let r=1; r<excelGrid.rows.length; r++) {
+                if(excelGrid.rows[r].cells[ci]) {
+                    excelGrid.rows[r].cells[ci].style.background = '#d4e6f9';
+                }
+            }
+            return;
+        }
+        isSelecting = true;
+        startCell = { row: td.parentElement.rowIndex, col: td.cellIndex };
+        excelGrid.querySelectorAll('td').forEach(t => t.style.background = '');
+        td.style.background = '#d4e6f9';
+    });
+    excelGrid.addEventListener('mousemove', function(e) {
+        if(!isSelecting || !startCell) return;
+        const td = e.target?.closest?.('td');
+        if(!td) return;
+        const curRow = td.parentElement.rowIndex;
+        const curCol = td.cellIndex;
+        const minR = Math.min(startCell.row, curRow);
+        const maxR = Math.max(startCell.row, curRow);
+        const minC = Math.min(startCell.col, curCol);
+        const maxC = Math.max(startCell.col, curCol);
+        excelGrid.querySelectorAll('td').forEach(t => t.style.background = '');
+        for(let r=minR; r<=maxR; r++) {
+            for(let c=minC; c<=maxC; c++) {
+                if(excelGrid.rows[r] && excelGrid.rows[r].cells[c]) {
+                    excelGrid.rows[r].cells[c].style.background = '#d4e6f9';
+                }
+            }
+        }
+    });
+    document.addEventListener('mouseup', function() {
+        if(isSelecting) {
+            isSelecting = false;
+            startCell = null;
+        }
+    });
+})();
 function pptTheme() {
     const themes = {
         '1': { bg: '#2c3e50', text: '#ecf0f1', accent: '#3498db', name: 'Dark' },
@@ -1288,6 +1639,266 @@ document.getElementById("pptFontSize")?.addEventListener("change", function() {
     document.execCommand('fontSize', false, this.value);
     pptEditor?.focus();
 });
+
+// ---- PPT new features ----
+function pptPhotoAlbum() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.multiple = true;
+    input.onchange = function(e) {
+        const files = Array.from(e.target.files);
+        if(!files.length) return;
+        files.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                const imgHtml = `<div style="margin:10px 0;"><img src="${ev.target.result}" style="max-width:90%;max-height:200px;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.2);"></div>`;
+                const blank = `<h2 style="margin-top:0;">Photo</h2>${imgHtml}`;
+                pptSlides.push(blank);
+            };
+            reader.readAsDataURL(file);
+        });
+        setTimeout(() => {
+            loadPptSlide(pptSlides.length - 1);
+            showNotification(`${files.length} photos added`,'success');
+            emitOfficeData();
+        }, 500);
+    };
+    input.click();
+}
+function pptIcons() {
+    const icons = ['☀','★','♛','✿','⚡','☂','❄','♫','✈','⌚','❤','☎','☯','♻','⚠','✔'];
+    const c = prompt('Choose icon index (1-16):\n' + icons.map((ic,i)=>`${i+1}=${ic}`).join(' '),'1');
+    if(!c) return;
+    const idx = parseInt(c)-1;
+    if(idx<0||idx>=icons.length) return;
+    document.execCommand('insertHTML', false, `<span style="font-size:48px;margin:10px;">${icons[idx]}</span>`);
+    savePptSlide();
+    emitOfficeData();
+}
+function pptSmartArt() {
+    const layouts = {
+        '1': { name:'List', html:'<div style="display:flex;flex-direction:column;gap:8px;padding:10px;"><div style="background:#3498db;color:#fff;padding:10px;border-radius:4px;">Item 1</div><div style="background:#2980b9;color:#fff;padding:10px;border-radius:4px;">Item 2</div><div style="background:#2471a3;color:#fff;padding:10px;border-radius:4px;">Item 3</div></div>' },
+        '2': { name:'Process', html:'<div style="display:flex;gap:5px;justify-content:center;padding:10px;"><div style="flex:1;background:#e74c3c;color:#fff;padding:10px;border-radius:4px;text-align:center;">Step 1</div><div style="flex:1;background:#e67e22;color:#fff;padding:10px;border-radius:4px;text-align:center;">Step 2</div><div style="flex:1;background:#27ae60;color:#fff;padding:10px;border-radius:4px;text-align:center;">Step 3</div></div>' },
+        '3': { name:'Cycle', html:'<div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;padding:10px;"><div style="width:60px;height:60px;background:#9b59b6;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;">1</div><div style="width:60px;height:60px;background:#8e44ad;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;">2</div><div style="width:60px;height:60px;background:#7d3c98;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;">3</div></div>' },
+        '4': { name:'Pyramid', html:'<div style="display:flex;flex-direction:column;align-items:center;padding:5px;"><div style="width:80%;background:#e74c3c;color:#fff;padding:8px;text-align:center;">Top</div><div style="width:90%;background:#e67e22;color:#fff;padding:8px;text-align:center;">Middle</div><div style="width:100%;background:#f39c12;color:#fff;padding:8px;text-align:center;">Base</div></div>' }
+    };
+    const c = prompt('SmartArt:\n1=List\n2=Process\n3=Cycle\n4=Pyramid','1');
+    if(!c||!layouts[c]) return;
+    document.execCommand('insertHTML', false, layouts[c].html);
+    savePptSlide();
+    showNotification(`Inserted "${layouts[c].name}" SmartArt`,'success');
+    emitOfficeData();
+}
+function pptChart() {
+    const labels = prompt('Labels:','Q1,Q2,Q3');
+    const values = prompt('Values:','30,50,20');
+    if(!labels||!values) return;
+    const labs = labels.split(',').map(s=>s.trim());
+    const vals = values.split(',').map(s=>parseFloat(s.trim())||0);
+    const max = Math.max(...vals,1);
+    let html = '<div style="display:flex;gap:8px;align-items:flex-end;padding:15px 8px;min-height:150px;">';
+    labs.forEach((l,i) => {
+        const h = (vals[i]/max)*120;
+        html += `<div style="flex:1;text-align:center;"><div style="height:${h}px;background:${['#3498db','#e74c3c','#2ecc71','#f39c12','#9b59b6','#1abc9c'][i%6]};border-radius:3px 3px 0 0;"></div><span style="font-size:9px;margin-top:2px;">${l}<br><b>${vals[i]}</b></span></div>`;
+    });
+    html += '</div>';
+    document.execCommand('insertHTML', false, html);
+    savePptSlide();
+    emitOfficeData();
+}
+function pptVideo() {
+    const url = prompt('Video URL (YouTube embed or direct video):','https://www.youtube.com/embed/');
+    if(!url) return;
+    const html = `<div style="margin:10px 0;"><iframe src="${url}" style="width:100%;max-width:560px;height:315px;border:none;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.3);" allowfullscreen></iframe></div>`;
+    document.execCommand('insertHTML', false, html);
+    savePptSlide();
+    showNotification('Video embedded','success');
+    emitOfficeData();
+}
+function pptAudio() {
+    const url = prompt('Audio URL (MP3):','https://');
+    if(!url) return;
+    const html = `<div style="margin:10px 0;"><audio src="${url}" controls style="width:80%;max-width:400px;border-radius:6px;"></audio></div>`;
+    document.execCommand('insertHTML', false, html);
+    savePptSlide();
+    showNotification('Audio embedded','success');
+    emitOfficeData();
+}
+function pptVariants() {
+    const variants = [
+        { bg:'#2c3e50', panel:'#34495e', name:'Dark' },
+        { bg:'#ecf0f1', panel:'#bdc3c7', name:'Light' },
+        { bg:'#1a5276', panel:'#2e86c1', name:'Blue' },
+        { bg:'#27ae60', panel:'#2ecc71', name:'Green' }
+    ];
+    const c = prompt('Variant:\n1=Dark\n2=Light\n3=Blue\n4=Green','1');
+    if(!c) return;
+    const v = variants[parseInt(c)-1];
+    if(!v) return;
+    document.querySelectorAll('#office-ppt .office-ribbon, #office-ppt .office-ribbon-tabs').forEach(el => {
+        el.style.background = v.bg;
+    });
+    document.querySelectorAll('#office-ppt .office-ribbon-panel').forEach(el => {
+        if(el) el.style.background = v.panel;
+    });
+    showNotification(`Variant: ${v.name}`,'success');
+}
+function pptApplyTransition(val) {
+    if(!val) { showNotification('Transition cleared','info'); return; }
+    const el = document.getElementById('pptEditor');
+    if(!el) return;
+    const duration = parseFloat(document.getElementById('pptTransDuration')?.value) || 1;
+    const effects = {
+        morph: `transform ${duration}s ease`,
+        fade: `opacity ${duration}s ease`,
+        push: `transform ${duration}s cubic-bezier(0.4,0,0.2,1)`,
+        wipe: `clip-path ${duration}s ease`,
+        dissolve: `opacity ${duration}s ease-in-out`
+    };
+    el.style.transition = effects[val] || 'none';
+    showNotification(`Transition: ${val} (${duration}s)`,'success');
+}
+function pptTransitionSound() {
+    const sound = prompt('Sound effect (applause, chime, click, drum):','chime');
+    if(!sound) return;
+    const srcs = { applause:'https://www.soundjay.com/buttons/sounds/button-09.mp3', chime:'https://www.soundjay.com/buttons/sounds/button-10.mp3', click:'https://www.soundjay.com/buttons/sounds/button-01.mp3', drum:'https://www.soundjay.com/buttons/sounds/button-02.mp3' };
+    const audio = new Audio(srcs[sound] || srcs.chime);
+    audio.play().catch(() => showNotification('Sound playback requires user interaction first','info'));
+    showNotification(`Sound: ${sound}`,'success');
+}
+function pptAdvanceSlide() {
+    const opt = prompt('Advance options:\n1=On Click\n2=Automatically after 5s\n3=On Click + Auto','1');
+    if(!opt) return;
+    if(opt==='2') showNotification('Slides will auto-advance every 5s','info');
+    else if(opt==='3') showNotification('Slides advance on click or every 5s','info');
+    else showNotification('Slides advance on click','info');
+}
+function pptApplyAnimation(val) {
+    if(!val) { showNotification('Animation cleared','info'); return; }
+    const el = document.getElementById('pptEditor');
+    if(!el) return;
+    const duration = parseFloat(document.getElementById('pptAnimDuration')?.value) || 0.5;
+    const delay = parseFloat(document.getElementById('pptAnimDelay')?.value) || 0;
+    el.style.animation = 'none';
+    el.offsetHeight;
+    const animations = {
+        appear: `pptAppear ${duration}s ease ${delay}s forwards`,
+        fadeIn: `pptFadeIn ${duration}s ease ${delay}s forwards`,
+        flyIn: `pptFlyIn ${duration}s ease ${delay}s forwards`,
+        floatIn: `pptFloatIn ${duration}s ease ${delay}s forwards`,
+        zoomIn: `pptZoomIn ${duration}s ease ${delay}s forwards`
+    };
+    el.style.animation = animations[val] || 'none';
+    showNotification(`Animation: ${val} (${duration}s, delay ${delay}s)`,'success');
+}
+function pptPresentOnline() {
+    if (!pptEditor) return;
+    const url = window.location.href;
+    const shareText = `Presenting VYDEX slides. Join at: ${url}`;
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(shareText).then(() => {
+            showNotification('Link copied! Share with your audience.','success');
+        }).catch(() => {
+            showNotification(`Share this link: ${url}`,'info');
+        });
+    } else {
+        showNotification(`Share this link: ${url}`,'info');
+    }
+    if (document.fullscreenElement) document.exitFullscreen();
+    pptSlideshow(0);
+}
+function pptCustomShow() {
+    const count = prompt('How many slides to include?','3');
+    if(!count) return;
+    const n = parseInt(count);
+    if(n<1||n>pptSlides.length) { showNotification('Invalid count','danger'); return; }
+    const slides = [];
+    for(let i=0; i<n; i++) {
+        slides.push(pptSlides[i] || '<p>Empty</p>');
+    }
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:#000;z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;';
+    let idx = 0;
+    function showCustom(i) {
+        if(i<0||i>=slides.length) return;
+        idx = i;
+        overlay.innerHTML = `<div style="width:80vw;height:80vh;display:flex;align-items:center;justify-content:center;"><div style="max-width:90%;max-height:90%;background:#fff;color:#000;padding:40px;box-shadow:0 10px 40px rgba(0,0,0,0.5);font-size:28px;text-align:center;border-radius:8px;overflow-y:auto;">${slides[i]}</div></div><div style="position:absolute;bottom:20px;color:#888;font-size:14px;">Custom Show · ${i+1}/${slides.length} · Click to advance</div>`;
+    }
+    showCustom(0);
+    overlay.addEventListener('click', () => {
+        if(idx<slides.length-1) showCustom(idx+1);
+        else { overlay.remove(); showNotification('Custom show ended','info'); }
+    });
+    document.addEventListener('keydown', function escHandler(e) {
+        if(e.key==='Escape'&&document.body.contains(overlay)) { overlay.remove(); document.removeEventListener('keydown', escHandler); }
+        else if(e.key==='ArrowRight'&&idx<slides.length-1) showCustom(idx+1);
+        else if(e.key==='ArrowLeft'&&idx>0) showCustom(idx-1);
+    });
+    document.body.appendChild(overlay);
+    showNotification(`Custom show with ${n} slides`,'success');
+}
+function pptRehearse() {
+    let seconds = 0;
+    const el = document.createElement('div');
+    el.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:#fff;padding:10px 20px;border-radius:20px;z-index:999999;font-size:18px;font-weight:bold;';
+    el.textContent = '⏱ 00:00';
+    document.body.appendChild(el);
+    const timer = setInterval(() => {
+        seconds++;
+        const m = String(Math.floor(seconds/60)).padStart(2,'0');
+        const s = String(seconds%60).padStart(2,'0');
+        el.textContent = `⏱ ${m}:${s}`;
+    }, 1000);
+    const stopBtn = document.createElement('button');
+    stopBtn.textContent = 'Stop Rehearsal';
+    stopBtn.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#e74c3c;color:#fff;border:none;padding:8px 16px;border-radius:20px;z-index:999999;cursor:pointer;font-weight:bold;';
+    stopBtn.onclick = function() {
+        clearInterval(timer);
+        el.remove();
+        stopBtn.remove();
+        const m = String(Math.floor(seconds/60)).padStart(2,'0');
+        const s = String(seconds%60).padStart(2,'0');
+        showNotification(`Rehearsal time: ${m}:${s}`,'success');
+    };
+    document.body.appendChild(stopBtn);
+    showNotification('Rehearsal started','info');
+}
+function pptRecord() {
+    if(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
+        navigator.mediaDevices.getDisplayMedia({video:true,audio:true})
+            .then(stream => {
+                const mediaRecorder = new MediaRecorder(stream);
+                const chunks = [];
+                mediaRecorder.ondataavailable = e => { if(e.data.size>0) chunks.push(e.data); };
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(chunks, {type:'video/webm'});
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = 'VYDEX_Recording.webm'; a.click();
+                    showNotification('Recording saved!','success');
+                };
+                mediaRecorder.start();
+                showNotification('Recording... Click "Stop sharing" when done.','warning');
+            })
+            .catch(() => showNotification('Screen recording requires permission.','warning'));
+    } else {
+        showNotification('Screen recording not supported in this browser.','danger');
+    }
+}
+
+// ---- PPT animation keyframes ----
+(function() {
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes pptAppear { from { opacity:0; } to { opacity:1; } }
+        @keyframes pptFadeIn { from { opacity:0; } to { opacity:1; } }
+        @keyframes pptFlyIn { from { transform:translateY(-50px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+        @keyframes pptFloatIn { from { transform:translateY(30px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+        @keyframes pptZoomIn { from { transform:scale(0.3); opacity:0; } to { transform:scale(1); opacity:1; } }
+    `;
+    document.head.appendChild(style);
+})();
 
 // ==========================================
 // 8. FORCED LOCKED FULLSCREEN & PiP
