@@ -672,7 +672,6 @@ officeTabBtns.forEach(btn => {
 
 officeSyncToggle?.addEventListener("change", (e) => {
     isOfficeSyncing = e.target.checked;
-    document.querySelectorAll(".office-toolbar").forEach(tb => tb.style.display = isOfficeSyncing ? "flex" : "none");
     if(isOfficeSyncing) emitOfficeData();
 });
 

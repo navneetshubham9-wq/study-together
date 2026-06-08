@@ -167,8 +167,8 @@
             <button id="officeDownloadBtn" class="icon-btn" style="margin-left:auto; background:#2ecc71;">⬇️ Download</button>
         </div>
 
-        <div id="office-word" class="office-tab" style="display:block; height: 460px; background: #fff; border-radius: 8px; color: #000; overflow:hidden; display:flex; flex-direction:column;">
-            <div class="office-toolbar" style="display:none;">
+        <div id="office-word" class="office-tab" style="display:flex; flex-direction:column; height: 460px; background: #fff; border-radius: 8px; color: #000; overflow:hidden;">
+            <div class="office-toolbar">
                 <select id="wordFontFamily" title="Font Family"><option value="Arial">Arial</option><option value="Times New Roman">Times New Roman</option><option value="Courier New">Courier New</option><option value="Georgia">Georgia</option><option value="Verdana">Verdana</option><option value="Impact">Impact</option></select>
                 <select id="wordFontSize" title="Font Size"><option value="1">8pt</option><option value="2">10pt</option><option value="3">12pt</option><option value="4">18pt</option><option value="5">24pt</option><option value="6">36pt</option><option value="7">48pt</option></select>
                 <span class="office-sep"></span>
@@ -201,8 +201,8 @@
             <div id="wordEditor" contenteditable="false" style="flex:1; padding: 20px; outline: none; overflow-y: auto;">Start typing your document here...</div>
         </div>
 
-        <div id="office-excel" class="office-tab" style="display:none; height: 460px; background: #fff; border-radius: 8px; color: #000; overflow:hidden; display:flex; flex-direction:column;">
-            <div class="office-toolbar" id="excelToolbar" style="display:none;">
+        <div id="office-excel" class="office-tab" style="display:none; flex-direction:column; height: 460px; background: #fff; border-radius: 8px; color: #000; overflow:hidden;">
+            <div class="office-toolbar" id="excelToolbar">
                 <button onclick="excelBold()" title="Bold"><b>B</b></button>
                 <button onclick="excelItalic()" title="Italic"><i>I</i></button>
                 <input type="color" id="excelFillColor" value="#ffff00" title="Cell Background" style="width:24px;height:24px;padding:0;border:none;cursor:pointer;" onchange="excelBgColor(this.value)">
@@ -222,8 +222,8 @@
             </div>
         </div>
 
-        <div id="office-ppt" class="office-tab" style="display:none; height: 460px; background: #2c3e50; border-radius: 8px; color: #fff; position: relative; overflow:hidden; display:flex; flex-direction:column;">
-            <div class="office-toolbar" id="pptToolbar" style="display:none; background:#34495e; border-color:#555;">
+        <div id="office-ppt" class="office-tab" style="display:none; flex-direction:column; height: 460px; background: #2c3e50; border-radius: 8px; color: #fff; position: relative; overflow:hidden;">
+            <div class="office-toolbar" id="pptToolbar" style="background:#34495e; border-color:#555;">
                 <select id="pptFontFamily" style="background:#555;color:#fff;border-color:#777;"><option value="Arial">Arial</option><option value="Times New Roman">Times New Roman</option><option value="Courier New">Courier New</option><option value="Georgia">Georgia</option><option value="Verdana">Verdana</option></select>
                 <select id="pptFontSize" style="background:#555;color:#fff;border-color:#777;"><option value="3">12pt</option><option value="5">24pt</option><option value="6">36pt</option><option value="7">48pt</option></select>
                 <button onclick="document.execCommand('bold',false,null)" title="Bold"><b>B</b></button>
