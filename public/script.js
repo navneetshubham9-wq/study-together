@@ -629,12 +629,30 @@ const excelGrid = document.getElementById("excelGrid");
 const pptEditor = document.getElementById("pptEditor");
 const officeSyncToggle = document.getElementById("officeSyncToggle");
 let isOfficeSyncing = false;
+let pptSlides = ['<h2 style="margin-top:0;">Slide 1</h2><p>Click to add text</p>'];
+let pptCurrentSlide = 0;
+
+function rebuildExcelGrid() {
+    if(!excelGrid) return;
+    const header = excelGrid.querySelector("tr");
+    const colCount = header ? header.cells.length - 1 : 10;
+    const rowCount = excelGrid.rows.length;
+    let rowsHtml = "";
+    for(let r=1; r<rowCount; r++) {
+        let row = `<tr><td style="background:#e0e0e0; font-weight:bold; width:40px; min-width:40px; text-align:center;">${r}</td>`;
+        for(let c=0; c<colCount; c++) row += `<td contenteditable="false"></td>`;
+        row += `</tr>`;
+        rowsHtml += row;
+    }
+    while(excelGrid.rows.length > 1) excelGrid.deleteRow(1);
+    excelGrid.innerHTML += rowsHtml;
+}
 
 if(excelGrid) {
     let rowsHtml = "";
-    for(let r=1; r<=10; r++) {
-        let row = `<tr><td style="background:#e0e0e0; font-weight:bold; width:40px; text-align:center;">${r}</td>`;
-        for(let c=0; c<5; c++) row += `<td contenteditable="false"></td>`;
+    for(let r=1; r<=20; r++) {
+        let row = `<tr><td style="background:#e0e0e0; font-weight:bold; width:40px; min-width:40px; text-align:center;">${r}</td>`;
+        for(let c=0; c<10; c++) row += `<td contenteditable="false"></td>`;
         row += `</tr>`; 
         rowsHtml += row;
     }
@@ -647,15 +665,14 @@ officeTabBtns.forEach(btn => {
         btn.classList.add("active-tool");
         officeTabs.forEach(t => t.style.display = "none");
         const target = document.getElementById(btn.dataset.target);
-        if(target) target.style.display = "block";
+        if(target) target.style.display = "flex";
         if(isHost && isOfficeSyncing) socket.emit("office-sync", { room: currentRoom, action: "tab-switch", target: btn.dataset.target });
     });
 });
 
 officeSyncToggle?.addEventListener("change", (e) => {
     isOfficeSyncing = e.target.checked;
-    const wordToolbar = document.getElementById("office-word")?.firstElementChild;
-    if(wordToolbar) wordToolbar.style.display = isOfficeSyncing ? "flex" : "none";
+    document.querySelectorAll(".office-toolbar").forEach(tb => tb.style.display = isOfficeSyncing ? "flex" : "none");
     if(isOfficeSyncing) emitOfficeData();
 });
 
@@ -664,31 +681,213 @@ function emitOfficeData() {
     socket.emit("office-sync", {
         room: currentRoom, action: "content-update",
         wordData: wordEditor?.innerHTML || "", 
-        pptData: pptEditor?.innerHTML || "",
+        pptData: JSON.stringify({ slides: pptSlides, current: pptCurrentSlide }),
         excelData: excelGrid ? Array.from(excelGrid.rows).slice(1).map(r => Array.from(r.cells).slice(1).map(c => c.innerHTML)) : []
     });
 }
 
 wordEditor?.addEventListener("input", emitOfficeData);
-pptEditor?.addEventListener("input", emitOfficeData);
 excelGrid?.addEventListener("input", emitOfficeData);
 
 document.getElementById("officeDownloadBtn")?.addEventListener("click", () => {
-    let activeTab = Array.from(officeTabs).find(t => t.style.display === "block")?.id;
-    let content = "", ext = "", mime = "";
-    if(activeTab === 'office-word') { content = wordEditor?.innerText || ""; ext = "txt"; mime = "text/plain"; }
-    if(activeTab === 'office-ppt') { content = pptEditor?.innerText || ""; ext = "txt"; mime = "text/plain"; }
+    let activeTab = Array.from(officeTabs).find(t => t.style.display !== "none" && t.style.display !== "")?.id;
+    let content = "", ext = "", mime = "", filename = "VYDEX_Document";
+    if(activeTab === 'office-word') { content = wordEditor?.innerText || ""; ext = "txt"; mime = "text/plain"; filename = "VYDEX_Word"; }
+    if(activeTab === 'office-ppt') { content = pptSlides.map((s,i)=>`--- Slide ${i+1} ---\n${new DOMParser().parseFromString(s,'text/html').body.textContent||''}`).join("\n\n"); ext = "txt"; mime = "text/plain"; filename = "VYDEX_Presentation"; }
     if(activeTab === 'office-excel' && excelGrid) {
         content = Array.from(excelGrid.rows).map(r => Array.from(r.cells).map(c => c.innerText).join(",")).join("\n");
-        ext = "csv"; mime = "text/csv";
+        ext = "csv"; mime = "text/csv"; filename = "VYDEX_Excel";
     }
     if(!content) return;
     const blob = new Blob([content], { type: mime }); 
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); 
     a.href = url; 
-    a.download = `VYDEX_Document.${ext}`; 
+    a.download = `${filename}.${ext}`; 
     a.click();
+});
+
+// ---- Word helpers ----
+document.getElementById("wordFontFamily")?.addEventListener("change", function() {
+    document.execCommand('fontName', false, this.value);
+    wordEditor?.focus();
+});
+document.getElementById("wordFontSize")?.addEventListener("change", function() {
+    document.execCommand('fontSize', false, this.value);
+    wordEditor?.focus();
+});
+
+function officeInsertTable() {
+    const rows = prompt("Rows:", "3");
+    const cols = prompt("Cols:", "3");
+    if(!rows || !cols) return;
+    let table = "<table border='1' style='border-collapse:collapse;width:100%;margin:8px 0;'>";
+    for(let r=0; r<+rows; r++) {
+        table += "<tr>";
+        for(let c=0; c<+cols; c++) table += `<td style='border:1px solid #999;padding:6px;'>&nbsp;</td>`;
+        table += "</tr>";
+    }
+    table += "</table><br>";
+    document.execCommand('insertHTML', false, table);
+}
+
+// ---- Excel helpers ----
+function excelBold() {
+    if(!excelGrid) return;
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td');
+    if(!td) return;
+    const cur = td.style.fontWeight === 'bold' ? 'normal' : 'bold';
+    td.style.fontWeight = cur;
+    emitOfficeData();
+}
+function excelItalic() {
+    if(!excelGrid) return;
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td');
+    if(!td) return;
+    const cur = td.style.fontStyle === 'italic' ? 'normal' : 'italic';
+    td.style.fontStyle = cur;
+    emitOfficeData();
+}
+function excelBgColor(color) {
+    if(!excelGrid) return;
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td');
+    if(!td) return;
+    td.style.backgroundColor = color;
+    emitOfficeData();
+}
+function excelFgColor(color) {
+    if(!excelGrid) return;
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td');
+    if(!td) return;
+    td.style.color = color;
+    emitOfficeData();
+}
+function excelAddRow() {
+    if(!excelGrid) return;
+    const n = excelGrid.rows.length;
+    const cols = excelGrid.rows[0].cells.length - 1;
+    let row = `<tr><td style="background:#e0e0e0;font-weight:bold;width:40px;min-width:40px;text-align:center;">${n}</td>`;
+    for(let c=0; c<cols; c++) row += `<td contenteditable="false"></td>`;
+    row += `</tr>`;
+    excelGrid.innerHTML += row;
+    if(isHost) document.querySelectorAll('#excelGrid td').forEach(td => td.contentEditable = "true");
+    emitOfficeData();
+}
+function excelAddCol() {
+    if(!excelGrid) return;
+    const letter = String.fromCharCode(65 + excelGrid.rows[0].cells.length - 1);
+    excelGrid.rows[0].insertCell(-1).outerHTML = `<th>${letter}</th>`;
+    for(let r=1; r<excelGrid.rows.length; r++) {
+        const td = excelGrid.rows[r].insertCell(-1);
+        td.innerHTML = "";
+        td.contentEditable = "false";
+        td.style.cssText = "background:#fdfdfd;padding:12px;border:1px solid #ddd;text-align:center;outline:none;min-width:80px;";
+    }
+    if(isHost) document.querySelectorAll('#excelGrid td').forEach(td => td.contentEditable = "true");
+    emitOfficeData();
+}
+function excelDeleteRow() {
+    if(!excelGrid || excelGrid.rows.length <= 2) return;
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return;
+    const tr = sel.anchorNode?.closest?.('tr');
+    if(!tr || tr.rowIndex === 0) return;
+    tr.remove();
+    for(let r=1; r<excelGrid.rows.length; r++) {
+        excelGrid.rows[r].cells[0].textContent = r;
+    }
+    emitOfficeData();
+}
+function excelDeleteCol() {
+    if(!excelGrid || excelGrid.rows[0].cells.length <= 2) return;
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td,th');
+    if(!td) return;
+    const ci = td.cellIndex;
+    if(ci === 0) return;
+    for(let r=0; r<excelGrid.rows.length; r++) excelGrid.rows[r].deleteCell(ci);
+    for(let c=1; c<excelGrid.rows[0].cells.length; c++) {
+        excelGrid.rows[0].cells[c].textContent = String.fromCharCode(64 + c);
+    }
+    emitOfficeData();
+}
+function excelSortCol() {
+    if(!excelGrid || excelGrid.rows.length <= 2) return;
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td,th');
+    if(!td) return;
+    const ci = td.cellIndex;
+    if(ci === 0) return;
+    const rows = Array.from(excelGrid.rows).slice(1);
+    rows.sort((a, b) => (a.cells[ci]?.innerText || '').localeCompare(b.cells[ci]?.innerText || ''));
+    const tbody = excelGrid.querySelector('tbody') || excelGrid;
+    rows.forEach(r => tbody.appendChild(r));
+    for(let r=1; r<excelGrid.rows.length; r++) excelGrid.rows[r].cells[0].textContent = r;
+    emitOfficeData();
+}
+
+// ---- PPT helpers ----
+function loadPptSlide(index) {
+    if(index < 0 || index >= pptSlides.length || !pptEditor) return;
+    savePptSlide();
+    pptCurrentSlide = index;
+    pptEditor.innerHTML = pptSlides[index];
+    const ind = document.getElementById("pptSlideIndicator");
+    if(ind) ind.textContent = `${index + 1} / ${pptSlides.length}`;
+    if(pptSliderInput) pptSliderInput.value = index;
+}
+function savePptSlide() {
+    if(!pptEditor) return;
+    pptSlides[pptCurrentSlide] = pptEditor.innerHTML;
+}
+pptEditor?.addEventListener("input", () => { savePptSlide(); emitOfficeData(); });
+
+function pptAddSlide() {
+    savePptSlide();
+    const blank = '<h2 style="margin-top:0;">New Slide</h2><p>Click to add text</p>';
+    pptSlides.push(blank);
+    loadPptSlide(pptSlides.length - 1);
+    emitOfficeData();
+}
+function pptDeleteSlide() {
+    if(pptSlides.length <= 1) return;
+    savePptSlide();
+    pptSlides.splice(pptCurrentSlide, 1);
+    loadPptSlide(Math.min(pptCurrentSlide, pptSlides.length - 1));
+    emitOfficeData();
+}
+function pptPrevSlide() { savePptSlide(); loadPptSlide(pptCurrentSlide - 1); }
+function pptNextSlide() { savePptSlide(); loadPptSlide(pptCurrentSlide + 1); }
+
+const pptSliderInput = document.getElementById("pptSlideSlider");
+pptSliderInput?.addEventListener("input", function() {
+    savePptSlide();
+    const idx = parseInt(this.value);
+    if(idx >= 0 && idx < pptSlides.length) {
+        pptCurrentSlide = idx;
+        pptEditor.innerHTML = pptSlides[idx];
+        const ind = document.getElementById("pptSlideIndicator");
+        if(ind) ind.textContent = `${idx + 1} / ${pptSlides.length}`;
+    }
+});
+
+document.getElementById("pptFontFamily")?.addEventListener("change", function() {
+    document.execCommand('fontName', false, this.value);
+    pptEditor?.focus();
+});
+document.getElementById("pptFontSize")?.addEventListener("change", function() {
+    document.execCommand('fontSize', false, this.value);
+    pptEditor?.focus();
 });
 
 // ==========================================
@@ -1538,11 +1737,21 @@ socket.on("office-sync", (data) => {
         document.querySelectorAll(".office-tab-btn").forEach(b => b.classList.remove("active-tool"));
         document.querySelectorAll(".office-tab").forEach(t => t.style.display = "none");
         const target = document.getElementById(data.target);
-        if(target) { target.style.display = "block"; }
+        if(target) { target.style.display = "flex"; }
     }
     if(data.action === "content-update") {
         if(wordEditor && data.wordData !== undefined) wordEditor.innerHTML = data.wordData;
-        if(pptEditor && data.pptData !== undefined) pptEditor.innerHTML = data.pptData;
+        if(data.pptData && pptEditor) {
+            try {
+                const parsed = JSON.parse(data.pptData);
+                pptSlides = parsed.slides || ['<p>Empty</p>'];
+                pptCurrentSlide = parsed.current || 0;
+                pptEditor.innerHTML = pptSlides[pptCurrentSlide] || '';
+                const ind = document.getElementById("pptSlideIndicator");
+                if(ind) ind.textContent = `${pptCurrentSlide + 1} / ${pptSlides.length}`;
+                if(pptSliderInput) { pptSliderInput.max = pptSlides.length - 1; pptSliderInput.value = pptCurrentSlide; }
+            } catch(e) { pptEditor.innerHTML = data.pptData; }
+        }
         if(data.excelData && excelGrid) {
             for(let r=1; r<excelGrid.rows.length && r-1<data.excelData.length; r++) {
                 for(let c=0; c<data.excelData[r-1].length && c<excelGrid.rows[r].cells.length-1; c++) {

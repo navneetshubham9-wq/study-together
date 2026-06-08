@@ -167,26 +167,86 @@
             <button id="officeDownloadBtn" class="icon-btn" style="margin-left:auto; background:#2ecc71;">⬇️ Download</button>
         </div>
 
-        <div id="office-word" class="office-tab" style="display:block; height: 460px; background: #fff; border-radius: 8px; color: #000; overflow:hidden;">
-            <div class="host-only-btn" style="background: #f1f2f6; padding: 8px; border-bottom: 1px solid #ccc; display:none; gap:5px;">
-                <button onclick="document.execCommand('bold',false,null)" class="icon-btn" style="background:#ddd; color:#000; font-weight:bold;">B</button>
-                <button onclick="document.execCommand('italic',false,null)" class="icon-btn" style="background:#ddd; color:#000; font-style:italic;">I</button>
-                <button onclick="document.execCommand('underline',false,null)" class="icon-btn" style="background:#ddd; color:#000; text-decoration:underline;">U</button>
-                <button onclick="document.execCommand('insertOrderedList',false,null)" class="icon-btn" style="background:#ddd; color:#000;">1.</button>
-                <button onclick="document.execCommand('insertUnorderedList',false,null)" class="icon-btn" style="background:#ddd; color:#000;">•</button>
+        <div id="office-word" class="office-tab" style="display:block; height: 460px; background: #fff; border-radius: 8px; color: #000; overflow:hidden; display:flex; flex-direction:column;">
+            <div class="office-toolbar" style="display:none;">
+                <select id="wordFontFamily" title="Font Family"><option value="Arial">Arial</option><option value="Times New Roman">Times New Roman</option><option value="Courier New">Courier New</option><option value="Georgia">Georgia</option><option value="Verdana">Verdana</option><option value="Impact">Impact</option></select>
+                <select id="wordFontSize" title="Font Size"><option value="1">8pt</option><option value="2">10pt</option><option value="3">12pt</option><option value="4">18pt</option><option value="5">24pt</option><option value="6">36pt</option><option value="7">48pt</option></select>
+                <span class="office-sep"></span>
+                <button onclick="document.execCommand('bold',false,null)" title="Bold"><b>B</b></button>
+                <button onclick="document.execCommand('italic',false,null)" title="Italic"><i>I</i></button>
+                <button onclick="document.execCommand('underline',false,null)" title="Underline"><u>U</u></button>
+                <button onclick="document.execCommand('strikeThrough',false,null)" title="Strikethrough" style="text-decoration:line-through;">S</button>
+                <span class="office-sep"></span>
+                <input type="color" id="wordTextColor" value="#000000" title="Text Color" style="width:24px;height:24px;padding:0;border:none;cursor:pointer;" onchange="document.execCommand('foreColor',false,this.value)">
+                <input type="color" id="wordBgColor" value="#ffff00" title="Highlight Color" style="width:24px;height:24px;padding:0;border:none;cursor:pointer;" onchange="document.execCommand('hiliteColor',false,this.value)">
+                <span class="office-sep"></span>
+                <button onclick="document.execCommand('justifyLeft',false,null)" title="Align Left">≡</button>
+                <button onclick="document.execCommand('justifyCenter',false,null)" title="Center">≡</button>
+                <button onclick="document.execCommand('justifyRight',false,null)" title="Align Right">≡</button>
+                <span class="office-sep"></span>
+                <button onclick="document.execCommand('insertOrderedList',false,null)" title="Numbered List">1.</button>
+                <button onclick="document.execCommand('insertUnorderedList',false,null)" title="Bullet List">•</button>
+                <button onclick="document.execCommand('indent',false,null)" title="Indent">→</button>
+                <button onclick="document.execCommand('outdent',false,null)" title="Outdent">←</button>
+                <span class="office-sep"></span>
+                <button onclick="var l=prompt('Link URL:','https://');if(l)document.execCommand('createLink',false,l)" title="Insert Link">🔗</button>
+                <button onclick="var m=prompt('Image URL:','https://');if(m)document.execCommand('insertImage',false,m)" title="Insert Image">🖼</button>
+                <button onclick="officeInsertTable()" title="Insert Table">⊞</button>
+                <button onclick="document.execCommand('insertHorizontalRule',false,null)" title="Horizontal Rule">—</button>
+                <span class="office-sep"></span>
+                <button onclick="document.execCommand('undo',false,null)" title="Undo">↩</button>
+                <button onclick="document.execCommand('redo',false,null)" title="Redo">↪</button>
+                <button onclick="document.execCommand('removeFormat',false,null)" title="Clear Formatting">✕</button>
             </div>
-            <div id="wordEditor" contenteditable="false" style="padding: 20px; height: 400px; outline: none; overflow-y: auto;">Start typing your document here...</div>
+            <div id="wordEditor" contenteditable="false" style="flex:1; padding: 20px; outline: none; overflow-y: auto;">Start typing your document here...</div>
         </div>
 
-        <div id="office-excel" class="office-tab" style="display:none; height: 460px; background: #fff; border-radius: 8px; color: #000; overflow:auto;">
-            <table class="excel-table" id="excelGrid" style="margin: 0; width: 100%;">
-                <tr style="background:#e0e0e0;"><th style="width:40px;"></th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th></tr>
+        <div id="office-excel" class="office-tab" style="display:none; height: 460px; background: #fff; border-radius: 8px; color: #000; overflow:hidden; display:flex; flex-direction:column;">
+            <div class="office-toolbar" id="excelToolbar" style="display:none;">
+                <button onclick="excelBold()" title="Bold"><b>B</b></button>
+                <button onclick="excelItalic()" title="Italic"><i>I</i></button>
+                <input type="color" id="excelFillColor" value="#ffff00" title="Cell Background" style="width:24px;height:24px;padding:0;border:none;cursor:pointer;" onchange="excelBgColor(this.value)">
+                <input type="color" id="excelTextColor" value="#000000" title="Text Color" style="width:24px;height:24px;padding:0;border:none;cursor:pointer;" onchange="excelFgColor(this.value)">
+                <span class="office-sep"></span>
+                <button onclick="excelAddRow()" title="Add Row">＋ Row</button>
+                <button onclick="excelAddCol()" title="Add Column">＋ Col</button>
+                <button onclick="excelDeleteRow()" title="Delete Row">－ Row</button>
+                <button onclick="excelDeleteCol()" title="Delete Column">－ Col</button>
+                <span class="office-sep"></span>
+                <button onclick="excelSortCol()" title="Sort Column A-Z">⇅ Sort</button>
+            </div>
+            <div style="flex:1; overflow:auto;">
+                <table class="excel-table" id="excelGrid" style="margin: 0; width: auto; min-width:100%;">
+                    <tr style="background:#e0e0e0;"><th style="width:40px;min-width:40px;"></th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th><th>F</th><th>G</th><th>H</th><th>I</th><th>J</th></tr>
                 </table>
+            </div>
         </div>
 
-        <div id="office-ppt" class="office-tab" style="display:none; height: 460px; background: #34495e; border-radius: 8px; color: #fff; position: relative;">
-            <div id="pptEditor" contenteditable="false" style="width: 80%; height: 70%; margin: 5% auto; background: #fff; color: #000; padding: 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-size: 24px; text-align: center; border-radius: 4px; overflow-y:auto;">
-                <h2>Slide 1</h2><p>Click to add text</p>
+        <div id="office-ppt" class="office-tab" style="display:none; height: 460px; background: #2c3e50; border-radius: 8px; color: #fff; position: relative; overflow:hidden; display:flex; flex-direction:column;">
+            <div class="office-toolbar" id="pptToolbar" style="display:none; background:#34495e; border-color:#555;">
+                <select id="pptFontFamily" style="background:#555;color:#fff;border-color:#777;"><option value="Arial">Arial</option><option value="Times New Roman">Times New Roman</option><option value="Courier New">Courier New</option><option value="Georgia">Georgia</option><option value="Verdana">Verdana</option></select>
+                <select id="pptFontSize" style="background:#555;color:#fff;border-color:#777;"><option value="3">12pt</option><option value="5">24pt</option><option value="6">36pt</option><option value="7">48pt</option></select>
+                <button onclick="document.execCommand('bold',false,null)" title="Bold"><b>B</b></button>
+                <button onclick="document.execCommand('italic',false,null)" title="Italic"><i>I</i></button>
+                <button onclick="document.execCommand('underline',false,null)" title="Underline"><u>U</u></button>
+                <input type="color" id="pptTextColor" value="#000000" title="Text Color" style="width:24px;height:24px;padding:0;border:none;cursor:pointer;" onchange="document.execCommand('foreColor',false,this.value)">
+                <span class="office-sep" style="background:#777;"></span>
+                <button onclick="document.execCommand('justifyLeft',false,null)" title="Align Left">≡</button>
+                <button onclick="document.execCommand('justifyCenter',false,null)" title="Center">≡</button>
+                <button onclick="document.execCommand('justifyRight',false,null)" title="Align Right">≡</button>
+                <span class="office-sep" style="background:#777;"></span>
+                <button onclick="document.execCommand('insertOrderedList',false,null)">1.</button>
+                <button onclick="document.execCommand('insertUnorderedList',false,null)">•</button>
+                <button onclick="pptAddSlide()" title="Add Slide" style="background:#27ae60;color:#fff;">＋ Slide</button>
+                <button onclick="pptDeleteSlide()" title="Delete Slide" style="background:#e74c3c;color:#fff;">－ Slide</button>
+                <span style="color:#fff;font-size:12px;margin:0 8px;" id="pptSlideIndicator">1 / 1</span>
+                <button onclick="pptPrevSlide()" title="Previous Slide">◀</button>
+                <button onclick="pptNextSlide()" title="Next Slide">▶</button>
+            </div>
+            <div style="flex:1; display:flex; align-items:center; justify-content:center; padding:20px;">
+                <div id="pptEditor" contenteditable="false" style="width: 85%; height: 85%; background: #fff; color: #000; padding: 30px; box-shadow: 0 5px 25px rgba(0,0,0,0.5); font-size: 24px; text-align: center; border-radius: 4px; overflow-y:auto; outline:none;">
+                    <h2 style="margin-top:0;">Slide 1</h2><p>Click to add text</p>
+                </div>
             </div>
         </div>
       </section>
