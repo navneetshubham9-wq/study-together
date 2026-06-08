@@ -2,6 +2,7 @@ const APP_ID = "3fd771b87f804bc59f50e485662afaa7";
 const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
 const socket = io();
 
+// State variables
 let localTracks = { audioTrack: null, videoTrack: null };
 let localUid = null;
 let joined = false;
@@ -13,9 +14,7 @@ let isSharing = false;
 const remoteUsers = {}; 
 let currentMusicUrl = null;
 
-// ==========================================
-// 1. DOM Elements Initialization (FIXED)
-// ==========================================
+// DOM - Login & Base
 const joinBtn = document.getElementById("joinBtn");
 const joinSection = document.getElementById("join-section"); 
 const workspace = document.getElementById("workspace"); 
@@ -23,6 +22,7 @@ const usernameInput = document.getElementById("username");
 const roomInput = document.getElementById("room");
 const videoArea = document.getElementById("video-area");
 
+// DOM - Toggles & Controls
 const cameraBtn = document.getElementById("cameraBtn");
 const muteBtn = document.getElementById("muteBtn");
 const shareBtn = document.getElementById("shareBtn");
@@ -39,6 +39,20 @@ const openMathBtn = document.getElementById("openMathBtn");
 const toggleCalcBtn = document.getElementById("toggleCalcBtn"); 
 const toggleConvBtn = document.getElementById("toggleConvBtn"); 
 
+// DOM - Big Panels
+const whiteboardBox = document.getElementById("whiteboard-box");
+const mapBox = document.getElementById("map-box");
+const presentationBox = document.getElementById("presentation-box");
+const officeBox = document.getElementById("office-box");
+
+// DOM - Specific Panel Elements
+const presInputForm = document.getElementById("pres-input-form");
+const viewGraphBtn = document.getElementById("viewGraphBtn");
+const canvas = document.getElementById("whiteboard");
+const bgCanvas = document.getElementById("bg-whiteboard");
+const wbStatus = document.getElementById("wb-status");
+
+// Chat & File
 const sendMsgBtn = document.getElementById("sendMsg");
 const chatInput = document.getElementById("chatInput");
 const messages = document.getElementById("messages");
@@ -62,6 +76,7 @@ function appendMessage(text) {
 }
 
 function addSizeControls(targetWrapper, elementToFullscreen) {
+  if(!targetWrapper) return;
   const controlsDiv = document.createElement("div");
   controlsDiv.className = "local-controls";
   if(targetWrapper.id !== 'map-box') {
@@ -79,10 +94,6 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
   targetWrapper.appendChild(controlsDiv);
 }
 
-const whiteboardBox = document.getElementById("whiteboard-box");
-const mapBox = document.getElementById("map-box");
-const presentationBox = document.getElementById("presentation-box");
-const officeBox = document.getElementById("office-box");
 if(whiteboardBox) addSizeControls(whiteboardBox, whiteboardBox);
 if(mapBox) addSizeControls(mapBox, mapBox);
 if(presentationBox) addSizeControls(presentationBox, presentationBox);
@@ -90,7 +101,7 @@ if(officeBox) addSizeControls(officeBox, officeBox);
 
 document.getElementById("mapFullscreenBtn")?.addEventListener("click", () => {
     const mapCont = document.getElementById("map-container");
-    if (!document.fullscreenElement) { mapCont.requestFullscreen().catch(e => e); } 
+    if (mapCont && !document.fullscreenElement) { mapCont.requestFullscreen().catch(e => e); } 
     else { document.exitFullscreen(); }
 });
 
@@ -112,27 +123,27 @@ toggleMapBtn?.addEventListener("click", function() { const isShowing = this.data
 toggleOfficeBtn?.addEventListener("click", function() { const isShowing = this.dataset.show === "true"; socket.emit("office-toggle", { room: currentRoom, show: !isShowing }); });
 
 socket.on("pres-toggle", (data) => {
-  if(data.show) { hideAllBigPanels(); if(presentationBox) presentationBox.style.display = "block"; if(isHost){ if(togglePresBtn){togglePresBtn.dataset.show="true"; togglePresBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } } 
-  else { if(presentationBox) presentationBox.style.display = "none"; if(isHost){ if(togglePresBtn){togglePresBtn.dataset.show="false"; togglePresBtn.style.background="linear-gradient(135deg, #f1c40f, #f39c12)";} } }
+  if(data.show) { hideAllBigPanels(); if(presentationBox) presentationBox.style.display = "block"; if(isHost && togglePresBtn){togglePresBtn.dataset.show="true"; togglePresBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
+  else { if(presentationBox) presentationBox.style.display = "none"; if(isHost && togglePresBtn){togglePresBtn.dataset.show="false"; togglePresBtn.style.background="linear-gradient(135deg, #f1c40f, #f39c12)";} }
 });
 
 socket.on("wb-toggle", (data) => {
-  if (data.show) { hideAllBigPanels(); if(whiteboardBox) whiteboardBox.style.display = "block"; if(isHost){ if(toggleWbBtn){toggleWbBtn.dataset.show="true"; toggleWbBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } } 
-  else { if(whiteboardBox) whiteboardBox.style.display = "none"; if(isHost){ if(toggleWbBtn){toggleWbBtn.dataset.show="false"; toggleWbBtn.style.background="linear-gradient(135deg, #3498db, #2980b9)";} } }
+  if (data.show) { hideAllBigPanels(); if(whiteboardBox) whiteboardBox.style.display = "block"; if(isHost && toggleWbBtn){toggleWbBtn.dataset.show="true"; toggleWbBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
+  else { if(whiteboardBox) whiteboardBox.style.display = "none"; if(isHost && toggleWbBtn){toggleWbBtn.dataset.show="false"; toggleWbBtn.style.background="linear-gradient(135deg, #3498db, #2980b9)";} }
 });
 
 socket.on("map-toggle", (data) => {
-  if (data.show) { hideAllBigPanels(); if(mapBox) mapBox.style.display = "block"; setTimeout(() => { if(typeof geoMap !== 'undefined') geoMap.invalidateSize(); }, 100); if(isHost){ if(toggleMapBtn){toggleMapBtn.dataset.show="true"; toggleMapBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } } 
-  else { if(mapBox) mapBox.style.display = "none"; if(isHost){ if(toggleMapBtn){toggleMapBtn.dataset.show="false"; toggleMapBtn.style.background="linear-gradient(135deg, #27ae60, #2ecc71)";} } }
+  if (data.show) { hideAllBigPanels(); if(mapBox) mapBox.style.display = "block"; setTimeout(() => { if(typeof geoMap !== 'undefined') geoMap.invalidateSize(); }, 100); if(isHost && toggleMapBtn){toggleMapBtn.dataset.show="true"; toggleMapBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
+  else { if(mapBox) mapBox.style.display = "none"; if(isHost && toggleMapBtn){toggleMapBtn.dataset.show="false"; toggleMapBtn.style.background="linear-gradient(135deg, #27ae60, #2ecc71)";} }
 });
 
 socket.on("office-toggle", (data) => {
-  if (data.show) { hideAllBigPanels(); if(officeBox) officeBox.style.display = "block"; if(isHost){ if(toggleOfficeBtn){toggleOfficeBtn.dataset.show="true"; toggleOfficeBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } } 
-  else { if(officeBox) officeBox.style.display = "none"; if(isHost){ if(toggleOfficeBtn){toggleOfficeBtn.dataset.show="false"; toggleOfficeBtn.style.background="linear-gradient(135deg, #c0392b, #e74c3c)";} } }
+  if (data.show) { hideAllBigPanels(); if(officeBox) officeBox.style.display = "block"; if(isHost && toggleOfficeBtn){toggleOfficeBtn.dataset.show="true"; toggleOfficeBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
+  else { if(officeBox) officeBox.style.display = "none"; if(isHost && toggleOfficeBtn){toggleOfficeBtn.dataset.show="false"; toggleOfficeBtn.style.background="linear-gradient(135deg, #c0392b, #e74c3c)";} }
 });
 
 // ==========================================
-// 2. Hamburger Menu Logic
+// Hamburger Menu Logic
 // ==========================================
 const controlRowInner = document.getElementById("controlRowInner");
 const hamburgerBtn = document.getElementById("hamburgerBtn");
@@ -183,7 +194,7 @@ document.addEventListener("click", (e) => {
 });
 
 // ==========================================
-// 3. LIVE CURRENCY CONVERTER
+// LIVE CURRENCY CONVERTER
 // ==========================================
 const convModal = document.getElementById("converter-modal");
 const convType = document.getElementById("convType");
@@ -204,7 +215,7 @@ const convRates = {
 async function fetchLiveRates() {
     try {
         if(convTitleText) convTitleText.textContent = "🔄 Fetching Live...";
-        const res = await fetch('https://open.er-api.com/v6/latest/USD');
+        const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
         const data = await res.json();
         liveExchangeRates = data.rates;
         if(convTitleText) convTitleText.textContent = "🔄 Live Currency";
@@ -257,10 +268,14 @@ function calculateConversion() {
     }
 }
 
-toggleConvBtn?.addEventListener("click", () => { 
+toggleConvBtn?.addEventListener("click", async () => { 
     if(convModal) {
-        convModal.style.display = convModal.style.display === "none" || convModal.style.display === "" ? "block" : "none"; 
-        if(convModal.style.display === "block") populateConvDropdowns(); 
+        const isHidden = convModal.style.display === "none" || convModal.style.display === "";
+        convModal.style.display = isHidden ? "block" : "none"; 
+        if(isHidden) {
+            if (convType && convType.value === 'currency') await fetchLiveRates();
+            populateConvDropdowns(); 
+        }
     }
 });
 
@@ -273,16 +288,17 @@ document.getElementById("closeConvBtn")?.addEventListener("pointerdown", (e) => 
 
 let isConvDragging = false; let convStartX, convStartY, convInitialX, convInitialY;
 document.getElementById("converter-header")?.addEventListener("pointerdown", (e) => { 
-    if(e.target === document.getElementById("closeConvBtn")) return;
+    if(e.target.id === "closeConvBtn") return;
     isConvDragging = true; convStartX = e.clientX; convStartY = e.clientY; 
     const rect = convModal.getBoundingClientRect(); convInitialX = rect.left; convInitialY = rect.top; 
     convModal.style.right = "auto"; convModal.style.left = convInitialX + "px"; convModal.style.top = convInitialY + "px"; 
+    e.preventDefault();
 });
 document.addEventListener("pointermove", (e) => { if(!isConvDragging || !convModal) return; convModal.style.left = (convInitialX + e.clientX - convStartX) + "px"; convModal.style.top = (convInitialY + e.clientY - convStartY) + "px"; });
 document.addEventListener("pointerup", () => isConvDragging = false);
 
 // ==========================================
-// 4. CALCULATOR
+// CALCULATOR
 // ==========================================
 const calcModal = document.getElementById("calc-modal");
 const calcDisplay = document.getElementById("calc-display");
@@ -306,16 +322,17 @@ document.getElementById("closeCalcBtn")?.addEventListener("pointerdown", (e) => 
 
 let isCalcDragging = false; let calcInitialXCalc, calcInitialYCalc;
 document.getElementById("calc-header")?.addEventListener("pointerdown", (e) => { 
-    if(e.target === document.getElementById("closeCalcBtn")) return;
+    if(e.target.id === "closeCalcBtn") return;
     isCalcDragging = true; calcStartX = e.clientX; calcStartY = e.clientY; 
     const rect = calcModal.getBoundingClientRect(); calcInitialXCalc = rect.left; calcInitialYCalc = rect.top; 
     calcModal.style.right = "auto"; calcModal.style.left = calcInitialXCalc + "px"; calcModal.style.top = calcInitialYCalc + "px"; 
+    e.preventDefault();
 });
 document.addEventListener("pointermove", (e) => { if(!isCalcDragging || !calcModal) return; calcModal.style.left = (calcInitialXCalc + e.clientX - calcStartX) + "px"; calcModal.style.top = (calcInitialYCalc + e.clientY - calcStartY) + "px"; });
 document.addEventListener("pointerup", () => isCalcDragging = false);
 
 // ==========================================
-// 5. VYDEX OFFICE (Word, Excel, PPT)
+// VYDEX OFFICE (Word, Excel, PPT)
 // ==========================================
 const officeTabs = document.querySelectorAll(".office-tab");
 const officeTabBtns = document.querySelectorAll(".office-tab-btn");
@@ -340,7 +357,8 @@ officeTabBtns.forEach(btn => {
         officeTabBtns.forEach(b => b.classList.remove("active-tool"));
         btn.classList.add("active-tool");
         officeTabs.forEach(t => t.style.display = "none");
-        document.getElementById(btn.dataset.target).style.display = "block";
+        const target = document.getElementById(btn.dataset.target);
+        if(target) target.style.display = "block";
         if(isHost && isOfficeSyncing) socket.emit("office-sync", { room: currentRoom, action: "tab-switch", target: btn.dataset.target });
     });
 });
@@ -382,7 +400,7 @@ document.getElementById("officeDownloadBtn")?.addEventListener("click", () => {
 });
 
 // ==========================================
-// 6. FORCED FULLSCREEN & PiP
+// FORCED LOCKED FULLSCREEN & PiP
 // ==========================================
 function applyForcedFullscreen(targetId, isActive) {
     const targetEl = document.getElementById(targetId);
@@ -443,7 +461,7 @@ socket.on("office-sync", (data) => {
 });
 
 // ==========================================
-// 7. MATH MODAL
+// MATH MODAL
 // ==========================================
 const mathModal = document.getElementById("math-modal");
 const mathInput = document.getElementById("mathInput");
@@ -485,7 +503,7 @@ socket.on("math-equation", (data) => {
 });
 
 // ==========================================
-// 8. PRESENTATION (Graphs)
+// PRESENTATION (Graphs)
 // ==========================================
 const presMode = document.getElementById("presMode");
 const companyInputs = document.getElementById("companyInputs");
@@ -560,7 +578,7 @@ socket.on("laser-pointer", (data) => {
 });
 
 // ==========================================
-// 9. DUAL-LAYER WHITEBOARD
+// DUAL-LAYER WHITEBOARD
 // ==========================================
 const canvas = document.getElementById('whiteboard');
 const ctx = canvas ? canvas.getContext('2d', { willReadFrequently: true }) : null; 
@@ -799,7 +817,7 @@ if(wbPdfUpload && typeof pdfjsLib !== 'undefined') {
 }
 
 // ==========================================
-// 10. MAP INIT
+// MAP INIT
 // ==========================================
 function initWorldMap() {
   if(!document.getElementById('map-container') || typeof L === 'undefined') return;
@@ -814,7 +832,7 @@ function initWorldMap() {
 initWorldMap();
 
 // ==========================================
-// 11. AGORA WEBRTC CORE (Restored)
+// AGORA WEBRTC CORE 
 // ==========================================
 function createLocalCard(name) {
   let el = document.getElementById("local-player"); if (el) return "local-player";
@@ -931,8 +949,8 @@ socket.on("wb-control", (data) => {
 });
 
 leaveBtn?.addEventListener("click", async () => { socket.emit("leave-room"); await client.leave(); window.location.reload(); });
-muteAllBtn?.addEventListener("click", () => { if (joined && isHost) socket.emit("control", { room: currentRoom, action: "mute-all" }); });
-unmuteAllBtn?.addEventListener("click", () => { if (joined && isHost) socket.emit("control", { room: currentRoom, action: "unmute-all" }); });
+document.getElementById("muteAllBtn")?.addEventListener("click", () => { if (joined && isHost) socket.emit("control", { room: currentRoom, action: "mute-all" }); });
+document.getElementById("unmuteAllBtn")?.addEventListener("click", () => { if (joined && isHost) socket.emit("control", { room: currentRoom, action: "unmute-all" }); });
 
 sendMsgBtn?.addEventListener("click", () => { const text = chatInput?.value.trim(); if (!text) return; socket.emit("chat-message", { room: currentRoom, name: usernameInput?.value || "Me", text }); appendMessage(`Me: ${text}`); if(chatInput) chatInput.value = ""; });
 chatInput?.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); sendMsgBtn?.click(); } });
