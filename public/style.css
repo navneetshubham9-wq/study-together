@@ -101,19 +101,26 @@ body.locked-fullscreen-active #workspace > *:not(.locked-fullscreen) {
 .excel-table th { background: #27ae60; color: white; padding: 12px; border: 1px solid #ddd; text-align: center; position: sticky; top: 0; min-width: 80px; }
 .excel-table td { background: #fdfdfd; padding: 12px; border: 1px solid #ddd; text-align: center; outline:none; min-width: 80px; }
 .excel-table td:focus { background: #e8f5e9; border: 2px solid #27ae60; }
-.office-toolbar { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; padding: 6px 8px; background: #e8ecf0; border-bottom: 1px solid #ccc; }
-.office-toolbar select, .office-toolbar input[type="color"] { padding: 3px 5px; border: 1px solid #bbb; border-radius: 4px; font-size: 12px; background: #fff; cursor: pointer; }
-.office-toolbar button { background: #f5f5f5; color: #333; border: 1px solid #bbb; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer; transition: background 0.15s; min-width: 28px; }
-.office-toolbar button:hover { background: #d5d5d5; }
-.office-toolbar button.office-active { background: var(--primary); color: #fff; border-color: var(--primary); }
-.office-toolbar .office-sep { width: 1px; height: 22px; background: #bbb; margin: 0 3px; display: inline-block; }
-.office-subtabs { display:flex; gap:2px; padding:4px 8px 0; background:#d0d4d8; border-bottom:1px solid #bbb; flex-wrap:wrap; }
-.office-subtab { background:#dde1e5; color:#444; border:1px solid #bbb; border-bottom:none; border-radius:4px 4px 0 0; padding:5px 14px; font-size:11px; font-weight:600; cursor:pointer; transition:background 0.15s; }
-.office-subtab:hover { background:#e8ecf0; }
-.office-subtab.active { background:#e8ecf0; color:#222; border-bottom:2px solid #2ecc71; }
-.office-toolbar-group { display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
-.office-toolbar-group + .office-toolbar-group { margin-left:8px; padding-left:8px; border-left:1px solid #ccc; }
-.office-label { font-size:9px; color:#888; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-right:4px; }
+/* ── Office Ribbon (MS Office 2024 style) ── */
+.office-ribbon { font-family:'Segoe UI',sans-serif; background:#f8f8f8; border-bottom:1px solid #d0d0d0; flex-shrink:0; }
+.office-ribbon-tabs { display:flex; padding:0 8px; gap:1px; background:#e8e8e8; border-bottom:1px solid #d0d0d0; }
+.office-ribbon-tab { padding:5px 18px 6px; font-size:11px; color:#555; cursor:pointer; border:1px solid transparent; border-bottom:none; margin-bottom:-1px; border-radius:3px 3px 0 0; background:transparent; transition:all 0.12s; font-family:inherit; }
+.office-ribbon-tab:hover { background:#e0e0e0; border-color:#ccc; }
+.office-ribbon-tab.active { background:#fff; border-color:#d0d0d0; color:#1a1a1a; font-weight:500; position:relative; }
+.office-ribbon-panels { position:relative; }
+.office-ribbon-panel { display:none; padding:4px 6px; background:#fff; min-height:62px; align-items:stretch; gap:0; }
+.office-ribbon-panel.active { display:flex; }
+.office-ribbon-group { display:flex; align-items:center; padding:2px 10px; gap:3px; position:relative; flex-wrap:wrap; align-content:center; min-height:58px; }
+.office-ribbon-group + .office-ribbon-group { margin-left:4px; padding-left:10px; }
+.office-ribbon-group + .office-ribbon-group::before { content:''; position:absolute; left:0; top:6px; bottom:6px; width:1px; background:#ddd; }
+.office-ribbon-group-label { position:absolute; bottom:2px; left:0; right:0; text-align:center; font-size:7.5px; color:#888; text-transform:uppercase; letter-spacing:0.2px; pointer-events:none; }
+.office-ribbon-group > :not(.office-ribbon-group-label) { margin-bottom:10px; }
+.office-ribbon button, .office-ribbon .ribbon-btn { background:#fcfcfc; color:#333; border:1px solid #ddd; border-radius:3px; padding:3px 6px; font-size:11.5px; cursor:pointer; transition:background 0.1s; min-width:26px; display:inline-flex; align-items:center; justify-content:center; gap:2px; font-family:inherit; }
+.office-ribbon button:hover { background:#e8e8e8; border-color:#ccc; }
+.office-ribbon button:active { background:#d0d0d0; }
+.office-ribbon select { padding:2px 4px; border:1px solid #ddd; border-radius:3px; font-size:11px; background:#fff; cursor:pointer; margin-bottom:10px; font-family:inherit; }
+.office-ribbon input[type="color"] { width:22px; height:22px; padding:0; border:1px solid #ddd; border-radius:3px; cursor:pointer; margin-bottom:10px; }
+.office-ribbon .ribbon-sep { width:1px; height:18px; background:#ddd; margin:0 2px 10px; display:inline-block; }
 .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .calc-btn { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); padding: 15px 0; font-size: 18px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
 .calc-btn:hover { background: rgba(255,255,255,0.2); }

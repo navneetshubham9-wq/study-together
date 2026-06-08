@@ -654,16 +654,16 @@ officeTabBtns.forEach(btn => {
     });
 });
 
-// Office sub-tab switching (Word/Excel/PPT ribbon tabs)
-document.querySelectorAll(".office-subtab").forEach(btn => {
+// Office ribbon tab switching
+document.querySelectorAll(".office-ribbon-tab").forEach(btn => {
     btn.addEventListener("click", () => {
-        const parent = btn.closest(".office-tab");
-        if(!parent) return;
-        parent.querySelectorAll(".office-subtab").forEach(b => b.classList.remove("active"));
+        const ribbon = btn.closest(".office-ribbon");
+        if(!ribbon) return;
+        ribbon.querySelectorAll(".office-ribbon-tab").forEach(b => b.classList.remove("active"));
         btn.classList.add("active");
-        parent.querySelectorAll(".office-toolbar").forEach(tb => tb.style.display = "none");
-        const target = document.getElementById(btn.dataset.toolbar);
-        if(target) target.style.display = "flex";
+        ribbon.querySelectorAll(".office-ribbon-panel").forEach(p => p.classList.remove("active"));
+        const target = document.getElementById(btn.dataset.panel);
+        if(target) target.classList.add("active");
     });
 });
 
