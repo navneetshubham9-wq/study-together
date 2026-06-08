@@ -760,6 +760,12 @@ document.getElementById("wordFontSize")?.addEventListener("change", function() {
 wordEditor?.addEventListener("click", function() {
     if(this.contentEditable === "true") this.focus();
 });
+// Initialize Word as A4 portrait
+if(wordEditor) {
+    wordEditor.style.maxWidth = '794px';
+    wordEditor.style.minHeight = '1123px';
+    wordEditor.style.margin = '4px auto';
+}
 
 function officeInsertTable() {
     const rows = prompt("Rows:", "3");
@@ -1029,6 +1035,56 @@ function wordPrintLayout() {
     }
 }
 
+// ---- Word page size, orientation, image insert ----
+function wordSetPageSize(size) {
+    const el = document.getElementById('wordEditor');
+    if (!el) return;
+    const sizes = {
+        'A5': { w: '583px', h: '827px' },
+        'A4': { w: '794px', h: '1123px' },
+        'A3': { w: '1123px', h: '1587px' },
+        'A2': { w: '1654px', h: '2339px' },
+        'Letter': { w: '816px', h: '1054px' },
+        'Legal': { w: '816px', h: '1344px' }
+    };
+    const s = sizes[size];
+    if (s) { el.style.maxWidth = s.w; el.style.minHeight = s.h; }
+    showNotification(`Page size: ${size}`,'info');
+}
+function wordSetOrientation(o) {
+    const el = document.getElementById('wordEditor');
+    if (!el || !o) return;
+    if (o === 'landscape') {
+        const curW = parseFloat(el.style.maxWidth) || 794;
+        const curH = parseFloat(el.style.minHeight) || 1123;
+        el.style.maxWidth = Math.max(curW, curH) + 'px';
+        el.style.minHeight = Math.min(curW, curH) + 'px';
+        el.style.writingMode = 'horizontal-tb';
+        showNotification('Orientation: Landscape','info');
+    } else {
+        el.style.maxWidth = '794px';
+        el.style.minHeight = '1123px';
+        el.style.writingMode = 'horizontal-tb';
+        showNotification('Orientation: Portrait','info');
+    }
+}
+function wordInsertPicture() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            document.execCommand('insertHTML', false, `<img src="${ev.target.result}" style="max-width:100%;border-radius:4px;margin:8px 0;box-shadow:0 2px 8px rgba(0,0,0,0.1);">`);
+            emitOfficeData();
+        };
+        reader.readAsDataURL(file);
+    };
+    input.click();
+}
+
 // ---- Excel advanced features ----
 function excelFilter() {
     if (!excelGrid || excelGrid.rows.length <= 1) return;
@@ -1147,10 +1203,20 @@ function excelInsertPicture() {
     if(!sel.rangeCount) return;
     const td = sel.anchorNode?.closest?.('td');
     if(!td) { showNotification('Click a cell first','warning'); return; }
-    const url = prompt('Image URL:','https://');
-    if(!url) return;
-    td.innerHTML = `<img src="${url}" style="max-width:100%;max-height:80px;border-radius:4px;" onerror="showNotification('Failed to load image','danger')">`;
-    emitOfficeData();
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            td.innerHTML = `<img src="${ev.target.result}" style="max-width:100%;max-height:80px;border-radius:4px;">`;
+            emitOfficeData();
+        };
+        reader.readAsDataURL(file);
+    };
+    input.click();
 }
 function excelShape() {
     const s = prompt('Shape (rect, circle, arrow, star):','rect');
@@ -1544,12 +1610,22 @@ function pptInsertTable() {
     emitOfficeData();
 }
 function pptInsertPicture() {
-    const url = prompt('Image URL:', 'https://picsum.photos/seed/' + Date.now() + '/400/300');
-    if (!url) return;
-    savePptSlide();
-    document.execCommand('insertHTML', false, `<img src="${url}" style="max-width:80%;max-height:200px;margin:10px auto;display:block;border-radius:6px;box-shadow:0 2px 10px rgba(0,0,0,0.2);" onerror="showNotification('Failed to load image','danger')">`);
-    savePptSlide();
-    emitOfficeData();
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            savePptSlide();
+            document.execCommand('insertHTML', false, `<img src="${ev.target.result}" style="max-width:80%;max-height:200px;margin:10px auto;display:block;border-radius:6px;box-shadow:0 2px 10px rgba(0,0,0,0.2);">`);
+            savePptSlide();
+            emitOfficeData();
+        };
+        reader.readAsDataURL(file);
+    };
+    input.click();
 }
 function pptSlideshow(fromCurrent) {
     const mode = fromCurrent !== undefined ? (fromCurrent ? '2' : '1') : prompt('Slideshow mode:\n1=From Beginning\n2=From Current Slide', '1');

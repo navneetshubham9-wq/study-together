@@ -114,13 +114,13 @@ body.locked-fullscreen-active #workspace > *:not(.locked-fullscreen) {
 .office-ribbon-tab:hover { background:#d8d8d8; border-color:#bbb; }
 .office-ribbon-tab.active { background:#fff; border-color:#c0c0c0; color:#1a1a1a; font-weight:600; position:relative; }
 .office-ribbon-panels { position:relative; }
-.office-ribbon-panel { display:none; padding:2px 4px; background:#fff; }
+.office-ribbon-panel { display:none; padding:1px 4px; background:#fff; }
 .office-ribbon-panel.active { display:flex; }
 .office-ribbon-group { display:flex; align-items:center; padding:1px 4px; gap:1px; position:relative; flex-wrap:nowrap; }
 .office-ribbon-group + .office-ribbon-group { margin-left:3px; padding-left:4px; }
 .office-ribbon-group + .office-ribbon-group::before { content:''; position:absolute; left:0; top:4px; bottom:8px; width:1px; background:#bbb; }
 .office-ribbon-group-label { position:absolute; bottom:1px; left:0; right:0; text-align:center; font-size:6.5px; color:#000; text-transform:uppercase; letter-spacing:0.2px; pointer-events:none; font-weight:700; line-height:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.office-ribbon-group > :not(.office-ribbon-group-label) { margin-bottom:5px; }
+.office-ribbon-group > :not(.office-ribbon-group-label) { margin-bottom:1px; }
 .office-ribbon button, .office-ribbon .ribbon-btn { background:#f0f0f0; color:#111; border:1px solid #999; border-radius:3px; padding:1px 4px; font-size:11px; cursor:pointer; transition:background 0.1s; min-width:22px; display:inline-flex; align-items:center; justify-content:center; font-family:inherit; font-weight:500; line-height:1.2; }
 .office-ribbon button:hover { background:#d4e6f9; border-color:#7baae0; }
 .office-ribbon button:active { background:#b8d4f0; }
@@ -133,9 +133,9 @@ body.locked-fullscreen-active #workspace > *:not(.locked-fullscreen) {
 .icon-btn.office-tab-btn[data-target="office-ppt"]:hover { background:linear-gradient(135deg, #e45c3a, #f06a48); }
 .icon-btn.office-tab-btn.active-tool { box-shadow:0 0 0 2px rgba(255,255,255,0.5), 0 1px 4px rgba(0,0,0,0.3); }
 #officeDownloadBtn { background:linear-gradient(135deg, #27ae60, #2ecc71) !important; color:#fff !important; border:none !important; padding:5px 12px !important; font-weight:600 !important; border-radius:4px !important; }
-.office-ribbon select { padding:1px 3px; border:1px solid #999; border-radius:3px; font-size:10px; background:#fafafa; cursor:pointer; font-family:inherit; font-weight:500; color:#111; margin-bottom:8px; }
-.office-ribbon input[type="color"] { width:20px; height:20px; padding:0; border:1px solid #999; border-radius:3px; cursor:pointer; margin-bottom:8px; }
-.office-ribbon .ribbon-sep { width:1px; height:14px; background:#bbb; margin:0 2px 8px; display:inline-block; }
+.office-ribbon select { padding:0 2px; border:1px solid #999; border-radius:3px; font-size:9px; background:#fafafa; cursor:pointer; font-family:inherit; font-weight:500; color:#111; margin-bottom:2px; }
+.office-ribbon input[type="color"] { width:18px; height:18px; padding:0; border:1px solid #999; border-radius:3px; cursor:pointer; margin-bottom:2px; }
+.office-ribbon .ribbon-sep { width:1px; height:12px; background:#bbb; margin:0 1px 2px; display:inline-block; }
 .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .calc-btn { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); padding: 15px 0; font-size: 18px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
 .calc-btn:hover { background: rgba(255,255,255,0.2); }
