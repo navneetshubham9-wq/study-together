@@ -342,11 +342,19 @@ socket.on("wb-toggle", (data) => {
         hideAllBigPanels(); 
         if(whiteboardBox) whiteboardBox.style.display = "block"; 
         if(isHost){ const btn = document.getElementById("toggleWbBtn"); if(btn){btn.dataset.show="true"; btn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
-        if(isHost) socket.emit("force-screen", { room: currentRoom, target: "whiteboard-box", active: true });
+        if(isHost) {
+            socket.emit("force-screen", { room: currentRoom, target: "whiteboard-box", active: true });
+            const fsBtn = document.getElementById("wbForceFsBtn");
+            if(fsBtn) { fsBtn.dataset.forced = "true"; fsBtn.textContent = "🔓 Unlock Audience"; fsBtn.style.background = "#2ecc71"; }
+        }
     } else { 
         if(whiteboardBox) whiteboardBox.style.display = "none"; 
         if(isHost){ const btn = document.getElementById("toggleWbBtn"); if(btn){btn.dataset.show="false"; btn.style.background="linear-gradient(135deg, #3498db, #2980b9)";} } 
-        if(isHost) socket.emit("force-screen", { room: currentRoom, target: "whiteboard-box", active: false });
+        if(isHost) {
+            socket.emit("force-screen", { room: currentRoom, target: "whiteboard-box", active: false });
+            const fsBtn = document.getElementById("wbForceFsBtn");
+            if(fsBtn) { fsBtn.dataset.forced = "false"; fsBtn.textContent = "🔒 Force Fullscreen"; fsBtn.style.background = "#e74c3c"; }
+        }
     }
 });
 
@@ -367,11 +375,19 @@ socket.on("office-toggle", (data) => {
         hideAllBigPanels(); 
         if(officeBox) officeBox.style.display = "block"; 
         if(isHost){ const btn = document.getElementById("toggleOfficeBtn"); if(btn){btn.dataset.show="true"; btn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
-        if(isHost) socket.emit("force-screen", { room: currentRoom, target: "office-box", active: true });
+        if(isHost) {
+            socket.emit("force-screen", { room: currentRoom, target: "office-box", active: true });
+            const fsBtn = document.getElementById("officeForceFsBtn");
+            if(fsBtn) { fsBtn.dataset.forced = "true"; fsBtn.textContent = "🔓 Unlock Audience"; fsBtn.style.background = "#2ecc71"; }
+        }
     } else { 
         if(officeBox) officeBox.style.display = "none"; 
         if(isHost){ const btn = document.getElementById("toggleOfficeBtn"); if(btn){btn.dataset.show="false"; btn.style.background="linear-gradient(135deg, #c0392b, #e74c3c)";} } 
-        if(isHost) socket.emit("force-screen", { room: currentRoom, target: "office-box", active: false });
+        if(isHost) {
+            socket.emit("force-screen", { room: currentRoom, target: "office-box", active: false });
+            const fsBtn = document.getElementById("officeForceFsBtn");
+            if(fsBtn) { fsBtn.dataset.forced = "false"; fsBtn.textContent = "🔒 Force Fullscreen"; fsBtn.style.background = "#e74c3c"; }
+        }
     }
 });
 
@@ -1015,17 +1031,48 @@ document.getElementById('wb-clear')?.addEventListener("click", () => {
 
 function drawFreehand(x0, y0, x1, y1, color, size, toolType, emit) {
     if(!ctx) return;
-    ctx.globalCompositeOperation = toolType === 'eraser' ? 'destination-out' : 'source-over';
-    ctx.beginPath();
-    ctx.moveTo(x0, y0);
-    ctx.lineTo(x1, y1);
-    ctx.strokeStyle = toolType === 'eraser' ? "rgba(0,0,0,1)" : color;
-    ctx.lineWidth = size;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.stroke();
-    ctx.closePath();
-    ctx.globalCompositeOperation = 'source-over';
+    if(toolType === 'eraser') {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+        ctx.strokeStyle = "rgba(0,0,0,1)"; ctx.lineWidth = size;
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.stroke(); ctx.closePath();
+        ctx.globalCompositeOperation = 'source-over';
+    } else if(toolType === 'brush') {
+        ctx.globalAlpha = 0.5;
+        for (let i = -2; i <= 2; i++) {
+            ctx.beginPath();
+            ctx.moveTo(x0 + i * size * 0.15, y0 + i * size * 0.15);
+            ctx.lineTo(x1 + i * size * 0.15, y1 + i * size * 0.15);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = size * 0.8 + Math.abs(i) * size * 0.3;
+            ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            ctx.stroke(); ctx.closePath();
+        }
+        ctx.globalAlpha = 1.0;
+    } else if(toolType === 'spray') {
+        const density = Math.max(5, Math.floor(size * 1.5));
+        ctx.globalAlpha = 0.4;
+        for (let i = 0; i < density; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = Math.random() * size * 2.5;
+            const sx = x0 + Math.cos(angle) * dist;
+            const sy = y0 + Math.sin(angle) * dist;
+            const ex = x1 + Math.cos(angle) * dist;
+            const ey = y1 + Math.sin(angle) * dist;
+            ctx.beginPath();
+            ctx.moveTo(sx, sy); ctx.lineTo(ex, ey);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = size * 0.3 + Math.random() * size * 0.4;
+            ctx.lineCap = 'round'; ctx.stroke(); ctx.closePath();
+        }
+        ctx.globalAlpha = 1.0;
+    } else {
+        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+        ctx.strokeStyle = color; ctx.lineWidth = size;
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.stroke(); ctx.closePath();
+    }
 }
 
 function drawShape(ctx, type, x1, y1, x2, y2, color, size) {
