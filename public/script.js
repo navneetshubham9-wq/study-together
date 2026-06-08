@@ -155,6 +155,7 @@ function createRemoteWrapper(uid, labelText) {
     wrapper.style.alignItems = "center"; 
     wrapper.style.gap = "6px"; 
     wrapper.style.width = "100%"; 
+    wrapper.style.position = "relative"; 
     
     const card = document.createElement("div"); 
     card.className = "video-card"; 
@@ -699,7 +700,7 @@ function applyForcedFullscreen(targetId, isActive) {
     if (!targetEl) return;
 
     if (isActive) {
-        document.body.classList.add("no-scroll"); 
+        document.body.classList.add("no-scroll", "locked-fullscreen-active"); 
         targetEl.classList.add("locked-fullscreen");
         if (!isHost && globalHostUid) {
             const hostWrapper = document.getElementById(`remote-wrapper-${globalHostUid}`);
@@ -707,7 +708,7 @@ function applyForcedFullscreen(targetId, isActive) {
         }
         showNotification("🔒 Host locked screen in Broadcast Mode.", "danger");
     } else {
-        document.body.classList.remove("no-scroll"); 
+        document.body.classList.remove("no-scroll", "locked-fullscreen-active"); 
         targetEl.classList.remove("locked-fullscreen");
         if (!isHost && globalHostUid) {
             const hostWrapper = document.getElementById(`remote-wrapper-${globalHostUid}`);
