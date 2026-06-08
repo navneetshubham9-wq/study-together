@@ -311,19 +311,60 @@ function hideAllBigPanels() {
 }
 
 document.getElementById("togglePresBtn")?.addEventListener("click", function() { 
-    const isShowing = this.dataset.show === "true"; 
+    const isShowing = this.dataset.show === "true";
+    if (isShowing) {
+        if(presentationBox) presentationBox.style.display = "none";
+        this.dataset.show = "false";
+        this.style.background = "linear-gradient(135deg, #f1c40f, #f39c12)";
+    } else {
+        hideAllBigPanels();
+        if(presentationBox) presentationBox.style.display = "block";
+        this.dataset.show = "true";
+        this.style.background = "linear-gradient(135deg, #e74c3c, #c0392b)";
+    }
     socket.emit("pres-toggle", { room: currentRoom, show: !isShowing }); 
 });
 document.getElementById("toggleWbBtn")?.addEventListener("click", function() { 
-    const isShowing = this.dataset.show === "true"; 
+    const isShowing = this.dataset.show === "true";
+    if (isShowing) {
+        if(whiteboardBox) whiteboardBox.style.display = "none";
+        this.dataset.show = "false";
+        this.style.background = "linear-gradient(135deg, #3498db, #2980b9)";
+    } else {
+        hideAllBigPanels();
+        if(whiteboardBox) whiteboardBox.style.display = "block";
+        this.dataset.show = "true";
+        this.style.background = "linear-gradient(135deg, #e74c3c, #c0392b)";
+    }
     socket.emit("wb-toggle", { room: currentRoom, show: !isShowing }); 
 });
 document.getElementById("toggleMapBtn")?.addEventListener("click", function() { 
-    const isShowing = this.dataset.show === "true"; 
+    const isShowing = this.dataset.show === "true";
+    if (isShowing) {
+        if(mapBox) mapBox.style.display = "none";
+        this.dataset.show = "false";
+        this.style.background = "linear-gradient(135deg, #27ae60, #2ecc71)";
+    } else {
+        hideAllBigPanels();
+        if(mapBox) mapBox.style.display = "block";
+        setTimeout(() => {if(typeof geoMap !== 'undefined') geoMap.invalidateSize();}, 100);
+        this.dataset.show = "true";
+        this.style.background = "linear-gradient(135deg, #e74c3c, #c0392b)";
+    }
     socket.emit("map-toggle", { room: currentRoom, show: !isShowing }); 
 });
 document.getElementById("toggleOfficeBtn")?.addEventListener("click", function() { 
-    const isShowing = this.dataset.show === "true"; 
+    const isShowing = this.dataset.show === "true";
+    if (isShowing) {
+        if(officeBox) officeBox.style.display = "none";
+        this.dataset.show = "false";
+        this.style.background = "linear-gradient(135deg, #c0392b, #e74c3c)";
+    } else {
+        hideAllBigPanels();
+        if(officeBox) officeBox.style.display = "block";
+        this.dataset.show = "true";
+        this.style.background = "linear-gradient(135deg, #e74c3c, #c0392b)";
+    }
     socket.emit("office-toggle", { room: currentRoom, show: !isShowing }); 
 });
 
@@ -904,6 +945,287 @@ function excelAutoSum() {
     }
     td.textContent = sum;
     emitOfficeData();
+}
+
+// ---- Word advanced features ----
+function wordInsertShape() {
+    const s = prompt('Shape (rect, circle, arrow, line, triangle, star):', 'rect');
+    if (!s) return;
+    const map = {
+        rect: '<div style="width:120px;height:70px;background:#3498db;border:2px solid #2980b9;border-radius:4px;margin:10px 0;display:inline-block;"></div>',
+        circle: '<div style="width:80px;height:80px;background:#e74c3c;border:2px solid #c0392b;border-radius:50%;margin:10px 0;display:inline-block;"></div>',
+        arrow: '<div style="width:0;height:0;border-left:60px solid transparent;border-right:60px solid transparent;border-bottom:70px solid #2ecc71;margin:10px 0;"></div>',
+        line: '<hr style="border:2px solid #555;margin:10px 0;width:200px;">',
+        triangle: '<div style="width:0;height:0;border-left:55px solid transparent;border-right:55px solid transparent;border-bottom:80px solid #9b59b6;margin:10px 0;"></div>',
+        star: '<div style="font-size:48px;color:#f1c40f;margin:10px 0;">&#9733;</div>'
+    };
+    document.execCommand('insertHTML', false, map[s] || map.rect);
+}
+function wordInsertChart() {
+    const labels = prompt('Labels (comma separated, e.g. Q1,Q2,Q3,Q4):', 'Jan,Feb,Mar');
+    const values = prompt('Values (comma separated, e.g. 30,50,20):', '10,20,15');
+    const type = prompt('Chart type (bar, horizontal, simple):', 'bar');
+    if (!labels || !values) return;
+    const labs = labels.split(',').map(s => s.trim());
+    const vals = values.split(',').map(s => parseFloat(s.trim()) || 0);
+    const max = Math.max(...vals, 1);
+    let html = '<div style="display:flex;gap:15px;align-items:flex-end;padding:20px 10px;background:#f9f9f9;border-radius:8px;margin:10px 0;min-height:180px;">';
+    labs.forEach((l, i) => {
+        const h = (vals[i] / max) * 140;
+        html += `<div style="display:flex;flex-direction:column;align-items:center;flex:1;"><div style="width:100%;height:${h}px;background:${['#3498db','#e74c3c','#2ecc71','#f39c12','#9b59b6','#1abc9c'][i%6]};border-radius:4px 4px 0 0;transition:height 0.3s;"></div><span style="font-size:10px;margin-top:4px;color:#555;">${l}<br><b>${vals[i]}</b></span></div>`;
+    });
+    html += '</div>';
+    document.execCommand('insertHTML', false, html);
+}
+function wordPageNumber() {
+    const pos = prompt('Position (top, bottom):', 'bottom');
+    const fmt = prompt('Format (1, 01, a, i):', '1');
+    const tag = pos === 'top' ? 'header' : 'footer';
+    const txt = fmt === '01' ? '01' : fmt === 'a' ? 'a' : fmt === 'i' ? 'i' : '1';
+    document.execCommand('insertHTML', false, `<${tag} style="display:block;text-align:center;color:#888;font-size:10pt;border-bottom:1px solid #ddd;padding:4px 0;margin:10px 0;">Page ${txt}</${tag}>`);
+}
+function wordBreaks() {
+    const type = prompt('Break type (page, section, column):', 'page');
+    if (type === 'page') document.execCommand('insertHTML', false, '<div style="page-break-after:always;border-top:2px dashed #ccc;margin:20px 0;font-size:10px;color:#999;text-align:center;">— Page Break —</div>');
+    else if (type === 'section') document.execCommand('insertHTML', false, '<div style="border-top:3px double #999;margin:20px 0;font-size:10px;color:#999;text-align:center;">— Section Break —</div>');
+    else if (type === 'column') document.execCommand('insertHTML', false, '<div style="border-top:1px dotted #999;margin:20px 0;font-size:10px;color:#999;text-align:center;">— Column Break —</div>');
+}
+function wordSpelling() {
+    const el = document.getElementById('wordEditor');
+    if (!el) return;
+    const text = el.innerText || '';
+    const words = text.split(/\s+/).filter(Boolean);
+    const common = ['the','a','an','and','or','but','in','on','at','to','for','of','with','by','is','it','as','be','this','that','was','are','were','been','have','has','had','not','no','from','they','you','we','he','she','will','can','all','each','which','their','there','its','also','if','so','do','up','out','about','into','over','after','then','these','them','some','would','could','should','may','very','just','than','because','what','when','where','how','who'];
+    const misspelled = words.filter(w => {
+        const clean = w.replace(/[^a-zA-Z]/g,'').toLowerCase();
+        return clean.length > 1 && !common.includes(clean);
+    });
+    if (misspelled.length === 0) { showNotification('✓ No unusual words found!','success'); return; }
+    const unique = [...new Set(misspelled)].slice(0, 20);
+    showNotification('🔍 Possible misspellings: ' + unique.join(', '),'warning');
+}
+function wordPrintLayout() {
+    const el = document.getElementById('wordEditor');
+    if (!el) return;
+    const cur = el.style.boxShadow;
+    if (cur && cur !== 'none') {
+        el.style.boxShadow = 'none';
+        el.style.maxWidth = '100%';
+        el.style.borderRadius = '0';
+        showNotification('Switched to Draft view','info');
+    } else {
+        el.style.boxShadow = '0 2px 20px rgba(0,0,0,0.15)';
+        el.style.maxWidth = '21cm';
+        el.style.margin = '0 auto';
+        el.style.borderRadius = '4px';
+        showNotification('Switched to Print Layout view','info');
+    }
+}
+
+// ---- Excel advanced features ----
+function excelFilter() {
+    if (!excelGrid || excelGrid.rows.length <= 1) return;
+    const sel = window.getSelection();
+    if (!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td,th');
+    if (!td) return;
+    const ci = td.cellIndex;
+    if (ci === 0) return;
+    const vals = new Set();
+    for (let r = 1; r < excelGrid.rows.length; r++) {
+        const v = excelGrid.rows[r].cells[ci]?.innerText?.trim();
+        if (v) vals.add(v);
+    }
+    const arr = [...vals];
+    if (arr.length === 0) return;
+    const show = prompt(`Filter column: Show only value (or blank to clear filter):\nValues: ${arr.join(', ')}`, '');
+    for (let r = 1; r < excelGrid.rows.length; r++) {
+        const v = excelGrid.rows[r].cells[ci]?.innerText?.trim();
+        excelGrid.rows[r].style.display = (!show || v === show) ? '' : 'none';
+    }
+    showNotification(show ? `Filtered: showing "${show}" only` : 'Filter cleared','info');
+}
+function excelRemoveDuplicates() {
+    if (!excelGrid || excelGrid.rows.length <= 2) return;
+    const sel = window.getSelection();
+    if (!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td,th');
+    if (!td) return;
+    const ci = td.cellIndex;
+    if (ci === 0) return;
+    const seen = new Set();
+    const rows = Array.from(excelGrid.rows);
+    let removed = 0;
+    for (let r = rows.length - 1; r >= 1; r--) {
+        const v = rows[r].cells[ci]?.innerText?.trim() || '';
+        if (seen.has(v)) { rows[r].remove(); removed++; }
+        else seen.add(v);
+    }
+    for (let r = 1; r < excelGrid.rows.length; r++) excelGrid.rows[r].cells[0].textContent = r;
+    showNotification(`Removed ${removed} duplicate(s) from column`,'success');
+    emitOfficeData();
+}
+function excelDataValidation() {
+    if (!excelGrid) return;
+    const sel = window.getSelection();
+    if (!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td');
+    if (!td) return;
+    const rule = prompt('Validation rule:\n1=Number only\n2=Text only\n3=Max length\n4=Clear', '1');
+    if (!rule) return;
+    if (rule === '1') {
+        td.dataset.validate = 'number';
+        showNotification('✓ Number validation set on cell','success');
+    } else if (rule === '2') {
+        td.dataset.validate = 'text';
+        td.addEventListener('input', function(e) {
+            if (/[0-9]/.test(e.target.innerText)) e.target.innerText = e.target.innerText.replace(/[0-9]/g,'');
+        }, {once: true});
+        showNotification('✓ Text-only validation set','success');
+    } else if (rule === '3') {
+        const max = prompt('Max characters:', '10');
+        if (max) {
+            td.dataset.maxlen = max;
+            td.addEventListener('input', function(e) {
+                if (e.target.innerText.length > +max) e.target.innerText = e.target.innerText.slice(0, +max);
+            }, {once: true});
+            showNotification(`✓ Max ${max} chars validation set`,'success');
+        }
+    } else {
+        delete td.dataset.validate;
+        showNotification('Validation cleared','info');
+    }
+    emitOfficeData();
+}
+function excelProtectSheet() {
+    if (!excelGrid) return;
+    const sel = window.getSelection();
+    if (!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td');
+    if (td) {
+        if (td.contentEditable === 'false') {
+            document.querySelectorAll('#excelGrid td').forEach(t => { if(!t.dataset.protected) t.contentEditable = 'true'; });
+            showNotification('Sheet unprotected','info');
+        } else {
+            document.querySelectorAll('#excelGrid td').forEach(t => { if(!t.dataset.protected) t.contentEditable = 'false'; });
+            showNotification('Sheet protected','warning');
+        }
+    }
+    emitOfficeData();
+}
+
+// ---- PPT advanced features ----
+function pptTheme() {
+    const themes = {
+        '1': { bg: '#2c3e50', text: '#ecf0f1', accent: '#3498db', name: 'Dark' },
+        '2': { bg: '#ecf0f1', text: '#2c3e50', accent: '#e74c3c', name: 'Light' },
+        '3': { bg: '#1a5276', text: '#ffffff', accent: '#f1c40f', name: 'Ocean' },
+        '4': { bg: '#27ae60', text: '#ffffff', accent: '#f39c12', name: 'Forest' }
+    };
+    const choice = prompt('Theme:\n1=Dark\n2=Light\n3=Ocean\n4=Forest', '1');
+    if (!choice || !themes[choice]) return;
+    const t = themes[choice];
+    const container = document.getElementById('office-ppt')?.querySelector('[style*="background:#2c3e50;"]') || document.getElementById('office-ppt');
+    if (container) {
+        container.style.background = t.bg;
+        document.querySelectorAll('#office-ppt .office-ribbon, #office-ppt .office-ribbon-tabs, #office-ppt .office-ribbon-panel').forEach(el => {
+            el.style.background = t.bg;
+        });
+    }
+    const editor = document.getElementById('pptEditor');
+    if (editor) editor.style.background = '#fff';
+    showNotification(`Applied "${t.name}" theme`,'success');
+}
+function pptFormatBg() {
+    const container = document.getElementById('office-ppt')?.querySelector('[style*="background:#2c3e50;"]') || document.getElementById('office-ppt');
+    if (!container) return;
+    const color = prompt('Background color (hex, e.g. #2c3e50):', container.style.background || '#2c3e50');
+    if (!color) return;
+    container.style.background = color;
+    document.querySelectorAll('#office-ppt .office-ribbon, #office-ppt .office-ribbon-tabs, #office-ppt .office-ribbon-panel').forEach(el => {
+        el.style.background = color;
+    });
+    const editor = document.getElementById('pptEditor');
+    if (editor) {
+        const bg = prompt('Slide background color (hex):', '#ffffff');
+        if (bg) editor.style.background = bg;
+    }
+}
+function pptInsertShape() {
+    const s = prompt('Shape (rect, circle, arrow, text):', 'rect');
+    if (!s) return;
+    const map = {
+        rect: '<div contenteditable="false" style="width:120px;height:70px;background:#3498db;border:2px solid #2980b9;border-radius:4px;margin:20px auto;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:bold;">Shape</div>',
+        circle: '<div contenteditable="false" style="width:80px;height:80px;background:#e74c3c;border:2px solid #c0392b;border-radius:50%;margin:20px auto;"></div>',
+        arrow: '<div contenteditable="false" style="width:0;height:0;border-left:50px solid transparent;border-right:50px solid transparent;border-bottom:60px solid #2ecc71;margin:20px auto;"></div>',
+        text: '<div contenteditable="true" style="border:2px dashed #3498db;padding:12px;margin:10px;border-radius:6px;text-align:center;font-size:16px;color:#333;">Your text here</div>'
+    };
+    const editor = document.getElementById('pptEditor');
+    if (!editor) return;
+    savePptSlide();
+    document.execCommand('insertHTML', false, map[s] || map.rect);
+    savePptSlide();
+    emitOfficeData();
+}
+function pptInsertTable() {
+    const rows = prompt('Rows:', '3');
+    const cols = prompt('Columns:', '3');
+    if (!rows || !cols) return;
+    savePptSlide();
+    let table = "<table border='1' style='border-collapse:collapse;width:100%;margin:10px auto;background:#fff;'><tr>";
+    for(let c = 0; c < +cols; c++) table += "<th style='border:1px solid #999;padding:6px;background:#e0e0e0;'>Header</th>";
+    table += "</tr>";
+    for(let r = 1; r < +rows; r++) {
+        table += "<tr>";
+        for(let c = 0; c < +cols; c++) table += "<td style='border:1px solid #999;padding:6px;'>&nbsp;</td>";
+        table += "</tr>";
+    }
+    table += "</table>";
+    document.execCommand('insertHTML', false, table);
+    savePptSlide();
+    emitOfficeData();
+}
+function pptInsertPicture() {
+    const url = prompt('Image URL:', 'https://picsum.photos/seed/' + Date.now() + '/400/300');
+    if (!url) return;
+    savePptSlide();
+    document.execCommand('insertHTML', false, `<img src="${url}" style="max-width:80%;max-height:200px;margin:10px auto;display:block;border-radius:6px;box-shadow:0 2px 10px rgba(0,0,0,0.2);" onerror="showNotification('Failed to load image','danger')">`);
+    savePptSlide();
+    emitOfficeData();
+}
+function pptSlideshow(fromCurrent) {
+    const mode = fromCurrent !== undefined ? (fromCurrent ? '2' : '1') : prompt('Slideshow mode:\n1=From Beginning\n2=From Current Slide', '1');
+    if (!mode) return;
+    const startIdx = mode === '2' ? pptCurrentSlide : 0;
+    const el = document.getElementById('pptEditor');
+    if (!el) return;
+    const origHtml = pptSlides[startIdx] || '';
+    const overlay = document.createElement('div');
+    overlay.id = 'ppt-fullscreen';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:#000;z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;';
+    let idx = startIdx;
+    function showSlide(i) {
+        if (i < 0 || i >= pptSlides.length) return;
+        idx = i;
+        const html = pptSlides[i] || '';
+        overlay.innerHTML = `<div style="width:80vw;height:80vh;background:transparent;display:flex;align-items:center;justify-content:center;"><div style="max-width:90%;max-height:90%;background:#fff;color:#000;padding:40px;box-shadow:0 10px 40px rgba(0,0,0,0.5);font-size:28px;text-align:center;border-radius:8px;overflow-y:auto;">${html}</div></div><div style="position:absolute;bottom:20px;color:#888;font-size:14px;">${i+1} / ${pptSlides.length} · Click to advance · Esc to exit</div>`;
+    }
+    showSlide(startIdx);
+    overlay.addEventListener('click', () => {
+        if (idx < pptSlides.length - 1) showSlide(idx + 1);
+        else { overlay.remove(); showNotification('Slideshow ended','info'); }
+    });
+    document.addEventListener('keydown', function escHandler(e) {
+        if (e.key === 'Escape' && document.getElementById('ppt-fullscreen')) {
+            overlay.remove();
+            document.removeEventListener('keydown', escHandler);
+        } else if (e.key === 'ArrowRight' && document.getElementById('ppt-fullscreen')) {
+            if (idx < pptSlides.length - 1) showSlide(idx + 1);
+        } else if (e.key === 'ArrowLeft' && document.getElementById('ppt-fullscreen')) {
+            if (idx > 0) showSlide(idx - 1);
+        }
+    });
+    document.body.appendChild(overlay);
 }
 
 // ---- PPT helpers ----
