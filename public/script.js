@@ -342,13 +342,11 @@ socket.on("wb-toggle", (data) => {
         hideAllBigPanels(); 
         if(whiteboardBox) whiteboardBox.style.display = "block"; 
         if(isHost){ const btn = document.getElementById("toggleWbBtn"); if(btn){btn.dataset.show="true"; btn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
-        applyForcedFullscreen("whiteboard-box", true);
-        if(!isHost) socket.emit("force-screen", { room: currentRoom, target: "whiteboard-box", active: true });
+        if(isHost) socket.emit("force-screen", { room: currentRoom, target: "whiteboard-box", active: true });
     } else { 
         if(whiteboardBox) whiteboardBox.style.display = "none"; 
         if(isHost){ const btn = document.getElementById("toggleWbBtn"); if(btn){btn.dataset.show="false"; btn.style.background="linear-gradient(135deg, #3498db, #2980b9)";} } 
-        applyForcedFullscreen("whiteboard-box", false);
-        if(!isHost) socket.emit("force-screen", { room: currentRoom, target: "whiteboard-box", active: false });
+        if(isHost) socket.emit("force-screen", { room: currentRoom, target: "whiteboard-box", active: false });
     }
 });
 
@@ -369,13 +367,11 @@ socket.on("office-toggle", (data) => {
         hideAllBigPanels(); 
         if(officeBox) officeBox.style.display = "block"; 
         if(isHost){ const btn = document.getElementById("toggleOfficeBtn"); if(btn){btn.dataset.show="true"; btn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
-        applyForcedFullscreen("office-box", true);
-        if(!isHost) socket.emit("force-screen", { room: currentRoom, target: "office-box", active: true });
+        if(isHost) socket.emit("force-screen", { room: currentRoom, target: "office-box", active: true });
     } else { 
         if(officeBox) officeBox.style.display = "none"; 
         if(isHost){ const btn = document.getElementById("toggleOfficeBtn"); if(btn){btn.dataset.show="false"; btn.style.background="linear-gradient(135deg, #c0392b, #e74c3c)";} } 
-        applyForcedFullscreen("office-box", false);
-        if(!isHost) socket.emit("force-screen", { room: currentRoom, target: "office-box", active: false });
+        if(isHost) socket.emit("force-screen", { room: currentRoom, target: "office-box", active: false });
     }
 });
 
@@ -682,6 +678,7 @@ document.getElementById("officeDownloadBtn")?.addEventListener("click", () => {
 // 8. FORCED LOCKED FULLSCREEN & PiP
 // ==========================================
 function applyForcedFullscreen(targetId, isActive) {
+    if(isHost) return;
     const targetEl = document.getElementById(targetId);
     if (!targetEl) return;
 
