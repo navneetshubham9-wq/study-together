@@ -106,7 +106,7 @@ body.locked-fullscreen-active #workspace > *:not(.locked-fullscreen) {
 /* ── Office Tab layout ── */
 .office-tab { display:flex; flex-direction:column; height:460px; border-radius:8px; overflow:hidden; background:#fff; }
 .office-tab#office-excel { color:#000; }
-.office-tab#office-ppt { background:#2c3e50; color:#fff; }
+.office-tab#office-word { color:#000; }
 /* ── Office Ribbon ── */
 .office-ribbon { font-family:'Segoe UI',sans-serif; background:#f0f0f0; border-bottom:1px solid #c0c0c0; flex-shrink:0; }
 .office-ribbon-tabs { display:flex; padding:0 8px; gap:1px; background:#d0d0d0; border-bottom:1px solid #c0c0c0; }
@@ -116,23 +116,26 @@ body.locked-fullscreen-active #workspace > *:not(.locked-fullscreen) {
 .office-ribbon-panels { position:relative; }
 .office-ribbon-panel { display:none; padding:2px 4px; background:#fff; }
 .office-ribbon-panel.active { display:flex; }
-.office-ribbon-group { display:flex; align-items:center; padding:1px 4px; gap:1px; position:relative; flex-wrap:nowrap; }
-.office-ribbon-group + .office-ribbon-group { margin-left:2px; padding-left:4px; }
-.office-ribbon-group + .office-ribbon-group::before { content:''; position:absolute; left:0; top:4px; bottom:4px; width:1px; background:#ddd; }
-.office-ribbon-group-label { display:none; }
-.office-ribbon button, .office-ribbon .ribbon-btn { background:#f0f0f0; color:#222; border:1px solid #bbb; border-radius:3px; padding:1px 4px; font-size:11px; cursor:pointer; transition:background 0.1s; min-width:22px; display:inline-flex; align-items:center; justify-content:center; font-family:inherit; font-weight:500; line-height:1.2; }
+.office-ribbon-group { display:flex; align-items:center; padding:3px 8px; gap:2px; position:relative; flex-wrap:nowrap; min-height:38px; }
+.office-ribbon-group + .office-ribbon-group { margin-left:4px; padding-left:8px; }
+.office-ribbon-group + .office-ribbon-group::before { content:''; position:absolute; left:0; top:6px; bottom:12px; width:1px; background:#bbb; }
+.office-ribbon-group-label { position:absolute; bottom:2px; left:0; right:0; text-align:center; font-size:7px; color:#000; text-transform:uppercase; letter-spacing:0.3px; pointer-events:none; font-weight:700; line-height:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.office-ribbon-group > :not(.office-ribbon-group-label) { margin-bottom:8px; }
+.office-ribbon button, .office-ribbon .ribbon-btn { background:#f0f0f0; color:#111; border:1px solid #999; border-radius:3px; padding:2px 6px; font-size:11px; cursor:pointer; transition:background 0.1s; min-width:24px; display:inline-flex; align-items:center; justify-content:center; font-family:inherit; font-weight:500; line-height:1.3; }
 .office-ribbon button:hover { background:#d4e6f9; border-color:#7baae0; }
 .office-ribbon button:active { background:#b8d4f0; }
 .office-ribbon .icon-btn.office-tab-btn { padding:5px 12px; font-size:11px; font-weight:600; border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
+.icon-btn.office-tab-btn[data-target="office-word"] { background:linear-gradient(135deg, #2b579a, #3b6db5); color:#fff; border:none; }
+.icon-btn.office-tab-btn[data-target="office-word"]:hover { background:linear-gradient(135deg, #3b6db5, #4a7fc9); }
 .icon-btn.office-tab-btn[data-target="office-excel"] { background:linear-gradient(135deg, #217346, #2d8f57); color:#fff; border:none; }
 .icon-btn.office-tab-btn[data-target="office-excel"]:hover { background:linear-gradient(135deg, #2d8f57, #3aab69); }
 .icon-btn.office-tab-btn[data-target="office-ppt"] { background:linear-gradient(135deg, #d24726, #e45c3a); color:#fff; border:none; }
 .icon-btn.office-tab-btn[data-target="office-ppt"]:hover { background:linear-gradient(135deg, #e45c3a, #f06a48); }
 .icon-btn.office-tab-btn.active-tool { box-shadow:0 0 0 2px rgba(255,255,255,0.5), 0 1px 4px rgba(0,0,0,0.3); }
 #officeDownloadBtn { background:linear-gradient(135deg, #27ae60, #2ecc71) !important; color:#fff !important; border:none !important; padding:5px 12px !important; font-weight:600 !important; border-radius:4px !important; }
-.office-ribbon select { padding:1px 2px; border:1px solid #bbb; border-radius:3px; font-size:10px; background:#f8f8f8; cursor:pointer; font-family:inherit; font-weight:500; }
-.office-ribbon input[type="color"] { width:18px; height:18px; padding:0; border:1px solid #bbb; border-radius:3px; cursor:pointer; }
-.office-ribbon .ribbon-sep { width:1px; height:12px; background:#bbb; margin:0 1px; display:inline-block; }
+.office-ribbon select { padding:1px 3px; border:1px solid #999; border-radius:3px; font-size:10px; background:#fafafa; cursor:pointer; font-family:inherit; font-weight:500; color:#111; margin-bottom:8px; }
+.office-ribbon input[type="color"] { width:20px; height:20px; padding:0; border:1px solid #999; border-radius:3px; cursor:pointer; margin-bottom:8px; }
+.office-ribbon .ribbon-sep { width:1px; height:14px; background:#bbb; margin:0 2px 8px; display:inline-block; }
 .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .calc-btn { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); padding: 15px 0; font-size: 18px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
 .calc-btn:hover { background: rgba(255,255,255,0.2); }

@@ -161,12 +161,146 @@
         </h3>
         
         <div style="display: flex; gap: 10px; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 10px;">
-            <button class="icon-btn office-tab-btn active-tool" data-target="office-excel">📗 Excel</button>
+            <button class="icon-btn office-tab-btn active-tool" data-target="office-word">📘 Word</button>
+            <button class="icon-btn office-tab-btn" data-target="office-excel">📗 Excel</button>
             <button class="icon-btn office-tab-btn" data-target="office-ppt">📙 Presentation</button>
             <button id="officeDownloadBtn" class="icon-btn" style="margin-left:auto; background:#2ecc71;">⬇️ Download</button>
         </div>
 
-        <div id="office-excel" class="office-tab" style="display:flex;">
+        <div id="office-word" class="office-tab" style="display:flex;">
+          <div class="office-ribbon">
+            <div class="office-ribbon-tabs">
+              <button class="office-ribbon-tab active" data-panel="word-home">Home</button>
+              <button class="office-ribbon-tab" data-panel="word-insert">Insert</button>
+              <button class="office-ribbon-tab" data-panel="word-layout">Layout</button>
+              <button class="office-ribbon-tab" data-panel="word-references">References</button>
+              <button class="office-ribbon-tab" data-panel="word-review">Review</button>
+              <button class="office-ribbon-tab" data-panel="word-view">View</button>
+            </div>
+            <div class="office-ribbon-panels">
+              <div class="office-ribbon-panel active" id="word-home">
+                <div class="office-ribbon-group">
+                  <select id="wordFontFamily"><option value="Arial">Arial</option><option value="Times New Roman">Times New Roman</option><option value="Courier New">Courier New</option><option value="Georgia">Georgia</option><option value="Verdana">Verdana</option><option value="Impact">Impact</option></select>
+                  <select id="wordFontSize"><option value="1">8</option><option value="2">10</option><option value="3">12</option><option value="4">18</option><option value="5">24</option><option value="6">36</option><option value="7">48</option></select>
+                  <button onclick="document.execCommand('bold',false,null)"><b>B</b></button>
+                  <button onclick="document.execCommand('italic',false,null)"><i>I</i></button>
+                  <button onclick="document.execCommand('underline',false,null)"><u>U</u></button>
+                  <button onclick="document.execCommand('strikeThrough',false,null)" style="text-decoration:line-through;">S</button>
+                  <button onclick="document.execCommand('superscript',false,null)">x²</button>
+                  <button onclick="document.execCommand('subscript',false,null)">x₂</button>
+                  <input type="color" id="wordTextColor" value="#000000" onchange="document.execCommand('foreColor',false,this.value)">
+                  <input type="color" id="wordBgColor" value="#ffff00" onchange="document.execCommand('hiliteColor',false,this.value)">
+                  <span class="ribbon-sep"></span>
+                  <button onclick="document.execCommand('removeFormat',false,null)">✕</button>
+                  <span class="office-ribbon-group-label">Font</span>
+                </div>
+                <div class="office-ribbon-group">
+                  <button onclick="document.execCommand('justifyLeft',false,null)">≡</button>
+                  <button onclick="document.execCommand('justifyCenter',false,null)">≡</button>
+                  <button onclick="document.execCommand('justifyRight',false,null)">≡</button>
+                  <button onclick="document.execCommand('justifyFull',false,null)">≡</button>
+                  <span class="ribbon-sep"></span>
+                  <button onclick="document.execCommand('insertOrderedList',false,null)">1.</button>
+                  <button onclick="document.execCommand('insertUnorderedList',false,null)">•</button>
+                  <span class="ribbon-sep"></span>
+                  <button onclick="document.execCommand('indent',false,null)">→</button>
+                  <button onclick="document.execCommand('outdent',false,null)">←</button>
+                  <button onclick="var s=prompt('Line spacing:','1.5');if(s)document.execCommand('formatBlock',false,'<div style=\"line-height:'+s+'\">')">↕</button>
+                  <span class="office-ribbon-group-label">Paragraph</span>
+                </div>
+                <div class="office-ribbon-group">
+                  <button onclick="document.execCommand('undo',false,null)">↩</button>
+                  <button onclick="document.execCommand('redo',false,null)">↪</button>
+                  <span class="ribbon-sep"></span>
+                  <button onclick="var l=prompt('Find:','');if(l)document.execCommand('find',false,null)">🔍</button>
+                  <button onclick="document.execCommand('selectAll',false,null)">🔲</button>
+                  <span class="office-ribbon-group-label">Clipboard</span>
+                </div>
+              </div>
+              <div class="office-ribbon-panel" id="word-insert">
+                <div class="office-ribbon-group">
+                  <button onclick="officeInsertTable()">⊞ Table</button>
+                  <button onclick="var m=prompt('Image URL:','https://');if(m)document.execCommand('insertImage',false,m)">🖼 Picture</button>
+                  <button onclick="wordInsertShape()">⬡ Shapes</button>
+                  <button onclick="showNotification('Icons - coming soon','info')">◎ Icons</button>
+                  <button onclick="showNotification('SmartArt - coming soon','info')">🧠 SmartArt</button>
+                  <button onclick="wordInsertChart()">📊 Chart</button>
+                  <button onclick="showNotification('Screenshot - coming soon','info')">📷 Screenshot</button>
+                  <span class="office-ribbon-group-label">Illustrations</span>
+                </div>
+                <div class="office-ribbon-group">
+                  <button onclick="var h=prompt('Header HTML:','<h2>Header</h2>');if(h)document.execCommand('insertHTML',false,h)">📐 Header</button>
+                  <button onclick="var f=prompt('Footer HTML:','<p>Footer</p>');if(f)document.execCommand('insertHTML',false,f)">📐 Footer</button>
+                  <button onclick="wordPageNumber()"># Page#</button>
+                  <button onclick="var t=prompt('Text Box:','Your text');if(t)document.execCommand('insertHTML',false,'<div style=\"border:1px dashed #999;padding:10px;margin:8px 0;\">'+t+'</div>')">📦 Text Box</button>
+                  <span class="office-ribbon-group-label">Header &amp; Footer</span>
+                </div>
+                <div class="office-ribbon-group">
+                  <button onclick="var l=prompt('Link URL:','https://');if(l)document.execCommand('createLink',false,l)">🔗 Link</button>
+                  <button onclick="document.execCommand('insertHorizontalRule',false,null)">—</button>
+                  <span class="office-ribbon-group-label">Links</span>
+                </div>
+              </div>
+              <div class="office-ribbon-panel" id="word-layout">
+                <div class="office-ribbon-group">
+                  <button onclick="document.getElementById('wordEditor').style.padding=prompt('Margins (px):','20px')">📏 Margins</button>
+                  <button onclick="var o=prompt('Orientation (portrait/landscape):','portrait');if(o)wordEditor.style.writingMode=o==='landscape'?'vertical-rl':'horizontal-tb'">🔄 Orientation</button>
+                  <button onclick="var w=prompt('Page width (px):','794');if(w)document.getElementById('wordEditor').style.maxWidth=w+'px'">📄 Size</button>
+                  <button onclick="var c=prompt('Columns:','2');if(c)document.execCommand('formatBlock',false,'<div style=\"column-count:'+c+'\">')">☰ Columns</button>
+                  <span class="office-ribbon-group-label">Page Setup</span>
+                </div>
+                <div class="office-ribbon-group">
+                  <button onclick="wordBreaks()">⏎ Breaks</button>
+                  <button onclick="showNotification('Line Numbers - coming soon','info')"># Line#</button>
+                  <span class="office-ribbon-group-label">Arrange</span>
+                </div>
+              </div>
+              <div class="office-ribbon-panel" id="word-references">
+                <div class="office-ribbon-group">
+                  <button onclick="showNotification('Table of Contents - coming soon','info')">📑 TOC</button>
+                  <button onclick="showNotification('Insert Footnote - coming soon','info')">📝 Footnote</button>
+                  <button onclick="showNotification('Insert Citation - coming soon','info')">📚 Citation</button>
+                  <button onclick="showNotification('Bibliography - coming soon','info')">📖 Bibliography</button>
+                  <button onclick="showNotification('Captions - coming soon','info')">🏷 Captions</button>
+                  <button onclick="showNotification('Index - coming soon','info')">📋 Index</button>
+                  <span class="office-ribbon-group-label">References</span>
+                </div>
+              </div>
+              <div class="office-ribbon-panel" id="word-review">
+                <div class="office-ribbon-group">
+                  <button onclick="showNotification('Words: '+document.getElementById('wordEditor').innerText.trim().split(/\s+/).filter(Boolean).length,'info')">🔤 Word Count</button>
+                  <button onclick="wordSpelling()">✓ Spelling</button>
+                  <button onclick="showNotification('Thesaurus - coming soon','info')">📕 Thesaurus</button>
+                  <button onclick="showNotification('Translate - coming soon','info')">🌐 Translate</button>
+                  <span class="office-ribbon-group-label">Proofing</span>
+                </div>
+                <div class="office-ribbon-group">
+                  <button onclick="showNotification('New Comment - coming soon','info')">💬 Comment</button>
+                  <button onclick="showNotification('Track Changes - coming soon','info')">✏ Track Changes</button>
+                  <button onclick="showNotification('Language - coming soon','info')">🗣 Language</button>
+                  <span class="office-ribbon-group-label">Comments</span>
+                </div>
+              </div>
+              <div class="office-ribbon-panel" id="word-view">
+                <div class="office-ribbon-group">
+                  <button onclick="showNotification('Read Mode - coming soon','info')">📖 Read</button>
+                  <button onclick="wordPrintLayout()">🖨 Print</button>
+                  <button onclick="showNotification('Web Layout - coming soon','info')">🌐 Web</button>
+                  <span class="office-ribbon-group-label">Views</span>
+                </div>
+                <div class="office-ribbon-group">
+                  <button onclick="var z=prompt('Zoom %:','100');if(z)document.getElementById('wordEditor').style.zoom=z/100">🔍 Zoom</button>
+                  <button onclick="showNotification('Ruler - coming soon','info')">📐 Ruler</button>
+                  <button onclick="showNotification('Gridlines - coming soon','info')">⊞ Gridlines</button>
+                  <span class="office-ribbon-group-label">Show</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="wordEditor" contenteditable="false" style="flex:1; padding:40px; outline:none; overflow-y:auto; font-size:12pt; color:#222; background:#fff; min-height:0; line-height:1.6; word-wrap:break-word; box-shadow:inset 0 0 30px rgba(0,0,0,0.05);"></div>
+        </div>
+
+        <div id="office-excel" class="office-tab" style="display:none;">
           <div class="office-ribbon">
             <div class="office-ribbon-tabs">
               <button class="office-ribbon-tab active" data-panel="excel-home">Home</button>
@@ -298,128 +432,128 @@
           </div>
         </div>
 
-        <div id="office-ppt" class="office-tab" style="display:none;">
-          <div class="office-ribbon" style="background:#2c3e50; border-color:#1a252f;">
-            <div class="office-ribbon-tabs" style="background:#2c3e50; border-color:#1a252f;">
-              <button class="office-ribbon-tab active" data-panel="ppt-home" style="color:#ccc;">Home</button>
-              <button class="office-ribbon-tab" data-panel="ppt-insert" style="color:#ccc;">Insert</button>
-              <button class="office-ribbon-tab" data-panel="ppt-design" style="color:#ccc;">Design</button>
-              <button class="office-ribbon-tab" data-panel="ppt-transitions" style="color:#ccc;">Transitions</button>
-              <button class="office-ribbon-tab" data-panel="ppt-animations" style="color:#ccc;">Animations</button>
-              <button class="office-ribbon-tab" data-panel="ppt-slideshow" style="color:#ccc;">Slide Show</button>
+        <div id="office-ppt" class="office-tab" style="display:none; background:#fff; color:#000;">
+          <div class="office-ribbon">
+            <div class="office-ribbon-tabs">
+              <button class="office-ribbon-tab active" data-panel="ppt-home">Home</button>
+              <button class="office-ribbon-tab" data-panel="ppt-insert">Insert</button>
+              <button class="office-ribbon-tab" data-panel="ppt-design">Design</button>
+              <button class="office-ribbon-tab" data-panel="ppt-transitions">Transitions</button>
+              <button class="office-ribbon-tab" data-panel="ppt-animations">Animations</button>
+              <button class="office-ribbon-tab" data-panel="ppt-slideshow">Slide Show</button>
             </div>
             <div class="office-ribbon-panels">
-              <div class="office-ribbon-panel active" id="ppt-home" style="background:#34495e;">
+              <div class="office-ribbon-panel active" id="ppt-home">
                 <div class="office-ribbon-group">
                   <button onclick="pptAddSlide()" style="background:#27ae60;color:#fff;">＋ Slide</button>
                   <button onclick="pptDeleteSlide()" style="background:#e74c3c;color:#fff;">－ Slide</button>
-                  <span style="color:#eee;font-size:12px;margin-bottom:10px;" id="pptSlideIndicator">1 / 1</span>
-                  <button onclick="pptPrevSlide()" style="color:#fff;">◀</button>
-                  <button onclick="pptNextSlide()" style="color:#fff;">▶</button>
-                  <span class="office-ribbon-group-label" style="color:#999;">Slides</span>
+                  <span style="color:#111;font-size:12px;" id="pptSlideIndicator">1 / 1</span>
+                  <button onclick="pptPrevSlide()">◀</button>
+                  <button onclick="pptNextSlide()">▶</button>
+                  <span class="office-ribbon-group-label">Slides</span>
                 </div>
                 <div class="office-ribbon-group">
-                  <select id="pptFontFamily" style="background:#555;color:#fff;border-color:#777;"><option value="Arial">Arial</option><option value="Times New Roman">Times New Roman</option><option value="Courier New">Courier New</option><option value="Georgia">Georgia</option><option value="Verdana">Verdana</option></select>
-                  <select id="pptFontSize" style="background:#555;color:#fff;border-color:#777;"><option value="3">12</option><option value="5">24</option><option value="6">36</option><option value="7">48</option></select>
-                  <button onclick="document.execCommand('bold',false,null)" style="color:#fff;"><b>B</b></button>
-                  <button onclick="document.execCommand('italic',false,null)" style="color:#fff;"><i>I</i></button>
-                  <button onclick="document.execCommand('underline',false,null)" style="color:#fff;"><u>U</u></button>
-                  <button onclick="document.execCommand('superscript',false,null)" style="color:#fff;">x²</button>
-                  <button onclick="document.execCommand('subscript',false,null)" style="color:#fff;">x₂</button>
+                  <select id="pptFontFamily"><option value="Arial">Arial</option><option value="Times New Roman">Times New Roman</option><option value="Courier New">Courier New</option><option value="Georgia">Georgia</option><option value="Verdana">Verdana</option></select>
+                  <select id="pptFontSize"><option value="3">12</option><option value="5">24</option><option value="6">36</option><option value="7">48</option></select>
+                  <button onclick="document.execCommand('bold',false,null)"><b>B</b></button>
+                  <button onclick="document.execCommand('italic',false,null)"><i>I</i></button>
+                  <button onclick="document.execCommand('underline',false,null)"><u>U</u></button>
+                  <button onclick="document.execCommand('superscript',false,null)">x²</button>
+                  <button onclick="document.execCommand('subscript',false,null)">x₂</button>
                   <input type="color" id="pptTextColor" value="#000000" onchange="document.execCommand('foreColor',false,this.value)">
-                  <span class="office-ribbon-group-label" style="color:#999;">Font</span>
+                  <span class="office-ribbon-group-label">Font</span>
                 </div>
                 <div class="office-ribbon-group">
-                  <button onclick="document.execCommand('justifyLeft',false,null)" style="color:#fff;">≡</button>
-                  <button onclick="document.execCommand('justifyCenter',false,null)" style="color:#fff;">≡</button>
-                  <button onclick="document.execCommand('justifyRight',false,null)" style="color:#fff;">≡</button>
-                  <span class="ribbon-sep" style="background:#666;"></span>
-                  <button onclick="document.execCommand('insertOrderedList',false,null)" style="color:#fff;">1.</button>
-                  <button onclick="document.execCommand('insertUnorderedList',false,null)" style="color:#fff;">•</button>
-                  <span class="office-ribbon-group-label" style="color:#999;">Paragraph</span>
+                  <button onclick="document.execCommand('justifyLeft',false,null)">≡</button>
+                  <button onclick="document.execCommand('justifyCenter',false,null)">≡</button>
+                  <button onclick="document.execCommand('justifyRight',false,null)">≡</button>
+                  <span class="ribbon-sep"></span>
+                  <button onclick="document.execCommand('insertOrderedList',false,null)">1.</button>
+                  <button onclick="document.execCommand('insertUnorderedList',false,null)">•</button>
+                  <span class="office-ribbon-group-label">Paragraph</span>
                 </div>
                 <div class="office-ribbon-group">
-                  <button onclick="pptInsertShape()" style="color:#fff;">⬡ Shapes</button>
-                  <button onclick="showNotification('Arrange - coming soon','info')" style="color:#fff;">↕ Arrange</button>
-                  <button onclick="showNotification('Quick Styles - coming soon','info')" style="color:#fff;">🎨 Styles</button>
-                  <input type="color" id="pptShapeFill" value="#3498db" onchange="showNotification('Shape fill changed','info')" style="margin-bottom:10px;">
-                  <input type="color" id="pptShapeOutline" value="#000000" onchange="showNotification('Shape outline changed','info')" style="margin-bottom:10px;">
-                  <span class="office-ribbon-group-label" style="color:#999;">Drawing</span>
+                  <button onclick="pptInsertShape()">⬡ Shapes</button>
+                  <button onclick="showNotification('Arrange - coming soon','info')">↕ Arrange</button>
+                  <button onclick="showNotification('Quick Styles - coming soon','info')">🎨 Styles</button>
+                  <input type="color" id="pptShapeFill" value="#3498db" onchange="showNotification('Shape fill changed','info')">
+                  <input type="color" id="pptShapeOutline" value="#000000" onchange="showNotification('Shape outline changed','info')">
+                  <span class="office-ribbon-group-label">Drawing</span>
                 </div>
               </div>
-              <div class="office-ribbon-panel" id="ppt-insert" style="background:#34495e;">
+              <div class="office-ribbon-panel" id="ppt-insert">
                 <div class="office-ribbon-group">
                   <button onclick="pptAddSlide()" style="background:#27ae60;color:#fff;">＋ Slide</button>
-                  <button onclick="pptInsertTable()" style="color:#fff;">⊞ Table</button>
-                  <button onclick="pptInsertPicture()" style="color:#fff;">🖼 Picture</button>
-                  <button onclick="showNotification('Photo Album - coming soon','info')" style="color:#fff;">📸 Album</button>
-                  <span class="office-ribbon-group-label" style="color:#999;">Insert</span>
+                  <button onclick="pptInsertTable()">⊞ Table</button>
+                  <button onclick="pptInsertPicture()">🖼 Picture</button>
+                  <button onclick="showNotification('Photo Album - coming soon','info')">📸 Album</button>
+                  <span class="office-ribbon-group-label">Insert</span>
                 </div>
                 <div class="office-ribbon-group">
-                  <button onclick="pptInsertShape()" style="color:#fff;">⬡ Shapes</button>
-                  <button onclick="showNotification('Icons - coming soon','info')" style="color:#fff;">◎ Icons</button>
-                  <button onclick="showNotification('SmartArt - coming soon','info')" style="color:#fff;">🧠 SmartArt</button>
-                  <button onclick="showNotification('Chart - coming soon','info')" style="color:#fff;">📊 Chart</button>
-                  <span class="office-ribbon-group-label" style="color:#999;">Illustrations</span>
+                  <button onclick="pptInsertShape()">⬡ Shapes</button>
+                  <button onclick="showNotification('Icons - coming soon','info')">◎ Icons</button>
+                  <button onclick="showNotification('SmartArt - coming soon','info')">🧠 SmartArt</button>
+                  <button onclick="showNotification('Chart - coming soon','info')">📊 Chart</button>
+                  <span class="office-ribbon-group-label">Illustrations</span>
                 </div>
                 <div class="office-ribbon-group">
-                  <button onclick="showNotification('Zoom - coming soon','info')" style="color:#fff;">🔍 Zoom</button>
-                  <button onclick="showNotification('Link - coming soon','info')" style="color:#fff;">🔗 Link</button>
-                  <button onclick="showNotification('Video - coming soon','info')" style="color:#fff;">🎬 Video</button>
-                  <button onclick="showNotification('Audio - coming soon','info')" style="color:#fff;">🔊 Audio</button>
-                  <span class="office-ribbon-group-label" style="color:#999;">Media</span>
-                </div>
-              </div>
-              <div class="office-ribbon-panel" id="ppt-design" style="background:#34495e;">
-                <div class="office-ribbon-group">
-                  <button onclick="pptTheme()" style="color:#fff;">🎨 Themes</button>
-                  <button onclick="showNotification('Variants - coming soon','info')" style="color:#fff;">🌈 Variants</button>
-                  <span class="ribbon-sep" style="background:#666;"></span>
-                  <button onclick="var s=prompt('Slide size: widescreen, standard, or custom (e.g. 1024x768):','widescreen');if(s){var e=document.getElementById('pptEditor');if(e){if(s.includes('x')){var p=s.split('x');e.style.maxWidth=p[0]+'px';e.style.maxHeight=p[1]+'px'}else if(s==='widescreen'){e.style.maxWidth='1024px';e.style.maxHeight='576px'}else{e.style.maxWidth='800px';e.style.maxHeight='600px'};showNotification('Slide size updated','info')}}" style="color:#fff;">📐 Size</button>
-                  <button onclick="pptFormatBg()" style="color:#fff;">🖼 Format BG</button>
-                  <span class="office-ribbon-group-label" style="color:#999;">Design</span>
+                  <button onclick="showNotification('Zoom - coming soon','info')">🔍 Zoom</button>
+                  <button onclick="showNotification('Link - coming soon','info')">🔗 Link</button>
+                  <button onclick="showNotification('Video - coming soon','info')">🎬 Video</button>
+                  <button onclick="showNotification('Audio - coming soon','info')">🔊 Audio</button>
+                  <span class="office-ribbon-group-label">Media</span>
                 </div>
               </div>
-              <div class="office-ribbon-panel" id="ppt-transitions" style="background:#34495e;">
+              <div class="office-ribbon-panel" id="ppt-design">
                 <div class="office-ribbon-group">
-                  <select onchange="showNotification('Transition: '+this.value,'info')" style="background:#555;color:#fff;border-color:#777;">
+                  <button onclick="pptTheme()">🎨 Themes</button>
+                  <button onclick="showNotification('Variants - coming soon','info')">🌈 Variants</button>
+                  <span class="ribbon-sep"></span>
+                  <button onclick="var s=prompt('Slide size: widescreen, standard, or custom (e.g. 1024x768):','widescreen');if(s){var e=document.getElementById('pptEditor');if(e){if(s.includes('x')){var p=s.split('x');e.style.maxWidth=p[0]+'px';e.style.maxHeight=p[1]+'px'}else if(s==='widescreen'){e.style.maxWidth='1024px';e.style.maxHeight='576px'}else{e.style.maxWidth='800px';e.style.maxHeight='600px'};showNotification('Slide size updated','info')}}">📐 Size</button>
+                  <button onclick="pptFormatBg()">🖼 Format BG</button>
+                  <span class="office-ribbon-group-label">Design</span>
+                </div>
+              </div>
+              <div class="office-ribbon-panel" id="ppt-transitions">
+                <div class="office-ribbon-group">
+                  <select onchange="showNotification('Transition: '+this.value,'info')">
                     <option value="">None</option><option value="morph">Morph</option><option value="fade">Fade</option><option value="push">Push</option><option value="wipe">Wipe</option><option value="dissolve">Dissolve</option>
                   </select>
-                  <span class="ribbon-sep" style="background:#666;"></span>
-                  <input type="number" id="pptTransDuration" value="1" step="0.5" min="0" max="10" style="width:50px;background:#555;color:#fff;border-color:#777;border-radius:3px;padding:2px;margin-bottom:10px;"><span style="color:#aaa;font-size:10px;margin-bottom:10px;">s</span>
-                  <button onclick="showNotification('Sound - coming soon','info')" style="color:#fff;">🔊 Sound</button>
-                  <button onclick="showNotification('Advance Slide - coming soon','info')" style="color:#fff;">⏩ Advance</button>
-                  <span class="office-ribbon-group-label" style="color:#999;">Transition</span>
+                  <span class="ribbon-sep"></span>
+                  <input type="number" id="pptTransDuration" value="1" step="0.5" min="0" max="10" style="width:50px;border-radius:3px;padding:2px;"><span style="color:#111;font-size:10px;">s</span>
+                  <button onclick="showNotification('Sound - coming soon','info')">🔊 Sound</button>
+                  <button onclick="showNotification('Advance Slide - coming soon','info')">⏩ Advance</button>
+                  <span class="office-ribbon-group-label">Transition</span>
                 </div>
               </div>
-              <div class="office-ribbon-panel" id="ppt-animations" style="background:#34495e;">
+              <div class="office-ribbon-panel" id="ppt-animations">
                 <div class="office-ribbon-group">
-                  <select onchange="showNotification('Animation: '+this.value,'info')" style="background:#555;color:#fff;border-color:#777;">
+                  <select onchange="showNotification('Animation: '+this.value,'info')">
                     <option value="">None</option><option value="appear">Appear</option><option value="fadeIn">Fade In</option><option value="flyIn">Fly In</option><option value="floatIn">Float In</option><option value="zoomIn">Zoom In</option>
                   </select>
-                  <button onclick="showNotification('Animation Pane - coming soon','info')" style="color:#fff;">📋 Pane</button>
-                  <button onclick="showNotification('Trigger - coming soon','info')" style="color:#fff;">⚡ Trigger</button>
-                  <span class="ribbon-sep" style="background:#666;"></span>
-                  <input type="number" id="pptAnimDuration" value="0.5" step="0.1" min="0" max="10" style="width:50px;background:#555;color:#fff;border-color:#777;border-radius:3px;padding:2px;margin-bottom:10px;"><span style="color:#aaa;font-size:10px;margin-bottom:10px;">dur</span>
-                  <input type="number" id="pptAnimDelay" value="0" step="0.1" min="0" max="30" style="width:50px;background:#555;color:#fff;border-color:#777;border-radius:3px;padding:2px;margin-bottom:10px;"><span style="color:#aaa;font-size:10px;margin-bottom:10px;">delay</span>
-                  <span class="office-ribbon-group-label" style="color:#999;">Animation</span>
+                  <button onclick="showNotification('Animation Pane - coming soon','info')">📋 Pane</button>
+                  <button onclick="showNotification('Trigger - coming soon','info')">⚡ Trigger</button>
+                  <span class="ribbon-sep"></span>
+                  <input type="number" id="pptAnimDuration" value="0.5" step="0.1" min="0" max="10" style="width:50px;border-radius:3px;padding:2px;"><span style="color:#111;font-size:10px;">dur</span>
+                  <input type="number" id="pptAnimDelay" value="0" step="0.1" min="0" max="30" style="width:50px;border-radius:3px;padding:2px;"><span style="color:#111;font-size:10px;">delay</span>
+                  <span class="office-ribbon-group-label">Animation</span>
                 </div>
               </div>
-              <div class="office-ribbon-panel" id="ppt-slideshow" style="background:#34495e;">
+              <div class="office-ribbon-panel" id="ppt-slideshow">
                 <div class="office-ribbon-group">
-                  <button onclick="pptSlideshow(0)" style="color:#fff;">▶ From Start</button>
-                  <button onclick="pptSlideshow(1)" style="color:#fff;">▶ Current</button>
-                  <span class="ribbon-sep" style="background:#666;"></span>
-                  <button onclick="showNotification('Present Online - coming soon','info')" style="color:#fff;">🌐 Online</button>
-                  <button onclick="showNotification('Custom Slide Show - coming soon','info')" style="color:#fff;">🎬 Custom</button>
-                  <button onclick="showNotification('Rehearse Timings - coming soon','info')" style="color:#fff;">⏱ Rehearse</button>
-                  <button onclick="showNotification('Record - coming soon','info')" style="color:#fff;">🔴 Record</button>
-                  <span class="office-ribbon-group-label" style="color:#999;">Slide Show</span>
+                  <button onclick="pptSlideshow(0)">▶ From Start</button>
+                  <button onclick="pptSlideshow(1)">▶ Current</button>
+                  <span class="ribbon-sep"></span>
+                  <button onclick="showNotification('Present Online - coming soon','info')">🌐 Online</button>
+                  <button onclick="showNotification('Custom Slide Show - coming soon','info')">🎬 Custom</button>
+                  <button onclick="showNotification('Rehearse Timings - coming soon','info')">⏱ Rehearse</button>
+                  <button onclick="showNotification('Record - coming soon','info')">🔴 Record</button>
+                  <span class="office-ribbon-group-label">Slide Show</span>
                 </div>
               </div>
             </div>
           </div>
-          <div style="flex:1; display:flex; align-items:center; justify-content:center; background:#2c3e50;">
+          <div style="flex:1; display:flex; align-items:center; justify-content:center; background:#e8e8e8;">
             <div id="pptEditor" contenteditable="false" style="width:100%; height:100%; background:#fff; color:#000; padding:40px; box-shadow:0 5px 25px rgba(0,0,0,0.5); font-size:24px; text-align:center; border-radius:4px; overflow-y:auto; outline:none; box-sizing:border-box;">
               <h2 style="margin-top:0;">Slide 1</h2><p>Click to add text</p>
             </div>
