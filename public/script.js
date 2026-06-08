@@ -914,12 +914,14 @@ document.getElementById("toggleSubjectsBtn")?.addEventListener("click", () => {
     if(wbEraserMenu) wbEraserMenu.style.display = "none"; 
 });
 
+const shapeTools = ['line', 'arrow', 'triangle', 'rect', 'circle', 'pentagon', 'hexagon', 'star', 'cube', 'cylinder', 'cone', 'sphere'];
+
 const subjectAssets = {
     geography: [ {name: "World Map", url: "assets/subjects/world_map.pdf"}, {name: "India Political", url: "assets/subjects/india_political.pdf"}, {name: "India Physical", url: "assets/subjects/india_physical.pdf"} ],
-    biology: [ {name: "Human Skeleton", url: "assets/subjects/human_skeleton.pdf"}, {name: "Respiratory System", url: "assets/subjects/respiratory_system.pdf"}, {name: "Human Heart", url: "assets/subjects/human_heart.pdf"} ],
+    biology: [ {name: "Human Skeleton", url: "assets/subjects/human_skeleton.pdf"}, {name: "Respiratory System", url: "assets/subjects/respiratory_system.pdf"}, {name: "Human Heart", url: "assets/subjects/human_heart.pdf"}, {name: "Human Eye", url: "assets/subjects/human_eye.pdf"}, {name: "Digestive System", url: "assets/subjects/digestive_system.pdf"}, {name: "DNA Structure", url: "assets/subjects/dna_structure.pdf"}, {name: "Plant Cell", url: "assets/subjects/plant_cell.pdf"}, {name: "Human Brain", url: "assets/subjects/human_brain.pdf"} ],
     chemistry: [ {name: "Periodic Table", url: "assets/subjects/periodic_table.pdf"} ],
-    physics: [ {name: "Electric Circuit", url: "assets/subjects/electric_circuit.pdf"} ],
-    maths: [ {name: "Graph Paper", url: "assets/subjects/graph_paper.pdf"} ],
+    physics: [],
+    maths: [],
     commerce: [ {name: "Supply & Demand", url: "assets/subjects/supply_demand.pdf"} ]
 };
 
@@ -1026,6 +1028,131 @@ function drawFreehand(x0, y0, x1, y1, color, size, toolType, emit) {
     ctx.globalCompositeOperation = 'source-over';
 }
 
+function drawShape(ctx, type, x1, y1, x2, y2, color, size) {
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = size || 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.fillStyle = color + '22';
+
+    const cx = (x1 + x2) / 2;
+    const cy = (y1 + y2) / 2;
+    const rx = Math.abs(x2 - x1) / 2 || 1;
+    const ry = Math.abs(y2 - y1) / 2 || 1;
+    const r = Math.max(rx, ry);
+    const d = r * 0.3;
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+
+    switch (type) {
+        case 'line': {
+            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+            break;
+        }
+        case 'arrow': {
+            const angle = Math.atan2(dy, dx);
+            const headLen = Math.min(20, Math.hypot(dx, dy) * 0.25);
+            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x2, y2);
+            ctx.lineTo(x2 - headLen * Math.cos(angle - 0.4), y2 - headLen * Math.sin(angle - 0.4));
+            ctx.lineTo(x2 - headLen * Math.cos(angle + 0.4), y2 - headLen * Math.sin(angle + 0.4));
+            ctx.closePath(); ctx.fill();
+            break;
+        }
+        case 'triangle': {
+            ctx.beginPath();
+            ctx.moveTo(x1, y2); ctx.lineTo(cx, y1); ctx.lineTo(x2, y2);
+            ctx.closePath(); ctx.stroke();
+            break;
+        }
+        case 'rect': {
+            ctx.strokeRect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(dx), Math.abs(dy));
+            break;
+        }
+        case 'circle': {
+            ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+            break;
+        }
+        case 'pentagon': case 'hexagon': {
+            const sides = type === 'pentagon' ? 5 : 6;
+            ctx.beginPath();
+            for (let i = 0; i <= sides; i++) {
+                const a = (i * Math.PI * 2) / sides - Math.PI / 2;
+                const px = cx + r * Math.cos(a);
+                const py = cy + r * Math.sin(a);
+                i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+            }
+            ctx.closePath(); ctx.stroke();
+            break;
+        }
+        case 'star': {
+            ctx.beginPath();
+            for (let i = 0; i <= 10; i++) {
+                const a = (i * Math.PI) / 5 - Math.PI / 2;
+                const radius = i % 2 === 0 ? r : r * 0.4;
+                const px = cx + radius * Math.cos(a);
+                const py = cy + radius * Math.sin(a);
+                i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+            }
+            ctx.closePath(); ctx.stroke();
+            break;
+        }
+        case 'cube': {
+            const w = dx, h = dy;
+            const off = Math.min(Math.abs(w), Math.abs(h)) * 0.2;
+            const sx = w > 0 ? 1 : -1, sy = h > 0 ? 1 : -1;
+            ctx.strokeRect(x1, y1, w, h);
+            ctx.strokeRect(x1 + off * sx, y1 + off * sy, w, h);
+            ctx.beginPath();
+            ctx.moveTo(x1, y1); ctx.lineTo(x1 + off * sx, y1 + off * sy);
+            ctx.moveTo(x1 + w, y1); ctx.lineTo(x1 + off * sx + w, y1 + off * sy);
+            ctx.moveTo(x1, y1 + h); ctx.lineTo(x1 + off * sx, y1 + off * sy + h);
+            ctx.moveTo(x1 + w, y1 + h); ctx.lineTo(x1 + off * sx + w, y1 + off * sy + h);
+            ctx.stroke();
+            break;
+        }
+        case 'cylinder': {
+            const minY = Math.min(y1, y2);
+            const maxY = Math.max(y1, y2);
+            ctx.beginPath();
+            ctx.ellipse(cx, minY, rx, rx * 0.3, 0, Math.PI, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.ellipse(cx, maxY, rx, rx * 0.3, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(cx - rx, minY); ctx.lineTo(cx - rx, maxY);
+            ctx.moveTo(cx + rx, minY); ctx.lineTo(cx + rx, maxY);
+            ctx.stroke();
+            break;
+        }
+        case 'cone': {
+            const minY = Math.min(y1, y2);
+            const maxY = Math.max(y1, y2);
+            ctx.beginPath(); ctx.ellipse(cx, maxY, rx, rx * 0.3, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(cx - rx, maxY); ctx.lineTo(cx, minY); ctx.lineTo(cx + rx, maxY);
+            ctx.closePath(); ctx.stroke();
+            break;
+        }
+        case 'sphere': {
+            ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, r * 0.6, r * 0.2, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, r * 0.2, r * 0.6, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            break;
+        }
+    }
+    ctx.restore();
+}
+
 function getCanvasPoint(e) { 
     const rect = canvas.getBoundingClientRect(); 
     return { x: (e.clientX - rect.left) * (canvas.width / rect.width), y: (e.clientY - rect.top) * (canvas.height / rect.height) }; 
@@ -1102,6 +1229,37 @@ if(canvas) {
                     ctx.beginPath(); ctx.moveTo(startX, startY); ctx.lineTo(pt.x, pt.y); 
                     ctx.strokeStyle = "rgba(0,0,0,1)"; ctx.lineWidth = activeSize; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke(); ctx.closePath(); 
                     ctx.globalCompositeOperation = 'source-over'; 
+                } else if(currentTool === 'brush') { 
+                    ctx.globalAlpha = 0.5;
+                    for (let i = -2; i <= 2; i++) {
+                        ctx.beginPath();
+                        ctx.moveTo(startX + i * activeSize * 0.15, startY + i * activeSize * 0.15);
+                        ctx.lineTo(pt.x + i * activeSize * 0.15, pt.y + i * activeSize * 0.15);
+                        ctx.strokeStyle = currentBrushColor;
+                        ctx.lineWidth = activeSize * 0.8 + Math.abs(i) * activeSize * 0.3;
+                        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+                        ctx.stroke(); ctx.closePath();
+                    }
+                    ctx.globalAlpha = 1.0;
+                } else if(currentTool === 'spray') { 
+                    const density = Math.max(5, Math.floor(activeSize * 1.5));
+                    ctx.globalAlpha = 0.4;
+                    for (let i = 0; i < density; i++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const dist = Math.random() * activeSize * 2.5;
+                        const sx = startX + Math.cos(angle) * dist;
+                        const sy = startY + Math.sin(angle) * dist;
+                        const ex = pt.x + Math.cos(angle) * dist;
+                        const ey = pt.y + Math.sin(angle) * dist;
+                        ctx.beginPath();
+                        ctx.moveTo(sx, sy);
+                        ctx.lineTo(ex, ey);
+                        ctx.strokeStyle = currentBrushColor;
+                        ctx.lineWidth = activeSize * 0.3 + Math.random() * activeSize * 0.4;
+                        ctx.lineCap = 'round';
+                        ctx.stroke(); ctx.closePath();
+                    }
+                    ctx.globalAlpha = 1.0;
                 } else { 
                     ctx.beginPath(); ctx.moveTo(startX, startY); ctx.lineTo(pt.x, pt.y); 
                     ctx.strokeStyle = currentBrushColor; ctx.lineWidth = activeSize; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke(); ctx.closePath(); 
@@ -1110,10 +1268,22 @@ if(canvas) {
             socket.emit('drawing', { type: 'free', x0: startX, y0: startY, x1: pt.x, y1: pt.y, color: currentBrushColor, size: activeSize, toolType: currentTool, room: currentRoom });
             startX = pt.x; startY = pt.y;
         }
+        if (shapeTools.includes(currentTool)) {
+            if(ctx) {
+                ctx.putImageData(canvasSnapshot, 0, 0);
+                drawShape(ctx, currentTool, startX, startY, pt.x, pt.y, currentBrushColor, currentBrushSize);
+            }
+        }
     });
 
     canvas.addEventListener('pointerup', (e) => { 
         if (drawing && canDraw && currentTool !== 'pointer') {
+            if (shapeTools.includes(currentTool) && ctx && canvasSnapshot) {
+                const pt = getCanvasPoint(e);
+                ctx.putImageData(canvasSnapshot, 0, 0);
+                drawShape(ctx, currentTool, startX, startY, pt.x, pt.y, currentBrushColor, currentBrushSize);
+                socket.emit('drawing', { type: currentTool, x0: startX, y0: startY, x1: pt.x, y1: pt.y, color: currentBrushColor, size: currentBrushSize, room: currentRoom });
+            }
             drawing = false; 
             if(ctx) { ctx.shadowBlur = 0; wbPagesFg[currentWbPage] = canvas.toDataURL("image/png", 0.5); }
         }
@@ -1266,6 +1436,7 @@ socket.on("room-update", (data) => {
 
 socket.on('drawing', (data) => {
     if(data.type === 'free') drawFreehand(data.x0, data.y0, data.x1, data.y1, data.color, data.size, data.toolType, false);
+    if(shapeTools.includes(data.type) && ctx) drawShape(ctx, data.type, data.x0, data.y0, data.x1, data.y1, data.color, data.size);
     if(isHost && canvas) wbPagesFg[currentWbPage] = canvas.toDataURL("image/png", 0.5);
 });
 
