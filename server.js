@@ -1,5 +1,6 @@
 const express = require("express");
 const http = require("http");
+const https = require("https"); 
 const path = require("path");
 const multer = require("multer");
 const { Server } = require("socket.io");
@@ -28,82 +29,113 @@ const upload = multer({ storage });
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(UPLOAD_DIR));
 
-// Memory Mapping States
 const uidToSocket = new Map();
 const roomHosts = new Map();
+const roomHostUid = new Map(); 
 const socketUsers = new Map();
 const roomChats = new Map();
 const roomFiles = new Map();
+const roomWbState = new Map();
+const roomMapState = new Map();
+const roomPresState = new Map(); 
+const roomOfficeState = new Map(); 
+const roomChartData = new Map(); 
 
-// Generate Random Client UIDs
-function generateShortUid() {
-  return Math.floor(100000 + Math.random() * 900000);
-}
+app.get("/proxy-image", (req, res) => {
+  const imgUrl = req.query.url;
+  if (!imgUrl) return res.status(400).json({ error: "URL missing" });
 
-// REST Route Engine
-app.post("/upload", upload.single("file"), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: "Missing file" });
-  const room = req.body.room;
-  const uploader = req.body.uploader || "User";
-  const fileUrl = `/uploads/${req.file.filename}`;
+  const fetchImage = (targetUrl) => {
+    const client = targetUrl.startsWith("https") ? https : http;
+    const options = { headers: { "User-Agent": "Mozilla/5.0" } };
 
-  const payload = { filename: req.file.originalname, url: fileUrl, uploader };
-  if (!roomFiles.has(room)) roomFiles.set(room, []);
-  roomFiles.get(room).push(payload);
+    client.get(targetUrl, options, (response) => {
+      if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+        let redirectUrl = response.headers.location;
+        if (!redirectUrl.startsWith("http")) redirectUrl = new URL(redirectUrl, targetUrl).href;
+        fetchImage(redirectUrl);
+      } 
+      else if (response.statusCode === 200) {
+        const chunks = [];
+        response.on("data", chunk => chunks.push(chunk));
+        response.on("end", () => {
+          const buffer = Buffer.concat(chunks);
+          const contentType = response.headers["content-type"] || "image/png";
+          const base64 = buffer.toString("base64");
+          res.json({ dataUri: `data:${contentType};base64,${base64}` }); 
+        });
+      } else {
+        res.status(500).json({ error: `Server failed with status: ${response.statusCode}` });
+      }
+    }).on("error", (err) => res.status(500).json({ error: err.message }));
+  };
 
-  io.to(room).emit("file-uploaded", payload);
-  res.json(payload);
+  fetchImage(imgUrl);
 });
 
-// Socket Communication Infrastructure Loop
-io.on("connection", (socket) => {
+app.post("/upload", upload.single("file"), (req, res) => {
+  const room = req.body.room || "";
+  const filename = req.file.filename;
+  const url = `/uploads/${filename}`;
+  const uploader = req.body.uploader || "Host";
+  
+  if (room && uploader !== "Host-Music") {
+    if (!roomFiles.has(room)) roomFiles.set(room, []);
+    roomFiles.get(room).push({ filename, url, uploader });
+    io.to(room).emit("file-uploaded", { filename, url, uploader });
+  }
+  res.json({ filename, url });
+});
 
-  socket.on("join-room", (data, callback) => {
-    const room = data.room;
-    const name = data.name;
-    const uid = generateShortUid();
-
+io.on("connection", socket => {
+  
+  socket.on("join-room", info => {
+    const { room, uid, name } = info;
     socket.join(room);
-    uidToSocket.set(uid, socket.id);
+    
+    socketUsers.set(socket.id, { uid, name, room });
+    uidToSocket.set(uid.toString(), socket.id);
 
-    let isHost = false;
     if (!roomHosts.has(room) || roomHosts.get(room) === null) {
-      roomHosts.set(room, uid);
-      isHost = true;
+      roomHosts.set(room, socket.id);
+      roomHostUid.set(room, uid); 
+      socket.emit("host-assignment", { isHost: true, hostUid: uid });
+    } else {
+      socket.emit("host-assignment", { isHost: false, hostUid: roomHostUid.get(room) });
     }
+    
+    socket.emit("room-history", { 
+      chats: roomChats.get(room) || [], 
+      files: roomFiles.get(room) || [],
+      wbVisible: roomWbState.get(room) || false,
+      mapVisible: roomMapState.get(room) || false,
+      presVisible: roomPresState.get(room) || false,
+      officeVisible: roomOfficeState.get(room) || false,
+      chartData: roomChartData.get(room) || null,
+      hostUid: roomHostUid.get(room)
+    });
 
-    socketUsers.set(socket.id, { room, name, uid, isHost });
-
-    callback({ uid, isHost });
-
-    // Catch up routines for new entrants
-    if (roomChats.has(room)) {
-      roomChats.get(room).forEach(msg => socket.emit("chat-message", msg));
-    }
-    if (roomFiles.has(room)) {
-      roomFiles.get(room).forEach(f => socket.emit("file-uploaded", f));
-    }
-
-    const sysMsg = { name: "System", text: `${name} entered the workspace.` };
-    if (!roomChats.has(room)) roomChats.set(room, []);
-    roomChats.get(room).push(sysMsg);
-    socket.to(room).emit("chat-message", sysMsg);
+    socket.to(room).emit("user-joined", { uid, name });
+    io.to(room).emit("room-update", { size: io.sockets.adapter.rooms.get(room)?.size || 1 });
   });
 
-  socket.on("get-username", data => {
-    const targetSocketId = uidToSocket.get(data.uid);
-    if(targetSocketId) {
-      const profile = socketUsers.get(targetSocketId);
-      if(profile) {
-        socket.emit("retrieved-username", { uid: data.uid, name: profile.name, isHost: profile.isHost });
-      }
-    }
-  });
+  socket.on("control", data => io.to(data.room).emit("control", data));
+  socket.on("wb-toggle", data => { roomWbState.set(data.room, data.show); io.to(data.room).emit("wb-toggle", data); });
+  socket.on("map-toggle", data => { roomMapState.set(data.room, data.show); io.to(data.room).emit("map-toggle", data); });
+  socket.on("pres-toggle", data => { roomPresState.set(data.room, data.show); io.to(data.room).emit("pres-toggle", data); });
+  socket.on("office-toggle", data => { roomOfficeState.set(data.room, data.show); io.to(data.room).emit("office-toggle", data); });
+  
+  socket.on("force-screen", data => { socket.to(data.room).emit("force-screen", data); });
+  socket.on("office-sync", data => { socket.to(data.room).emit("office-sync", data); });
 
-  socket.on("query-host-uid", (data, callback) => {
-    const hostUid = roomHosts.get(data.room);
-    callback({ hostUid });
-  });
+  socket.on("wb-control", data => io.to(data.room).emit("wb-control", data));
+  socket.on("pres-view-switch", data => io.to(data.room).emit("pres-view-switch", data));
+  socket.on("presentation-data", data => { roomChartData.set(data.room, data); io.to(data.room).emit("presentation-data", data); });
+
+  socket.on("laser-pointer", data => socket.to(data.room).emit("laser-pointer", data));
+  socket.on("wb-pointer", data => socket.to(data.room).emit("wb-pointer", data));
+  socket.on("wb-page-sync", data => socket.to(data.room).emit("wb-page-sync", data));
+  socket.on("math-equation", data => io.to(data.room).emit("math-equation", data));
 
   socket.on("chat-message", data => {
     if (!roomChats.has(data.room)) roomChats.set(data.room, []);
@@ -111,63 +143,35 @@ io.on("connection", (socket) => {
     io.to(data.room).emit("chat-message", data);
   });
 
-  // Whiteboard Real-time Relay Pipelines
   socket.on("drawing", data => socket.to(data.room).emit("drawing", data));
-  socket.on("wb-shape", data => socket.to(data.room).emit("wb-shape", data));
+  socket.on("wb-fill", data => socket.to(data.room).emit("wb-fill", data));
+  socket.on("wb-stamp", data => socket.to(data.room).emit("wb-stamp", data));
   socket.on("clear-whiteboard", data => socket.to(data.room).emit("clear-whiteboard"));
-  
-  // Whiteboard Synchronous Fullscreen Lock
-  socket.on("wb-fullscreen-sync", data => {
-    socket.to(data.room).emit("wb-fullscreen-sync", { active: data.active });
-  });
 
-  // Requirement 4: VYDEX Office Enterprise Suite Multi-channel Relay
-  socket.on("office-data-stream", data => {
-    socket.to(data.room).emit("office-data-stream", data);
-  });
+  socket.on("leave-room", () => handleUserLeave(socket.id));
+  socket.on("disconnecting", () => handleUserLeave(socket.id));
 
-  socket.on("office-realtime-sync", data => {
-    socket.to(data.room).emit("office-realtime-sync", data);
-  });
-
-  socket.on("office-fullscreen-sync", data => {
-    socket.to(data.room).emit("office-fullscreen-sync", { active: data.active });
-  });
-
-  // Leaflet Map Coordinated Synchronization Click
-  socket.on("map-click", data => {
-    socket.to(data.room).emit("map-click", data);
-  });
-
-  // Host Global Hardware Override Broadcast Rules
-  socket.on("host-command", data => {
-    const user = socketUsers.get(socket.id);
-    if(user && user.isHost) {
-      if(data.action === "mute") io.to(data.room).emit("room-mute");
-      if(data.action === "unmute") io.to(data.room).emit("room-unmute");
-    }
-  });
-
-  socket.on("disconnect", () => {
-    const user = socketUsers.get(socket.id);
+  function handleUserLeave(socketId) {
+    const user = socketUsers.get(socketId);
     if (user) {
-      uidToSocket.delete(user.uid);
-      socketUsers.delete(socket.id);
-
-      const leaveMsg = { name: "System", text: `${user.name} left the workspace.` };
-      if (roomChats.has(user.room)) roomChats.get(user.room).push(leaveMsg);
+      io.to(user.room).emit("user-left", { uid: user.uid, name: user.name });
+      const leaveMsg = { name: "System", text: `${user.name} left the room` };
+      if (!roomChats.has(user.room)) roomChats.set(user.room, []);
+      roomChats.get(user.room).push(leaveMsg);
       io.to(user.room).emit("chat-message", leaveMsg);
 
-      // Re-assign or purge host token if owner steps down
-      if (user.isHost) {
-        roomHosts.set(user.room, null);
-        // Sync structures clean update triggers
-        io.to(user.room).emit("wb-fullscreen-sync", { active: false });
-        io.to(user.room).emit("office-realtime-sync", { active: false });
-        io.to(user.room).emit("office-fullscreen-sync", { active: false });
+      if (roomHosts.get(user.room) === socketId) {
+          roomHosts.set(user.room, null);
+          roomHostUid.set(user.room, null);
       }
+
+      socketUsers.delete(socketId);
+      uidToSocket.delete(user.uid.toString());
+      io.to(user.room).emit("room-update", { size: Math.max(0, (io.sockets.adapter.rooms.get(user.room)?.size || 1) - 1) });
     }
-  });
+  }
 });
 
-server.listen(PORT, () => console.log(`VYDEX Engine cluster serving on port ${PORT}`));
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
