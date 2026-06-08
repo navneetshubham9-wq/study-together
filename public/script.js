@@ -688,9 +688,11 @@ officeTabBtns.forEach(btn => {
     btn.addEventListener("click", () => {
         officeTabBtns.forEach(b => b.classList.remove("active-tool"));
         btn.classList.add("active-tool");
-        officeTabs.forEach(t => t.style.display = "none");
         const target = document.getElementById(btn.dataset.target);
-        if(target) target.style.display = "flex";
+        if(target) {
+            target.style.display = "flex";
+            officeTabs.forEach(t => { if(t !== target) t.style.display = "none"; });
+        }
         if(isHost && isOfficeSyncing) socket.emit("office-sync", { room: currentRoom, action: "tab-switch", target: btn.dataset.target });
     });
 });
@@ -725,6 +727,8 @@ function emitOfficeData() {
 
 wordEditor?.addEventListener("input", emitOfficeData);
 excelGrid?.addEventListener("input", emitOfficeData);
+pptEditor?.addEventListener("click", function() { if(this.contentEditable === "true") this.focus(); });
+excelGrid?.addEventListener("click", function(e) { const td = e.target?.closest?.("td"); if(td && td.contentEditable === "true") td.focus(); });
 
 document.getElementById("officeDownloadBtn")?.addEventListener("click", () => {
     let activeTab = Array.from(officeTabs).find(t => t.style.display !== "none" && t.style.display !== "")?.id;
@@ -752,6 +756,9 @@ document.getElementById("wordFontFamily")?.addEventListener("change", function()
 document.getElementById("wordFontSize")?.addEventListener("change", function() {
     document.execCommand('fontSize', false, this.value);
     wordEditor?.focus();
+});
+wordEditor?.addEventListener("click", function() {
+    if(this.contentEditable === "true") this.focus();
 });
 
 function officeInsertTable() {
@@ -2128,9 +2135,11 @@ socket.on("force-screen", (data) => {
 socket.on("office-sync", (data) => {
     if(data.action === "tab-switch") {
         document.querySelectorAll(".office-tab-btn").forEach(b => b.classList.remove("active-tool"));
-        document.querySelectorAll(".office-tab").forEach(t => t.style.display = "none");
         const target = document.getElementById(data.target);
-        if(target) { target.style.display = "flex"; }
+        if(target) {
+            target.style.display = "flex";
+            document.querySelectorAll(".office-tab").forEach(t => { if(t !== target) t.style.display = "none"; });
+        }
     }
     if(data.action === "content-update") {
         if(wordEditor && data.wordData !== undefined) wordEditor.innerHTML = data.wordData;
