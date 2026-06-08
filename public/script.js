@@ -690,7 +690,7 @@ officeTabBtns.forEach(btn => {
         btn.classList.add("active-tool");
         const target = document.getElementById(btn.dataset.target);
         if(target) {
-            target.style.display = "grid";
+            target.style.display = "flex";
             officeTabs.forEach(t => { if(t !== target) t.style.display = "none"; });
         }
         if(isHost && isOfficeSyncing) socket.emit("office-sync", { room: currentRoom, action: "tab-switch", target: btn.dataset.target });
@@ -2137,7 +2137,7 @@ socket.on("office-sync", (data) => {
         document.querySelectorAll(".office-tab-btn").forEach(b => b.classList.remove("active-tool"));
         const target = document.getElementById(data.target);
         if(target) {
-            target.style.display = "grid";
+            target.style.display = "flex";
             document.querySelectorAll(".office-tab").forEach(t => { if(t !== target) t.style.display = "none"; });
         }
     }

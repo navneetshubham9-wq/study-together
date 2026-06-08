@@ -103,8 +103,8 @@ body.locked-fullscreen-active #workspace > *:not(.locked-fullscreen) {
 .excel-table th { background: #27ae60; color: white; padding: 6px; border: 1px solid #ddd; text-align: center; position: sticky; top: 0; min-width: 70px; font-size:13px; }
 .excel-table td { background: #fdfdfd; padding: 6px; border: 1px solid #ddd; text-align: center; outline:none; min-width: 70px; font-size:13px; }
 .excel-table td:focus { background: #e8f5e9; border: 2px solid #27ae60; }
-/* ── Office Tab grid layout ── */
-.office-tab { display:grid; grid-template-rows:auto 1fr; height:460px; border-radius:8px; overflow:hidden; }
+/* ── Office Tab flex layout ── */
+.office-tab { display:flex; flex-direction:column; height:460px; border-radius:8px; overflow:hidden; }
 .office-tab#office-word { background:#fff; color:#000; }
 .office-tab#office-excel { background:#fff; color:#000; }
 .office-tab#office-ppt { background:#2c3e50; color:#fff; }
