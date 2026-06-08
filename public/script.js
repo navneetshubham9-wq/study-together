@@ -14,10 +14,36 @@ const remoteUsers = {};
 let currentMusicUrl = null;
 
 // ==========================================
-// 1. UI Elements Initialization
+// 1. DOM Elements Initialization (FIXED)
 // ==========================================
 const joinBtn = document.getElementById("joinBtn");
+const joinSection = document.getElementById("join-section"); 
+const workspace = document.getElementById("workspace"); 
+const usernameInput = document.getElementById("username");
+const roomInput = document.getElementById("room");
 const videoArea = document.getElementById("video-area");
+
+const cameraBtn = document.getElementById("cameraBtn");
+const muteBtn = document.getElementById("muteBtn");
+const shareBtn = document.getElementById("shareBtn");
+const leaveBtn = document.getElementById("leaveBtn");
+const muteAllBtn = document.getElementById("muteAllBtn");
+const unmuteAllBtn = document.getElementById("unmuteAllBtn");
+const localMusicMuteBtn = document.getElementById("localMusicMuteBtn"); 
+
+const toggleWbBtn = document.getElementById("toggleWbBtn"); 
+const toggleMapBtn = document.getElementById("toggleMapBtn"); 
+const togglePresBtn = document.getElementById("togglePresBtn"); 
+const toggleOfficeBtn = document.getElementById("toggleOfficeBtn"); 
+const openMathBtn = document.getElementById("openMathBtn"); 
+const toggleCalcBtn = document.getElementById("toggleCalcBtn"); 
+const toggleConvBtn = document.getElementById("toggleConvBtn"); 
+
+const sendMsgBtn = document.getElementById("sendMsg");
+const chatInput = document.getElementById("chatInput");
+const messages = document.getElementById("messages");
+const fileUpload = document.getElementById("fileUpload");
+const fileList = document.getElementById("fileList");
 
 function showNotification(message, type = 'info') {
   const container = document.getElementById('notification-container');
@@ -30,7 +56,6 @@ function showNotification(message, type = 'info') {
 }
 
 function appendMessage(text) {
-  const messages = document.getElementById("messages");
   if(!messages) return;
   const d = document.createElement("div"); d.textContent = text;
   messages.appendChild(d); messages.scrollTop = messages.scrollHeight;
@@ -54,7 +79,6 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
   targetWrapper.appendChild(controlsDiv);
 }
 
-// Ensure Panels have Fullscreen capability
 const whiteboardBox = document.getElementById("whiteboard-box");
 const mapBox = document.getElementById("map-box");
 const presentationBox = document.getElementById("presentation-box");
@@ -64,62 +88,51 @@ if(mapBox) addSizeControls(mapBox, mapBox);
 if(presentationBox) addSizeControls(presentationBox, presentationBox);
 if(officeBox) addSizeControls(officeBox, officeBox);
 
-// ==========================================
-// 2. Map Fullscreen Setup
-// ==========================================
 document.getElementById("mapFullscreenBtn")?.addEventListener("click", () => {
     const mapCont = document.getElementById("map-container");
     if (!document.fullscreenElement) { mapCont.requestFullscreen().catch(e => e); } 
     else { document.exitFullscreen(); }
 });
 
-// ==========================================
-// 3. Main Panel Toggling
-// ==========================================
 function hideAllBigPanels() {
     if(whiteboardBox) whiteboardBox.style.display = "none";
     if(mapBox) mapBox.style.display = "none";
     if(presentationBox) presentationBox.style.display = "none";
     if(officeBox) officeBox.style.display = "none";
     
-    const tWb = document.getElementById("toggleWbBtn");
-    const tMap = document.getElementById("toggleMapBtn");
-    const tPres = document.getElementById("togglePresBtn");
-    const tOffice = document.getElementById("toggleOfficeBtn");
-    
-    if(tWb) { tWb.dataset.show = "false"; tWb.style.background = "linear-gradient(135deg, #3498db, #2980b9)"; }
-    if(tMap) { tMap.dataset.show = "false"; tMap.style.background = "linear-gradient(135deg, #27ae60, #2ecc71)"; }
-    if(tPres) { tPres.dataset.show = "false"; tPres.style.background = "linear-gradient(135deg, #f1c40f, #f39c12)"; }
-    if(tOffice) { tOffice.dataset.show = "false"; tOffice.style.background = "linear-gradient(135deg, #c0392b, #e74c3c)"; }
+    if(toggleWbBtn) { toggleWbBtn.dataset.show = "false"; toggleWbBtn.style.background = "linear-gradient(135deg, #3498db, #2980b9)"; }
+    if(toggleMapBtn) { toggleMapBtn.dataset.show = "false"; toggleMapBtn.style.background = "linear-gradient(135deg, #27ae60, #2ecc71)"; }
+    if(togglePresBtn) { togglePresBtn.dataset.show = "false"; togglePresBtn.style.background = "linear-gradient(135deg, #f1c40f, #f39c12)"; }
+    if(toggleOfficeBtn) { toggleOfficeBtn.dataset.show = "false"; toggleOfficeBtn.style.background = "linear-gradient(135deg, #c0392b, #e74c3c)"; }
 }
 
-document.getElementById("togglePresBtn")?.addEventListener("click", function() { const isShowing = this.dataset.show === "true"; socket.emit("pres-toggle", { room: currentRoom, show: !isShowing }); });
-document.getElementById("toggleWbBtn")?.addEventListener("click", function() { const isShowing = this.dataset.show === "true"; socket.emit("wb-toggle", { room: currentRoom, show: !isShowing }); });
-document.getElementById("toggleMapBtn")?.addEventListener("click", function() { const isShowing = this.dataset.show === "true"; socket.emit("map-toggle", { room: currentRoom, show: !isShowing }); });
-document.getElementById("toggleOfficeBtn")?.addEventListener("click", function() { const isShowing = this.dataset.show === "true"; socket.emit("office-toggle", { room: currentRoom, show: !isShowing }); });
+togglePresBtn?.addEventListener("click", function() { const isShowing = this.dataset.show === "true"; socket.emit("pres-toggle", { room: currentRoom, show: !isShowing }); });
+toggleWbBtn?.addEventListener("click", function() { const isShowing = this.dataset.show === "true"; socket.emit("wb-toggle", { room: currentRoom, show: !isShowing }); });
+toggleMapBtn?.addEventListener("click", function() { const isShowing = this.dataset.show === "true"; socket.emit("map-toggle", { room: currentRoom, show: !isShowing }); });
+toggleOfficeBtn?.addEventListener("click", function() { const isShowing = this.dataset.show === "true"; socket.emit("office-toggle", { room: currentRoom, show: !isShowing }); });
 
 socket.on("pres-toggle", (data) => {
-  if(data.show) { hideAllBigPanels(); if(presentationBox) presentationBox.style.display = "block"; if(isHost){ const btn = document.getElementById("togglePresBtn"); if(btn){btn.dataset.show="true"; btn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } } 
-  else { if(presentationBox) presentationBox.style.display = "none"; if(isHost){ const btn = document.getElementById("togglePresBtn"); if(btn){btn.dataset.show="false"; btn.style.background="linear-gradient(135deg, #f1c40f, #f39c12)";} } }
+  if(data.show) { hideAllBigPanels(); if(presentationBox) presentationBox.style.display = "block"; if(isHost){ if(togglePresBtn){togglePresBtn.dataset.show="true"; togglePresBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } } 
+  else { if(presentationBox) presentationBox.style.display = "none"; if(isHost){ if(togglePresBtn){togglePresBtn.dataset.show="false"; togglePresBtn.style.background="linear-gradient(135deg, #f1c40f, #f39c12)";} } }
 });
 
 socket.on("wb-toggle", (data) => {
-  if (data.show) { hideAllBigPanels(); if(whiteboardBox) whiteboardBox.style.display = "block"; if(isHost){ const btn = document.getElementById("toggleWbBtn"); if(btn){btn.dataset.show="true"; btn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } } 
-  else { if(whiteboardBox) whiteboardBox.style.display = "none"; if(isHost){ const btn = document.getElementById("toggleWbBtn"); if(btn){btn.dataset.show="false"; btn.style.background="linear-gradient(135deg, #3498db, #2980b9)";} } }
+  if (data.show) { hideAllBigPanels(); if(whiteboardBox) whiteboardBox.style.display = "block"; if(isHost){ if(toggleWbBtn){toggleWbBtn.dataset.show="true"; toggleWbBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } } 
+  else { if(whiteboardBox) whiteboardBox.style.display = "none"; if(isHost){ if(toggleWbBtn){toggleWbBtn.dataset.show="false"; toggleWbBtn.style.background="linear-gradient(135deg, #3498db, #2980b9)";} } }
 });
 
 socket.on("map-toggle", (data) => {
-  if (data.show) { hideAllBigPanels(); if(mapBox) mapBox.style.display = "block"; setTimeout(() => { if(typeof geoMap !== 'undefined') geoMap.invalidateSize(); }, 100); if(isHost){ const btn = document.getElementById("toggleMapBtn"); if(btn){btn.dataset.show="true"; btn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } } 
-  else { if(mapBox) mapBox.style.display = "none"; if(isHost){ const btn = document.getElementById("toggleMapBtn"); if(btn){btn.dataset.show="false"; btn.style.background="linear-gradient(135deg, #27ae60, #2ecc71)";} } }
+  if (data.show) { hideAllBigPanels(); if(mapBox) mapBox.style.display = "block"; setTimeout(() => { if(typeof geoMap !== 'undefined') geoMap.invalidateSize(); }, 100); if(isHost){ if(toggleMapBtn){toggleMapBtn.dataset.show="true"; toggleMapBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } } 
+  else { if(mapBox) mapBox.style.display = "none"; if(isHost){ if(toggleMapBtn){toggleMapBtn.dataset.show="false"; toggleMapBtn.style.background="linear-gradient(135deg, #27ae60, #2ecc71)";} } }
 });
 
 socket.on("office-toggle", (data) => {
-  if (data.show) { hideAllBigPanels(); if(officeBox) officeBox.style.display = "block"; if(isHost){ const btn = document.getElementById("toggleOfficeBtn"); if(btn){btn.dataset.show="true"; btn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } } 
-  else { if(officeBox) officeBox.style.display = "none"; if(isHost){ const btn = document.getElementById("toggleOfficeBtn"); if(btn){btn.dataset.show="false"; btn.style.background="linear-gradient(135deg, #c0392b, #e74c3c)";} } }
+  if (data.show) { hideAllBigPanels(); if(officeBox) officeBox.style.display = "block"; if(isHost){ if(toggleOfficeBtn){toggleOfficeBtn.dataset.show="true"; toggleOfficeBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } } 
+  else { if(officeBox) officeBox.style.display = "none"; if(isHost){ if(toggleOfficeBtn){toggleOfficeBtn.dataset.show="false"; toggleOfficeBtn.style.background="linear-gradient(135deg, #c0392b, #e74c3c)";} } }
 });
 
 // ==========================================
-// 4. Hamburger Menu Logic
+// 2. Hamburger Menu Logic
 // ==========================================
 const controlRowInner = document.getElementById("controlRowInner");
 const hamburgerBtn = document.getElementById("hamburgerBtn");
@@ -170,15 +183,15 @@ document.addEventListener("click", (e) => {
 });
 
 // ==========================================
-// 5. LIVE CURRENCY CONVERTER
+// 3. LIVE CURRENCY CONVERTER
 // ==========================================
 const convModal = document.getElementById("converter-modal");
-const toggleConvBtn = document.getElementById("toggleConvBtn");
 const convType = document.getElementById("convType");
 const convFrom = document.getElementById("convFrom");
 const convTo = document.getElementById("convTo");
 const convInput = document.getElementById("convInput");
 const convOutput = document.getElementById("convOutput");
+const convTitleText = document.getElementById("convTitleText");
 
 let liveExchangeRates = {};
 const convRates = {
@@ -189,15 +202,14 @@ const convRates = {
 };
 
 async function fetchLiveRates() {
-    const title = document.getElementById("convTitleText");
     try {
-        if(title) title.textContent = "🔄 Fetching Live...";
+        if(convTitleText) convTitleText.textContent = "🔄 Fetching Live...";
         const res = await fetch('https://open.er-api.com/v6/latest/USD');
         const data = await res.json();
         liveExchangeRates = data.rates;
-        if(title) title.textContent = "🔄 Live Currency";
+        if(convTitleText) convTitleText.textContent = "🔄 Live Currency";
     } catch(e) {
-        if(title) title.textContent = "🔄 Currency (Offline)";
+        if(convTitleText) convTitleText.textContent = "🔄 Currency (Offline)";
     }
 }
 
@@ -270,10 +282,9 @@ document.addEventListener("pointermove", (e) => { if(!isConvDragging || !convMod
 document.addEventListener("pointerup", () => isConvDragging = false);
 
 // ==========================================
-// 6. CALCULATOR
+// 4. CALCULATOR
 // ==========================================
 const calcModal = document.getElementById("calc-modal");
-const toggleCalcBtn = document.getElementById("toggleCalcBtn");
 const calcDisplay = document.getElementById("calc-display");
 
 toggleCalcBtn?.addEventListener("click", () => { if(calcModal) calcModal.style.display = calcModal.style.display === "none" || calcModal.style.display === "" ? "block" : "none"; });
@@ -304,7 +315,7 @@ document.addEventListener("pointermove", (e) => { if(!isCalcDragging || !calcMod
 document.addEventListener("pointerup", () => isCalcDragging = false);
 
 // ==========================================
-// 7. VYDEX OFFICE LOGIC
+// 5. VYDEX OFFICE (Word, Excel, PPT)
 // ==========================================
 const officeTabs = document.querySelectorAll(".office-tab");
 const officeTabBtns = document.querySelectorAll(".office-tab-btn");
@@ -363,14 +374,15 @@ document.getElementById("officeDownloadBtn")?.addEventListener("click", () => {
     if(activeTab === 'office-word') { content = wordEditor?.innerText || ""; ext = "txt"; mime = "text/plain"; }
     if(activeTab === 'office-ppt') { content = pptEditor?.innerText || ""; ext = "txt"; mime = "text/plain"; }
     if(activeTab === 'office-excel' && excelGrid) {
-        content = Array.from(excelGrid.rows).map(r => Array.from(r.cells).map(c => c.innerText).join(",")).join("\n"); ext = "csv"; mime = "text/csv";
+        content = Array.from(excelGrid.rows).map(r => Array.from(r.cells).map(c => c.innerText).join(",")).join("\n");
+        ext = "csv"; mime = "text/csv";
     }
     const blob = new Blob([content], { type: mime }); const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = `VYDEX_Document.${ext}`; a.click();
 });
 
 // ==========================================
-// 8. FORCED LOCKED FULLSCREEN & PiP
+// 6. FORCED FULLSCREEN & PiP
 // ==========================================
 function applyForcedFullscreen(targetId, isActive) {
     const targetEl = document.getElementById(targetId);
@@ -431,7 +443,7 @@ socket.on("office-sync", (data) => {
 });
 
 // ==========================================
-// 9. MATH MODAL
+// 7. MATH MODAL
 // ==========================================
 const mathModal = document.getElementById("math-modal");
 const mathInput = document.getElementById("mathInput");
@@ -473,22 +485,34 @@ socket.on("math-equation", (data) => {
 });
 
 // ==========================================
-// 10. PRESENTATION LOGIC
+// 8. PRESENTATION (Graphs)
 // ==========================================
-document.getElementById("presMode")?.addEventListener("change", (e) => {
-    const cIn = document.getElementById("companyInputs"); const pIn = document.getElementById("productInputs");
-    if(e.target.value === "company") { if(cIn) cIn.style.display = "flex"; if(pIn) pIn.style.display = "none"; } 
-    else { if(cIn) cIn.style.display = "none"; if(pIn) pIn.style.display = "flex"; }
+const presMode = document.getElementById("presMode");
+const companyInputs = document.getElementById("companyInputs");
+const productInputs = document.getElementById("productInputs");
+const generateGraphBtn = document.getElementById("generateGraphBtn");
+const presCurrency = document.getElementById("presCurrency");
+const presentationContainer = document.getElementById("presentation-container");
+let businessChart = null;
+
+presMode?.addEventListener("change", (e) => {
+    if(e.target.value === "company") { if(companyInputs) companyInputs.style.display = "flex"; if(productInputs) productInputs.style.display = "none"; } 
+    else { if(companyInputs) companyInputs.style.display = "none"; if(productInputs) productInputs.style.display = "flex"; }
 });
 
-document.getElementById("generateGraphBtn")?.addEventListener("click", () => {
+generateGraphBtn?.addEventListener("click", () => {
     const industry = document.getElementById("presIndustry")?.value || "Business";
-    const currency = document.getElementById("presCurrency")?.value || "$";
-    const mode = document.getElementById("presMode")?.value || "company";
+    const currency = presCurrency?.value || "$";
+    const mode = presMode?.value || "company";
     const growth = parseFloat(document.getElementById("presGrowth")?.value) || 10;
     
+    let baseYear = parseInt(document.getElementById("presBaseYear")?.value) || new Date().getFullYear();
+    let endYear = parseInt(document.getElementById("presEndYear")?.value) || baseYear + 5;
+    if(baseYear < 2001) baseYear = 2001; if(baseYear > 2500) baseYear = 2500;
+    if(endYear < 2001) endYear = 2001; if(endYear > 2500) endYear = 2500; if(endYear < baseYear) endYear = baseYear + 5;
+
     let labels = []; let revenues = []; let unitsArr = []; let currentRevenue = 1000; let currentUnits = 100; let unitPrice = 50;
-    for(let y = 2024; y <= 2029; y++) {
+    for(let y = baseYear; y <= endYear; y++) {
         labels.push(y.toString());
         if(mode === "company") { revenues.push(Math.round(currentRevenue)); currentRevenue += (currentRevenue * (growth / 100)); } 
         else { revenues.push(Math.round(unitPrice * currentUnits)); currentUnits += (currentUnits * (growth / 100)); }
@@ -523,11 +547,11 @@ socket.on("presentation-data", (data) => {
 });
 
 let laserTimeout;
-document.getElementById("presentation-container")?.addEventListener("pointermove", (e) => {
+presentationContainer?.addEventListener("pointermove", (e) => {
     if(!isHost || presentationBox?.style.display === "none") return;
     const rect = e.currentTarget.getBoundingClientRect(); socket.emit("laser-pointer", { room: currentRoom, x: (e.clientX - rect.left) / rect.width, y: (e.clientY - rect.top) / rect.height });
 });
-document.getElementById("presentation-container")?.addEventListener("pointerleave", () => { if(isHost) socket.emit("laser-pointer", { room: currentRoom, hide: true }); });
+presentationContainer?.addEventListener("pointerleave", () => { if(isHost) socket.emit("laser-pointer", { room: currentRoom, hide: true }); });
 socket.on("laser-pointer", (data) => {
     const lp = document.getElementById("laser-pointer"); if(!lp) return;
     if(data.hide) { lp.style.display = "none"; return; }
@@ -536,7 +560,7 @@ socket.on("laser-pointer", (data) => {
 });
 
 // ==========================================
-// 11. DUAL-LAYER WHITEBOARD
+// 9. DUAL-LAYER WHITEBOARD
 // ==========================================
 const canvas = document.getElementById('whiteboard');
 const ctx = canvas ? canvas.getContext('2d', { willReadFrequently: true }) : null; 
@@ -738,8 +762,44 @@ if(canvas) {
     canvas.addEventListener('contextmenu', e => e.preventDefault());
 }
 
+const wbPdfUpload = document.getElementById('wbPdfUpload');
+if(wbPdfUpload && typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    document.getElementById('tool-pdf')?.addEventListener("click", () => wbPdfUpload.click());
+    wbPdfUpload.addEventListener('change', async (e) => {
+      const file = e.target.files[0]; if(!file) return; 
+      if (file.type.startsWith('image/')) {
+          showNotification("Loading Image...", "info"); const reader = new FileReader(); reader.onload = (event) => { prepareStamp(event.target.result); }; reader.readAsDataURL(file);
+      } else if (file.type === 'application/pdf') {
+          const fileReader = new FileReader();
+          fileReader.onload = async function() {
+              const typedarray = new Uint8Array(this.result); const pdf = await pdfjsLib.getDocument(typedarray).promise; 
+              if (pdf.numPages === 1) {
+                  showNotification("Loading PDF...", "info"); const page = await pdf.getPage(1); const viewport = page.getViewport({scale: 2.0}); 
+                  const tc = document.createElement('canvas'); const tCtx = tc.getContext('2d'); tc.height = viewport.height; tc.width = viewport.width;
+                  await page.render({canvasContext: tCtx, viewport: viewport}).promise; prepareStamp(tc.toDataURL("image/jpeg", 0.8));
+              } else {
+                  showNotification(`Processing ${pdf.numPages} Pages...`, "info"); saveCurrentPage(); let startNewPageIndex = wbPagesBg.length; if (wbPagesBg.length === 1 && (wbPagesBg[0] === '' || !wbPagesBg[0])) { startNewPageIndex = 0; }
+                  for (let i = 1; i <= pdf.numPages; i++) {
+                      const page = await pdf.getPage(i); const viewport = page.getViewport({scale: 2.0}); 
+                      const tc = document.createElement('canvas'); tc.width = canvas.width; tc.height = canvas.height; const tCtx = tc.getContext('2d'); tCtx.fillStyle = "#ffffff"; tCtx.fillRect(0, 0, tc.width, tc.height); 
+                      const tempCanvas = document.createElement('canvas'); tempCanvas.width = viewport.width; tempCanvas.height = viewport.height;
+                      await page.render({canvasContext: tempCanvas.getContext('2d'), viewport: viewport}).promise; 
+                      const scaleToFit = Math.min(tc.width / viewport.width, tc.height / viewport.height) * 0.95;
+                      const fw = viewport.width * scaleToFit; const fh = viewport.height * scaleToFit; const dx = (tc.width - fw) / 2; const dy = (tc.height - fh) / 2;
+                      tCtx.drawImage(tempCanvas, dx, dy, fw, fh); const pageDataBg = tc.toDataURL("image/jpeg", 0.7); const pageDataFg = ""; 
+                      if (startNewPageIndex === 0 && i === 1) { wbPagesBg[0] = pageDataBg; wbPagesFg[0] = pageDataFg; } else { wbPagesBg.push(pageDataBg); wbPagesFg.push(pageDataFg); }
+                  }
+                  loadPage(startNewPageIndex); showNotification(`✅ Uploaded ${pdf.numPages} Pages!`, "join"); wbPdfUpload.value = ""; 
+              }
+          };
+          fileReader.readAsArrayBuffer(file);
+      }
+    });
+}
+
 // ==========================================
-// 12. MAP INIT
+// 10. MAP INIT
 // ==========================================
 function initWorldMap() {
   if(!document.getElementById('map-container') || typeof L === 'undefined') return;
@@ -754,7 +814,7 @@ function initWorldMap() {
 initWorldMap();
 
 // ==========================================
-// 13. AGORA WEBRTC CORE (Restored)
+// 11. AGORA WEBRTC CORE (Restored)
 // ==========================================
 function createLocalCard(name) {
   let el = document.getElementById("local-player"); if (el) return "local-player";
@@ -869,6 +929,10 @@ socket.on("wb-control", (data) => {
     else if (data.action === "revoke") { canDraw = false; const wbt = document.getElementById('wb-toolbar'); if(wbt) wbt.style.display = "none"; if(canvas) canvas.style.cursor = "not-allowed"; const wbs = document.getElementById("wb-status"); if(wbs) wbs.textContent = "(View Only - Access Revoked)"; showNotification("Your whiteboard access was revoked.", "danger"); }
   }
 });
+
+leaveBtn?.addEventListener("click", async () => { socket.emit("leave-room"); await client.leave(); window.location.reload(); });
+muteAllBtn?.addEventListener("click", () => { if (joined && isHost) socket.emit("control", { room: currentRoom, action: "mute-all" }); });
+unmuteAllBtn?.addEventListener("click", () => { if (joined && isHost) socket.emit("control", { room: currentRoom, action: "unmute-all" }); });
 
 sendMsgBtn?.addEventListener("click", () => { const text = chatInput?.value.trim(); if (!text) return; socket.emit("chat-message", { room: currentRoom, name: usernameInput?.value || "Me", text }); appendMessage(`Me: ${text}`); if(chatInput) chatInput.value = ""; });
 chatInput?.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); sendMsgBtn?.click(); } });
