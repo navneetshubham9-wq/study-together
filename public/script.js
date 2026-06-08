@@ -649,7 +649,6 @@ document.addEventListener("pointerup", () => isCalcDragging = false);
 // ==========================================
 const officeTabs = document.querySelectorAll(".office-tab");
 const officeTabBtns = document.querySelectorAll(".office-tab-btn");
-const wordEditor = document.getElementById("wordEditor");
 const excelGrid = document.getElementById("excelGrid");
 const pptEditor = document.getElementById("pptEditor");
 const officeSyncToggle = document.getElementById("officeSyncToggle");
@@ -719,13 +718,11 @@ function emitOfficeData() {
     if(!isHost || !isOfficeSyncing) return;
     socket.emit("office-sync", {
         room: currentRoom, action: "content-update",
-        wordData: wordEditor?.innerHTML || "", 
         pptData: JSON.stringify({ slides: pptSlides, current: pptCurrentSlide }),
         excelData: excelGrid ? Array.from(excelGrid.rows).slice(1).map(r => Array.from(r.cells).slice(1).map(c => c.innerHTML)) : []
     });
 }
 
-wordEditor?.addEventListener("input", emitOfficeData);
 excelGrid?.addEventListener("input", emitOfficeData);
 pptEditor?.addEventListener("click", function() { if(this.contentEditable === "true") this.focus(); });
 excelGrid?.addEventListener("click", function(e) { const td = e.target?.closest?.("td"); if(td && td.contentEditable === "true") td.focus(); });
@@ -733,7 +730,6 @@ excelGrid?.addEventListener("click", function(e) { const td = e.target?.closest?
 document.getElementById("officeDownloadBtn")?.addEventListener("click", () => {
     let activeTab = Array.from(officeTabs).find(t => t.style.display !== "none" && t.style.display !== "")?.id;
     let content = "", ext = "", mime = "", filename = "VYDEX_Document";
-    if(activeTab === 'office-word') { content = wordEditor?.innerText || ""; ext = "txt"; mime = "text/plain"; filename = "VYDEX_Word"; }
     if(activeTab === 'office-ppt') { content = pptSlides.map((s,i)=>`--- Slide ${i+1} ---\n${new DOMParser().parseFromString(s,'text/html').body.textContent||''}`).join("\n\n"); ext = "txt"; mime = "text/plain"; filename = "VYDEX_Presentation"; }
     if(activeTab === 'office-excel' && excelGrid) {
         content = Array.from(excelGrid.rows).map(r => Array.from(r.cells).map(c => c.innerText).join(",")).join("\n");
@@ -747,39 +743,6 @@ document.getElementById("officeDownloadBtn")?.addEventListener("click", () => {
     a.download = `${filename}.${ext}`; 
     a.click();
 });
-
-// ---- Word helpers ----
-document.getElementById("wordFontFamily")?.addEventListener("change", function() {
-    document.execCommand('fontName', false, this.value);
-    wordEditor?.focus();
-});
-document.getElementById("wordFontSize")?.addEventListener("change", function() {
-    document.execCommand('fontSize', false, this.value);
-    wordEditor?.focus();
-});
-wordEditor?.addEventListener("click", function() {
-    if(this.contentEditable === "true") this.focus();
-});
-// Initialize Word as A4 portrait
-if(wordEditor) {
-    wordEditor.style.maxWidth = '794px';
-    wordEditor.style.minHeight = '1123px';
-    wordEditor.style.margin = '4px auto';
-}
-
-function officeInsertTable() {
-    const rows = prompt("Rows:", "3");
-    const cols = prompt("Cols:", "3");
-    if(!rows || !cols) return;
-    let table = "<table border='1' style='border-collapse:collapse;width:100%;margin:8px 0;'>";
-    for(let r=0; r<+rows; r++) {
-        table += "<tr>";
-        for(let c=0; c<+cols; c++) table += `<td style='border:1px solid #999;padding:6px;'>&nbsp;</td>`;
-        table += "</tr>";
-    }
-    table += "</table><br>";
-    document.execCommand('insertHTML', false, table);
-}
 
 // ---- Excel helpers ----
 function excelBold() {
@@ -958,131 +921,6 @@ function excelAutoSum() {
     }
     td.textContent = sum;
     emitOfficeData();
-}
-
-// ---- Word advanced features ----
-function wordInsertShape() {
-    const s = prompt('Shape (rect, circle, arrow, line, triangle, star):', 'rect');
-    if (!s) return;
-    const map = {
-        rect: '<div style="width:120px;height:70px;background:#3498db;border:2px solid #2980b9;border-radius:4px;margin:10px 0;display:inline-block;"></div>',
-        circle: '<div style="width:80px;height:80px;background:#e74c3c;border:2px solid #c0392b;border-radius:50%;margin:10px 0;display:inline-block;"></div>',
-        arrow: '<div style="width:0;height:0;border-left:60px solid transparent;border-right:60px solid transparent;border-bottom:70px solid #2ecc71;margin:10px 0;"></div>',
-        line: '<hr style="border:2px solid #555;margin:10px 0;width:200px;">',
-        triangle: '<div style="width:0;height:0;border-left:55px solid transparent;border-right:55px solid transparent;border-bottom:80px solid #9b59b6;margin:10px 0;"></div>',
-        star: '<div style="font-size:48px;color:#f1c40f;margin:10px 0;">&#9733;</div>'
-    };
-    document.execCommand('insertHTML', false, map[s] || map.rect);
-}
-function wordInsertChart() {
-    const labels = prompt('Labels (comma separated, e.g. Q1,Q2,Q3,Q4):', 'Jan,Feb,Mar');
-    const values = prompt('Values (comma separated, e.g. 30,50,20):', '10,20,15');
-    const type = prompt('Chart type (bar, horizontal, simple):', 'bar');
-    if (!labels || !values) return;
-    const labs = labels.split(',').map(s => s.trim());
-    const vals = values.split(',').map(s => parseFloat(s.trim()) || 0);
-    const max = Math.max(...vals, 1);
-    let html = '<div style="display:flex;gap:15px;align-items:flex-end;padding:20px 10px;background:#f9f9f9;border-radius:8px;margin:10px 0;min-height:180px;">';
-    labs.forEach((l, i) => {
-        const h = (vals[i] / max) * 140;
-        html += `<div style="display:flex;flex-direction:column;align-items:center;flex:1;"><div style="width:100%;height:${h}px;background:${['#3498db','#e74c3c','#2ecc71','#f39c12','#9b59b6','#1abc9c'][i%6]};border-radius:4px 4px 0 0;transition:height 0.3s;"></div><span style="font-size:10px;margin-top:4px;color:#555;">${l}<br><b>${vals[i]}</b></span></div>`;
-    });
-    html += '</div>';
-    document.execCommand('insertHTML', false, html);
-}
-function wordPageNumber() {
-    const pos = prompt('Position (top, bottom):', 'bottom');
-    const fmt = prompt('Format (1, 01, a, i):', '1');
-    const tag = pos === 'top' ? 'header' : 'footer';
-    const txt = fmt === '01' ? '01' : fmt === 'a' ? 'a' : fmt === 'i' ? 'i' : '1';
-    document.execCommand('insertHTML', false, `<${tag} style="display:block;text-align:center;color:#888;font-size:10pt;border-bottom:1px solid #ddd;padding:4px 0;margin:10px 0;">Page ${txt}</${tag}>`);
-}
-function wordBreaks() {
-    const type = prompt('Break type (page, section, column):', 'page');
-    if (type === 'page') document.execCommand('insertHTML', false, '<div style="page-break-after:always;border-top:2px dashed #ccc;margin:20px 0;font-size:10px;color:#999;text-align:center;">— Page Break —</div>');
-    else if (type === 'section') document.execCommand('insertHTML', false, '<div style="border-top:3px double #999;margin:20px 0;font-size:10px;color:#999;text-align:center;">— Section Break —</div>');
-    else if (type === 'column') document.execCommand('insertHTML', false, '<div style="border-top:1px dotted #999;margin:20px 0;font-size:10px;color:#999;text-align:center;">— Column Break —</div>');
-}
-function wordSpelling() {
-    const el = document.getElementById('wordEditor');
-    if (!el) return;
-    const text = el.innerText || '';
-    const words = text.split(/\s+/).filter(Boolean);
-    const common = ['the','a','an','and','or','but','in','on','at','to','for','of','with','by','is','it','as','be','this','that','was','are','were','been','have','has','had','not','no','from','they','you','we','he','she','will','can','all','each','which','their','there','its','also','if','so','do','up','out','about','into','over','after','then','these','them','some','would','could','should','may','very','just','than','because','what','when','where','how','who'];
-    const misspelled = words.filter(w => {
-        const clean = w.replace(/[^a-zA-Z]/g,'').toLowerCase();
-        return clean.length > 1 && !common.includes(clean);
-    });
-    if (misspelled.length === 0) { showNotification('✓ No unusual words found!','success'); return; }
-    const unique = [...new Set(misspelled)].slice(0, 20);
-    showNotification('🔍 Possible misspellings: ' + unique.join(', '),'warning');
-}
-function wordPrintLayout() {
-    const el = document.getElementById('wordEditor');
-    if (!el) return;
-    const cur = el.style.boxShadow;
-    if (cur && cur !== 'none') {
-        el.style.boxShadow = 'none';
-        el.style.maxWidth = '100%';
-        el.style.borderRadius = '0';
-        showNotification('Switched to Draft view','info');
-    } else {
-        el.style.boxShadow = '0 2px 20px rgba(0,0,0,0.15)';
-        el.style.maxWidth = '21cm';
-        el.style.margin = '0 auto';
-        el.style.borderRadius = '4px';
-        showNotification('Switched to Print Layout view','info');
-    }
-}
-
-// ---- Word page size, orientation, image insert ----
-function wordSetPageSize(size) {
-    const el = document.getElementById('wordEditor');
-    if (!el) return;
-    const sizes = {
-        'A5': { w: '583px', h: '827px' },
-        'A4': { w: '794px', h: '1123px' },
-        'A3': { w: '1123px', h: '1587px' },
-        'A2': { w: '1654px', h: '2339px' },
-        'Letter': { w: '816px', h: '1054px' },
-        'Legal': { w: '816px', h: '1344px' }
-    };
-    const s = sizes[size];
-    if (s) { el.style.maxWidth = s.w; el.style.minHeight = s.h; }
-    showNotification(`Page size: ${size}`,'info');
-}
-function wordSetOrientation(o) {
-    const el = document.getElementById('wordEditor');
-    if (!el || !o) return;
-    if (o === 'landscape') {
-        const curW = parseFloat(el.style.maxWidth) || 794;
-        const curH = parseFloat(el.style.minHeight) || 1123;
-        el.style.maxWidth = Math.max(curW, curH) + 'px';
-        el.style.minHeight = Math.min(curW, curH) + 'px';
-        el.style.writingMode = 'horizontal-tb';
-        showNotification('Orientation: Landscape','info');
-    } else {
-        el.style.maxWidth = '794px';
-        el.style.minHeight = '1123px';
-        el.style.writingMode = 'horizontal-tb';
-        showNotification('Orientation: Portrait','info');
-    }
-}
-function wordInsertPicture() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function(ev) {
-            document.execCommand('insertHTML', false, `<img src="${ev.target.result}" style="max-width:100%;border-radius:4px;margin:8px 0;box-shadow:0 2px 8px rgba(0,0,0,0.1);">`);
-            emitOfficeData();
-        };
-        reader.readAsDataURL(file);
-    };
-    input.click();
 }
 
 // ---- Excel advanced features ----
@@ -2736,7 +2574,6 @@ socket.on("host-assignment", (data) => {
         if(togglePresBtn) togglePresBtn.style.display = "inline-block"; 
         if(toggleOfficeBtn) toggleOfficeBtn.style.display = "inline-block";
         document.querySelectorAll('.host-only-btn').forEach(btn => btn.style.setProperty("display", "flex", "important"));
-        if(wordEditor) wordEditor.contentEditable = "true";
         if(pptEditor) pptEditor.contentEditable = "true";
         document.querySelectorAll('#excelGrid td').forEach(td => td.contentEditable = "true");
     } else {
@@ -2829,7 +2666,6 @@ socket.on("office-sync", (data) => {
         }
     }
     if(data.action === "content-update") {
-        if(wordEditor && data.wordData !== undefined) wordEditor.innerHTML = data.wordData;
         if(data.pptData && pptEditor) {
             try {
                 const parsed = JSON.parse(data.pptData);
