@@ -38,11 +38,13 @@
       
       <audio id="remoteMusicPlayer" style="display: none;" crossorigin="anonymous" allow="autoplay"></audio>
 
-      <!-- 🚀 NAYA: CONVERTER MODAL -->
       <div id="converter-modal" class="card" style="display: none; position: fixed; top: 15%; right: 280px; z-index: 99999; width: 260px; background: rgba(20,30,48,0.98); border: 2px solid #8e44ad; box-shadow: 0 20px 50px rgba(0,0,0,0.8); padding: 15px;">
-        <h4 id="converter-header" style="margin: 0 0 10px 0; color: #9b59b6; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; cursor: move; user-select: none;">🔄 Unit Converter</h4>
+        <h4 id="converter-header" style="margin: 0 0 10px 0; color: #9b59b6; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; cursor: move; user-select: none; display: flex; justify-content: space-between; align-items: center;">
+            <span id="convTitleText" style="pointer-events: none;">🔄 Unit Converter</span>
+            <span id="closeConvBtn" style="cursor:pointer; color:var(--danger); font-size:18px; padding:0 5px;" title="Close">✖</span>
+        </h4>
         <select id="convType" style="width:100%; padding:8px; margin-bottom:10px; background:#000; color:#fff; border:1px solid #8e44ad; border-radius:6px;">
-            <option value="currency">Currency (Est)</option>
+            <option value="currency">Live Currency</option>
             <option value="length">Length</option>
             <option value="weight">Weight</option>
             <option value="temp">Temperature</option>
@@ -58,9 +60,11 @@
         </div>
       </div>
 
-      <!-- DRAGGABLE CALCULATOR -->
       <div id="calc-modal" class="card" style="display: none; position: fixed; top: 15%; right: 5%; z-index: 99999; width: 250px; background: rgba(20,30,48,0.98); border: 2px solid #16a085; box-shadow: 0 20px 50px rgba(0,0,0,0.8); padding: 15px;">
-        <h4 id="calc-header" style="margin: 0 0 10px 0; color: #1abc9c; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; cursor: move; user-select: none;">🧮 Calculator (Drag)</h4>
+        <h4 id="calc-header" style="margin: 0 0 10px 0; color: #1abc9c; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; cursor: move; user-select: none; display: flex; justify-content: space-between; align-items: center;">
+            <span style="pointer-events: none;">🧮 Calculator</span>
+            <span id="closeCalcBtn" style="cursor:pointer; color:var(--danger); font-size:18px; padding:0 5px;" title="Close">✖</span>
+        </h4>
         <input type="text" id="calc-display" disabled style="width: 100%; padding: 15px; font-size: 20px; text-align: right; background: #000; color: #fff; border: 1px solid #16a085; border-radius: 8px; margin-bottom: 10px; box-sizing: border-box;">
         <div class="calc-grid">
           <button class="calc-btn" onclick="calcAppend('7')">7</button><button class="calc-btn" onclick="calcAppend('8')">8</button><button class="calc-btn" onclick="calcAppend('9')">9</button><button class="calc-btn action" onclick="calcAppend('/')">÷</button>
@@ -71,7 +75,6 @@
         </div>
       </div>
 
-      <!-- ADVANCED MATH MODAL -->
       <div id="math-modal" class="card" style="display: none; position: fixed; top: 10%; left: 50%; transform: translateX(-50%); z-index: 99998; width: 550px; background: rgba(20,30,48,0.98); border: 2px solid var(--primary); box-shadow: 0 20px 50px rgba(0,0,0,0.8);">
         <h3 style="margin-top: 0; color: var(--accent); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;">∑ Advanced Math Library</h3>
         <div style="margin-bottom: 10px;">
@@ -89,7 +92,6 @@
         <button id="closeMathBtn" style="background: var(--danger); color: white; border: none; padding: 8px; border-radius: 8px; width: 100%; cursor: pointer; margin-top: 10px;">Close Board</button>
       </div>
 
-      <!-- Controls Section -->
       <section id="controls" class="card entry-animation delay-controls">
         <div class="control-row" id="controlRowInner">
           <button id="cameraBtn" title="Toggle Camera">📹 Camera</button>
@@ -103,7 +105,6 @@
           <button id="localMusicMuteBtn" title="Mute Host Music Locally" style="display: none; background: #9b59b6;">🎵🔇 Mute Music</button>
           <button id="leaveBtn" title="Leave Room" style="background: linear-gradient(135deg, #e74c3c, #c0392b); color: white;">🚪 Exit Room</button>
           
-          <!-- Host Only Controls -->
           <button id="muteAllBtn" class="host-only-btn" title="Mute All Users" style="background: linear-gradient(135deg, #e67e22, #d35400); color: white; display: none;">🤫 Mute All</button>
           <button id="unmuteAllBtn" class="host-only-btn" title="Unmute All Users" style="background: linear-gradient(135deg, #2ecc71, #27ae60); color: white; display: none;">🔊 Unmute All</button>
           
@@ -140,7 +141,6 @@
         </div>
       </section>
 
-      <!-- 🚀 NAYA: VYDEX OFFICE PANEL -->
       <section id="office-box" class="card big-panel" style="grid-column: 1 / -1; height: 600px; display: none; position: relative;">
         <h3 style="margin-top:0; display:flex; justify-content:space-between; align-items:center;">
             <span>📝 VYDEX Office <span id="office-status" style="font-size:12px; color:var(--accent); font-weight:400;">(View Only)</span></span>
@@ -160,7 +160,6 @@
             <button id="officeDownloadBtn" class="icon-btn" style="margin-left:auto; background:#2ecc71;">⬇️ Download</button>
         </div>
 
-        <!-- Word Tab -->
         <div id="office-word" class="office-tab" style="display:block; height: 460px; background: #fff; border-radius: 8px; color: #000; overflow:hidden;">
             <div class="host-only-btn" style="background: #f1f2f6; padding: 8px; border-bottom: 1px solid #ccc; display:none; gap:5px;">
                 <button onclick="document.execCommand('bold',false,null)" class="icon-btn" style="background:#ddd; color:#000; font-weight:bold;">B</button>
@@ -172,15 +171,12 @@
             <div id="wordEditor" contenteditable="false" style="padding: 20px; height: 400px; outline: none; overflow-y: auto;">Start typing your document here...</div>
         </div>
 
-        <!-- Excel Tab -->
         <div id="office-excel" class="office-tab" style="display:none; height: 460px; background: #fff; border-radius: 8px; color: #000; overflow:auto;">
             <table class="excel-table" id="excelGrid" style="margin: 0; width: 100%;">
                 <tr style="background:#e0e0e0;"><th style="width:40px;"></th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th></tr>
-                <!-- Rows injected via JS -->
-            </table>
+                </table>
         </div>
 
-        <!-- PPT Tab -->
         <div id="office-ppt" class="office-tab" style="display:none; height: 460px; background: #34495e; border-radius: 8px; color: #fff; position: relative;">
             <div id="pptEditor" contenteditable="false" style="width: 80%; height: 70%; margin: 5% auto; background: #fff; color: #000; padding: 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-size: 24px; text-align: center; border-radius: 4px; overflow-y:auto;">
                 <h2>Slide 1</h2><p>Click to add text</p>
@@ -188,7 +184,6 @@
         </div>
       </section>
 
-      <!-- ADVANCED PRO WHITEBOARD WITH DUAL LAYERS -->
       <section id="whiteboard-box" class="card big-panel" style="grid-column: 1 / -1; height: 600px; display: none; position: relative;">
         <h3>🎨 VYDEX Education Board 
             <span id="wb-status" style="font-size:12px; color:var(--accent); font-weight:400; margin-left: 10px;">(View Only)</span>
@@ -265,11 +260,9 @@
         </div>
       </section>
 
-      <!-- PRESENTATION -->
       <section id="presentation-box" class="card big-panel" style="grid-column: 1 / -1; height: auto; min-height: 550px; display: none; position: relative;">
         <h3>📊 VYDEX Business & Growth Presentation</h3>
         <div id="pres-input-form" class="host-only-btn" style="display: none; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 12px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center;">
-          <!-- Reduced details to save space, logic works in script -->
           <input id="presIndustry" placeholder="Industry/Product" style="padding: 8px; border-radius: 6px; border: none;">
           <input id="presBaseValue" type="number" placeholder="Base Revenue" style="padding: 8px; border-radius: 6px; border: none;">
           <input id="presGrowth" type="number" placeholder="Growth %" style="padding: 8px; border-radius: 6px; border: none; width: 90px;">
@@ -284,7 +277,6 @@
         </div>
       </section>
 
-      <!-- INTERACTIVE MAP -->
       <section id="map-box" class="card big-panel" style="grid-column: 1 / -1; display: none; position: relative; padding: 15px;">
         <h3 style="margin-top:0;">🌍 VYDEX Geography Explorer</h3>
         <div id="map-container" style="position:relative; width: 100%; height: 450px; border-radius: 12px; overflow: hidden; box-shadow: inset 0 5px 15px rgba(0,0,0,0.1); z-index: 1;">

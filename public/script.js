@@ -8,13 +8,13 @@ let joined = false;
 let currentRoom = null;
 let screenTrack = null;
 let isHost = false; 
-let globalHostUid = null; // Host camera tracking for PiP
+let globalHostUid = null; 
 let isSharing = false; 
 const remoteUsers = {}; 
 let currentMusicUrl = null;
 
 // ==========================================
-// 1. DOM Elements Selection
+// 1. SAFELY GET DOM ELEMENTS
 // ==========================================
 const joinBtn = document.getElementById("joinBtn");
 const joinSection = document.getElementById("join-section"); 
@@ -45,8 +45,24 @@ const messages = document.getElementById("messages");
 const fileUpload = document.getElementById("fileUpload");
 const fileList = document.getElementById("fileList");
 
+function showNotification(message, type = 'info') {
+  const container = document.getElementById('notification-container');
+  if (!container) return;
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.innerHTML = `<span>${message}</span>`;
+  container.appendChild(toast);
+  setTimeout(() => { toast.classList.add('toast-exit'); setTimeout(() => toast.remove(), 500); }, 4000);
+}
+
+function appendMessage(text) {
+  if(!messages) return;
+  const d = document.createElement("div"); d.textContent = text;
+  messages.appendChild(d); messages.scrollTop = messages.scrollHeight;
+}
+
 // ==========================================
-// 2. Hamburger Menu & Scroll Logic
+// 2. HAMBURGER MENU LOGIC
 // ==========================================
 const controlRowInner = document.getElementById("controlRowInner");
 const hamburgerBtn = document.getElementById("hamburgerBtn");
@@ -54,11 +70,11 @@ const sideMenuContainer = document.getElementById("side-menu-container");
 const controlsSection = document.getElementById("controls");
 
 window.addEventListener("scroll", () => {
-    if(!joined) return;
+    if(!joined || !hamburgerBtn || !sideMenuContainer) return;
     const scrollY = window.scrollY || document.documentElement.scrollTop;
     if (scrollY > 80) {
         hamburgerBtn.style.setProperty("display", "block", "important");
-        if (controlRowInner.parentElement === controlsSection) {
+        if (controlRowInner && controlRowInner.parentElement === controlsSection) {
             sideMenuContainer.appendChild(controlRowInner);
             controlRowInner.style.display = "flex";
             controlRowInner.style.flexDirection = "column";
@@ -66,7 +82,7 @@ window.addEventListener("scroll", () => {
         }
     } else {
         hamburgerBtn.style.setProperty("display", "none", "important");
-        if (controlRowInner.parentElement === sideMenuContainer) {
+        if (controlRowInner && controlRowInner.parentElement === sideMenuContainer) {
             controlsSection.insertBefore(controlRowInner, controlsSection.firstChild);
             controlRowInner.style.flexDirection = "row";
             sideMenuContainer.style.setProperty("display", "none", "important");
@@ -75,8 +91,9 @@ window.addEventListener("scroll", () => {
     }
 });
 
-hamburgerBtn.addEventListener("click", (e) => {
+hamburgerBtn?.addEventListener("click", (e) => {
     e.stopPropagation();
+    if (!sideMenuContainer) return;
     if (sideMenuContainer.style.display === "none") {
         sideMenuContainer.style.setProperty("display", "flex", "important");
         sideMenuContainer.dataset.manualToggle = "true";
@@ -87,7 +104,7 @@ hamburgerBtn.addEventListener("click", (e) => {
 });
 
 document.addEventListener("click", (e) => {
-    if (hamburgerBtn.style.display === "block" && sideMenuContainer.style.display === "flex") {
+    if (hamburgerBtn && sideMenuContainer && hamburgerBtn.style.display === "block" && sideMenuContainer.style.display === "flex") {
         if (!sideMenuContainer.contains(e.target) && e.target !== hamburgerBtn) {
             sideMenuContainer.style.setProperty("display", "none", "important");
             sideMenuContainer.dataset.manualToggle = "false";
@@ -96,7 +113,7 @@ document.addEventListener("click", (e) => {
 });
 
 // ==========================================
-// 3. Converter Tool Logic
+// 3. LIVE CURRENCY CONVERTER
 // ==========================================
 const convModal = document.getElementById("converter-modal");
 const convHeader = document.getElementById("converter-header");
@@ -105,64 +122,112 @@ const convInput = document.getElementById("convInput");
 const convOutput = document.getElementById("convOutput");
 const convFrom = document.getElementById("convFrom");
 const convTo = document.getElementById("convTo");
+const convTitleText = document.getElementById("convTitleText");
+const closeConvBtn = document.getElementById("closeConvBtn");
+
+let liveExchangeRates = {};
 
 const convRates = {
-    currency: { USD: 1, INR: 83.5, EUR: 0.92, GBP: 0.79, JPY: 151 },
+    currency: { USD: 1, INR: 83.5, EUR: 0.92, GBP: 0.79, JPY: 151 }, // Fallback
     length: { Meter: 1, Centimeter: 100, Kilometer: 0.001, Inch: 39.37, Foot: 3.281, Mile: 0.000621 },
     weight: { Kilogram: 1, Gram: 1000, Pound: 2.205, Ounce: 35.274 },
     temp: { Celsius: "C", Fahrenheit: "F", Kelvin: "K" }
 };
 
-function populateConvDropdowns() {
+async function fetchLiveRates() {
+    try {
+        if(convTitleText) convTitleText.textContent = "🔄 Fetching Live...";
+        const res = await fetch('https://open.er-api.com/v6/latest/USD');
+        const data = await res.json();
+        liveExchangeRates = data.rates;
+        if(convTitleText) convTitleText.textContent = "🔄 Live Currency";
+    } catch(e) {
+        if(convTitleText) convTitleText.textContent = "🔄 Currency (Offline)";
+    }
+}
+
+async function populateConvDropdowns() {
+    if(!convType || !convFrom || !convTo) return;
     const type = convType.value;
     convFrom.innerHTML = ""; convTo.innerHTML = "";
-    Object.keys(convRates[type]).forEach(k => {
+
+    let ratesObj = convRates[type];
+
+    if (type === 'currency') {
+        if(Object.keys(liveExchangeRates).length === 0) await fetchLiveRates();
+        if(Object.keys(liveExchangeRates).length > 0) ratesObj = liveExchangeRates;
+    }
+
+    Object.keys(ratesObj).forEach(k => {
         convFrom.innerHTML += `<option value="${k}">${k}</option>`;
         convTo.innerHTML += `<option value="${k}">${k}</option>`;
     });
-    if(type === 'currency' && convTo.options.length > 1) convTo.selectedIndex = 1;
+
+    if (type === 'currency') {
+        if (ratesObj['USD']) convFrom.value = 'USD';
+        if (ratesObj['INR']) convTo.value = 'INR';
+    } else if (convTo.options.length > 1) {
+        convTo.selectedIndex = 1;
+    }
+
+    window.currentActiveRates = ratesObj;
     calculateConversion();
 }
 
 function calculateConversion() {
+    if(!convType || !convInput || !convOutput) return;
     const type = convType.value; const val = parseFloat(convInput.value) || 0;
     const from = convFrom.value; const to = convTo.value;
+    
     if (type === 'temp') {
         let c = 0;
         if(from === 'Celsius') c = val; else if(from === 'Fahrenheit') c = (val - 32) * 5/9; else if(from === 'Kelvin') c = val - 273.15;
         if(to === 'Celsius') convOutput.value = c.toFixed(2); else if(to === 'Fahrenheit') convOutput.value = ((c * 9/5) + 32).toFixed(2); else if(to === 'Kelvin') convOutput.value = (c + 273.15).toFixed(2);
     } else {
-        const baseVal = val / convRates[type][from];
-        convOutput.value = (baseVal * convRates[type][to]).toFixed(4);
+        const ratesObj = window.currentActiveRates || convRates[type];
+        if(ratesObj && ratesObj[from] && ratesObj[to]) {
+            const baseVal = val / ratesObj[from];
+            convOutput.value = (baseVal * ratesObj[to]).toFixed(4);
+        }
     }
 }
 
-if(toggleConvBtn) {
-    toggleConvBtn.addEventListener("click", () => { convModal.style.display = convModal.style.display === "none" || convModal.style.display === "" ? "block" : "none"; populateConvDropdowns(); });
-    convType.addEventListener("change", populateConvDropdowns);
-    convInput.addEventListener("input", calculateConversion);
-    convFrom.addEventListener("change", calculateConversion);
-    convTo.addEventListener("change", calculateConversion);
-}
+toggleConvBtn?.addEventListener("click", () => { 
+    if(convModal) {
+        convModal.style.display = convModal.style.display === "none" || convModal.style.display === "" ? "block" : "none"; 
+        if(convModal.style.display === "block") populateConvDropdowns(); 
+    }
+});
+
+convType?.addEventListener("change", populateConvDropdowns);
+convInput?.addEventListener("input", calculateConversion);
+convFrom?.addEventListener("change", calculateConversion);
+convTo?.addEventListener("change", calculateConversion);
+
+closeConvBtn?.addEventListener("pointerdown", (e) => { e.stopPropagation(); if(convModal) convModal.style.display = "none"; });
 
 let isConvDragging = false; let convStartX, convStartY, convInitialX, convInitialY;
-if(convHeader) {
-    convHeader.addEventListener("pointerdown", (e) => { isConvDragging = true; convStartX = e.clientX; convStartY = e.clientY; const rect = convModal.getBoundingClientRect(); convInitialX = rect.left; convInitialY = rect.top; convModal.style.right = "auto"; convModal.style.left = convInitialX + "px"; convModal.style.top = convInitialY + "px"; });
-    document.addEventListener("pointermove", (e) => { if(!isConvDragging) return; convModal.style.left = (convInitialX + e.clientX - convStartX) + "px"; convModal.style.top = (convInitialY + e.clientY - convStartY) + "px"; });
-    document.addEventListener("pointerup", () => isConvDragging = false);
-}
+convHeader?.addEventListener("pointerdown", (e) => { 
+    if(e.target === closeConvBtn) return;
+    isConvDragging = true; convStartX = e.clientX; convStartY = e.clientY; 
+    const rect = convModal.getBoundingClientRect(); convInitialX = rect.left; convInitialY = rect.top; 
+    convModal.style.right = "auto"; convModal.style.left = convInitialX + "px"; convModal.style.top = convInitialY + "px"; 
+});
+document.addEventListener("pointermove", (e) => { if(!isConvDragging || !convModal) return; convModal.style.left = (convInitialX + e.clientX - convStartX) + "px"; convModal.style.top = (convInitialY + e.clientY - convStartY) + "px"; });
+document.addEventListener("pointerup", () => isConvDragging = false);
 
 // ==========================================
-// 4. Calculator Logic
+// 4. CALCULATOR
 // ==========================================
 const calcModal = document.getElementById("calc-modal");
 const calcDisplay = document.getElementById("calc-display");
 const calcHeader = document.getElementById("calc-header");
+const closeCalcBtn = document.getElementById("closeCalcBtn");
 
-toggleCalcBtn.addEventListener("click", () => { calcModal.style.display = calcModal.style.display === "none" || calcModal.style.display === "" ? "block" : "none"; });
-window.calcAppend = (val) => { calcDisplay.value += val; };
-window.calcClear = () => { calcDisplay.value = ""; };
-window.calcCalculate = () => { try { calcDisplay.value = eval(calcDisplay.value); } catch(e) { calcDisplay.value = "Error"; setTimeout(calcClear, 1000); } };
+toggleCalcBtn?.addEventListener("click", () => { if(calcModal) calcModal.style.display = calcModal.style.display === "none" || calcModal.style.display === "" ? "block" : "none"; });
+window.calcAppend = (val) => { if(calcDisplay) calcDisplay.value += val; };
+window.calcClear = () => { if(calcDisplay) calcDisplay.value = ""; };
+window.calcCalculate = () => { if(calcDisplay) { try { calcDisplay.value = eval(calcDisplay.value); } catch(e) { calcDisplay.value = "Error"; setTimeout(calcClear, 1000); } } };
 
 document.addEventListener("keydown", (e) => {
     if (calcModal && calcModal.style.display === "block") {
@@ -170,20 +235,25 @@ document.addEventListener("keydown", (e) => {
         if (/^[0-9\.\+\-\*\/]$/.test(key)) calcAppend(key);
         else if (key === "Enter" || key === "=") { e.preventDefault(); calcCalculate(); } 
         else if (key === "Escape" || key === "Clear" || key === "Delete") calcClear();
-        else if (key === "Backspace") calcDisplay.value = calcDisplay.value.slice(0, -1);
+        else if (key === "Backspace" && calcDisplay) calcDisplay.value = calcDisplay.value.slice(0, -1);
     }
 });
 
-let isCalcDragging = false;
-let calcInitialXCalc, calcInitialYCalc;
-if(calcHeader) {
-    calcHeader.addEventListener("pointerdown", (e) => { isCalcDragging = true; calcStartX = e.clientX; calcStartY = e.clientY; const rect = calcModal.getBoundingClientRect(); calcInitialXCalc = rect.left; calcInitialYCalc = rect.top; calcModal.style.right = "auto"; calcModal.style.left = calcInitialXCalc + "px"; calcModal.style.top = calcInitialYCalc + "px"; });
-    document.addEventListener("pointermove", (e) => { if(!isCalcDragging) return; calcModal.style.left = (calcInitialXCalc + e.clientX - calcStartX) + "px"; calcModal.style.top = (calcInitialYCalc + e.clientY - calcStartY) + "px"; });
-    document.addEventListener("pointerup", () => isCalcDragging = false);
-}
+closeCalcBtn?.addEventListener("pointerdown", (e) => { e.stopPropagation(); if(calcModal) calcModal.style.display = "none"; });
+
+let isCalcDragging = false; let calcInitialXCalc, calcInitialYCalc;
+calcHeader?.addEventListener("pointerdown", (e) => { 
+    if(e.target === closeCalcBtn) return;
+    isCalcDragging = true; calcStartX = e.clientX; calcStartY = e.clientY; 
+    const rect = calcModal.getBoundingClientRect(); calcInitialXCalc = rect.left; calcInitialYCalc = rect.top; 
+    calcModal.style.right = "auto"; calcModal.style.left = calcInitialXCalc + "px"; calcModal.style.top = calcInitialYCalc + "px"; 
+});
+document.addEventListener("pointermove", (e) => { if(!isCalcDragging || !calcModal) return; calcModal.style.left = (calcInitialXCalc + e.clientX - calcStartX) + "px"; calcModal.style.top = (calcInitialYCalc + e.clientY - calcStartY) + "px"; });
+document.addEventListener("pointerup", () => isCalcDragging = false);
+
 
 // ==========================================
-// 5. VYDEX Office (Word, Excel, PPT)
+// 5. VYDEX OFFICE (Word, Excel, PPT)
 // ==========================================
 const officeBox = document.getElementById("office-box");
 const officeTabs = document.querySelectorAll(".office-tab");
@@ -196,68 +266,68 @@ const officeForceFsBtn = document.getElementById("officeForceFsBtn");
 let isOfficeSyncing = false;
 
 if(excelGrid) {
+    let rowsHtml = "";
     for(let r=1; r<=10; r++) {
         let row = `<tr><td style="background:#e0e0e0; font-weight:bold; width:40px; text-align:center;">${r}</td>`;
         for(let c=0; c<5; c++) row += `<td contenteditable="false"></td>`;
         row += `</tr>`;
-        excelGrid.innerHTML += row;
+        rowsHtml += row;
     }
+    excelGrid.innerHTML += rowsHtml;
 }
 
-if(officeTabBtns) {
-    officeTabBtns.forEach(btn => {
-        btn.addEventListener("click", () => {
-            officeTabBtns.forEach(b => b.classList.remove("active-tool"));
-            btn.classList.add("active-tool");
-            officeTabs.forEach(t => t.style.display = "none");
-            document.getElementById(btn.dataset.target).style.display = "block";
-            if(isHost && isOfficeSyncing) socket.emit("office-sync", { room: currentRoom, action: "tab-switch", target: btn.dataset.target });
-        });
+officeTabBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+        officeTabBtns.forEach(b => b.classList.remove("active-tool"));
+        btn.classList.add("active-tool");
+        officeTabs.forEach(t => t.style.display = "none");
+        document.getElementById(btn.dataset.target).style.display = "block";
+        if(isHost && isOfficeSyncing) socket.emit("office-sync", { room: currentRoom, action: "tab-switch", target: btn.dataset.target });
     });
-}
+});
 
-if(officeSyncToggle) {
-    officeSyncToggle.addEventListener("change", (e) => {
-        isOfficeSyncing = e.target.checked;
-        wordEditor.contentEditable = isOfficeSyncing ? "true" : "false";
-        pptEditor.contentEditable = isOfficeSyncing ? "true" : "false";
-        document.querySelectorAll('#excelGrid td[contenteditable]').forEach(td => td.contentEditable = isOfficeSyncing ? "true" : "false");
-        document.getElementById("office-word").firstElementChild.style.display = isOfficeSyncing ? "flex" : "none";
-        if(isOfficeSyncing) emitOfficeData();
-    });
-}
+officeSyncToggle?.addEventListener("change", (e) => {
+    isOfficeSyncing = e.target.checked;
+    if(wordEditor) wordEditor.contentEditable = isOfficeSyncing ? "true" : "false";
+    if(pptEditor) pptEditor.contentEditable = isOfficeSyncing ? "true" : "false";
+    document.querySelectorAll('#excelGrid td[contenteditable]').forEach(td => td.contentEditable = isOfficeSyncing ? "true" : "false");
+    
+    const wordToolbar = document.getElementById("office-word")?.firstElementChild;
+    if(wordToolbar) wordToolbar.style.display = isOfficeSyncing ? "flex" : "none";
+    if(isOfficeSyncing) emitOfficeData();
+});
 
 function emitOfficeData() {
     if(!isHost || !isOfficeSyncing) return;
     socket.emit("office-sync", {
         room: currentRoom, action: "content-update",
-        wordData: wordEditor.innerHTML, pptData: pptEditor.innerHTML,
-        excelData: Array.from(excelGrid.rows).slice(1).map(r => Array.from(r.cells).slice(1).map(c => c.innerHTML))
+        wordData: wordEditor?.innerHTML || "", 
+        pptData: pptEditor?.innerHTML || "",
+        excelData: excelGrid ? Array.from(excelGrid.rows).slice(1).map(r => Array.from(r.cells).slice(1).map(c => c.innerHTML)) : []
     });
 }
 
-if(wordEditor) wordEditor.addEventListener("input", emitOfficeData);
-if(pptEditor) pptEditor.addEventListener("input", emitOfficeData);
-if(excelGrid) excelGrid.addEventListener("input", emitOfficeData);
+wordEditor?.addEventListener("input", emitOfficeData);
+pptEditor?.addEventListener("input", emitOfficeData);
+excelGrid?.addEventListener("input", emitOfficeData);
 
 const officeDownloadBtn = document.getElementById("officeDownloadBtn");
-if(officeDownloadBtn) {
-    officeDownloadBtn.addEventListener("click", () => {
-        let activeTab = Array.from(officeTabs).find(t => t.style.display === "block").id;
-        let content = "", ext = "", mime = "";
-        if(activeTab === 'office-word') { content = wordEditor.innerText; ext = "txt"; mime = "text/plain"; }
-        if(activeTab === 'office-ppt') { content = pptEditor.innerText; ext = "txt"; mime = "text/plain"; }
-        if(activeTab === 'office-excel') {
-            content = Array.from(excelGrid.rows).map(r => Array.from(r.cells).map(c => c.innerText).join(",")).join("\n");
-            ext = "csv"; mime = "text/csv";
-        }
-        const blob = new Blob([content], { type: mime }); const url = URL.createObjectURL(blob);
-        const a = document.createElement("a"); a.href = url; a.download = `VYDEX_Document.${ext}`; a.click();
-    });
-}
+officeDownloadBtn?.addEventListener("click", () => {
+    let activeTab = Array.from(officeTabs).find(t => t.style.display === "block")?.id;
+    let content = "", ext = "", mime = "";
+    if(activeTab === 'office-word') { content = wordEditor?.innerText || ""; ext = "txt"; mime = "text/plain"; }
+    if(activeTab === 'office-ppt') { content = pptEditor?.innerText || ""; ext = "txt"; mime = "text/plain"; }
+    if(activeTab === 'office-excel' && excelGrid) {
+        content = Array.from(excelGrid.rows).map(r => Array.from(r.cells).map(c => c.innerText).join(",")).join("\n");
+        ext = "csv"; mime = "text/csv";
+    }
+    const blob = new Blob([content], { type: mime }); const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `VYDEX_Document.${ext}`; a.click();
+});
+
 
 // ==========================================
-// 6. Forced Locked Fullscreen & PiP Logic
+// 6. FORCED FULLSCREEN & PiP ENGINE
 // ==========================================
 function applyForcedFullscreen(targetId, isActive) {
     const targetEl = document.getElementById(targetId);
@@ -266,7 +336,6 @@ function applyForcedFullscreen(targetId, isActive) {
     if (isActive) {
         document.body.classList.add("no-scroll");
         targetEl.classList.add("locked-fullscreen");
-        
         if (!isHost && globalHostUid) {
             const hostWrapper = document.getElementById(`remote-wrapper-${globalHostUid}`);
             if (hostWrapper) hostWrapper.classList.add("host-pip");
@@ -284,155 +353,104 @@ function applyForcedFullscreen(targetId, isActive) {
 }
 
 const wbForceFsBtn = document.getElementById("wbForceFsBtn");
-if(wbForceFsBtn) {
-    wbForceFsBtn.addEventListener("click", (e) => {
-        const isForced = e.target.dataset.forced === "true";
-        socket.emit("force-screen", { room: currentRoom, target: "whiteboard-box", active: !isForced });
-        e.target.dataset.forced = !isForced ? "true" : "false";
-        e.target.textContent = !isForced ? "🔓 Unlock Audience" : "🔒 Force Fullscreen";
-        e.target.style.background = !isForced ? "#2ecc71" : "#e74c3c";
-    });
-}
+wbForceFsBtn?.addEventListener("click", (e) => {
+    const isForced = e.target.dataset.forced === "true";
+    socket.emit("force-screen", { room: currentRoom, target: "whiteboard-box", active: !isForced });
+    e.target.dataset.forced = !isForced ? "true" : "false";
+    e.target.textContent = !isForced ? "🔓 Unlock Audience" : "🔒 Force Fullscreen";
+    e.target.style.background = !isForced ? "#2ecc71" : "#e74c3c";
+});
 
-if(officeForceFsBtn) {
-    officeForceFsBtn.addEventListener("click", (e) => {
-        const isForced = e.target.dataset.forced === "true";
-        socket.emit("force-screen", { room: currentRoom, target: "office-box", active: !isForced });
-        e.target.dataset.forced = !isForced ? "true" : "false";
-        e.target.textContent = !isForced ? "🔓 Unlock Audience" : "🔒 Force Fullscreen";
-        e.target.style.background = !isForced ? "#2ecc71" : "#e74c3c";
-    });
-}
+officeForceFsBtn?.addEventListener("click", (e) => {
+    const isForced = e.target.dataset.forced === "true";
+    socket.emit("force-screen", { room: currentRoom, target: "office-box", active: !isForced });
+    e.target.dataset.forced = !isForced ? "true" : "false";
+    e.target.textContent = !isForced ? "🔓 Unlock Audience" : "🔒 Force Fullscreen";
+    e.target.style.background = !isForced ? "#2ecc71" : "#e74c3c";
+});
 
-socket.on("force-screen", (data) => { if (!isHost) applyForcedFullscreen(data.target, data.active); });
 
 // ==========================================
-// 7. Math Modal
-// ==========================================
-const mathModal = document.getElementById("math-modal");
-const mathInput = document.getElementById("mathInput");
-const mathExplanationInput = document.getElementById("mathExplanationInput");
-const broadcastMathBtn = document.getElementById("broadcastMathBtn");
-const closeMathBtn = document.getElementById("closeMathBtn");
-const mathDisplay = document.getElementById("mathDisplay");
-const mathCategory = document.getElementById("mathCategory");
-const formulaLibrary = document.getElementById("formulaLibrary");
-
-const formulas = {
-    algebra: [ {name: "Quadratic", eq: "x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}", desc: "Roots of a quadratic eq."}, {name: "Logarithm", eq: "\\log_b(xy) = \\log_b(x) + \\log_b(y)", desc: "Log product rule."}, {name: "Binomial", eq: "(a+b)^n = \\sum_{k=0}^{n} \\binom{n}{k} a^{n-k} b^k", desc: "Binomial theorem expansion."} ],
-    calculus: [ {name: "Derivative", eq: "f'(x) = \\lim_{h \\to 0} \\frac{f(x+h)-f(x)}{h}", desc: "First principle of derivatives."}, {name: "Integral", eq: "\\int x^n dx = \\frac{x^{n+1}}{n+1} + C", desc: "Power rule for integration."}, {name: "Limits (e)", eq: "\\lim_{x \\to \\infty} \\left(1 + \\frac{1}{x}\\right)^x = e", desc: "Euler's number limit."} ],
-    trigonometry: [ {name: "Pythagorean ID", eq: "\\sin^2\\theta + \\cos^2\\theta = 1", desc: "Fundamental trig identity."}, {name: "Sine Rule", eq: "\\frac{a}{\\sin A} = \\frac{b}{\\sin B} = \\frac{c}{\\sin C}", desc: "Triangle sine rule."} ],
-    physics: [ {name: "Force", eq: "F = ma", desc: "Newton's 2nd Law."}, {name: "Mass-Energy", eq: "E = mc^2", desc: "Einstein's Equation."}, {name: "Gravity", eq: "F = G \\frac{m_1 m_2}{r^2}", desc: "Newton's Law."} ],
-    financial: [ {name: "Compound Int.", eq: "A = P\\left(1 + \\frac{r}{n}\\right)^{nt}", desc: "Compound interest."} ],
-    statistics: [ {name: "Mean", eq: "\\mu = \\frac{\\sum x_i}{N}", desc: "Population Mean."}, {name: "Std Deviation", eq: "\\sigma = \\sqrt{\\frac{\\sum (x_i - \\mu)^2}{N}}", desc: "Standard Deviation."} ]
-};
-
-let currentFormulaDesc = "";
-function loadFormulas(category) {
-    if(!formulaLibrary) return;
-    formulaLibrary.innerHTML = "";
-    formulas[category].forEach(f => {
-        const btn = document.createElement("button"); btn.textContent = f.name;
-        btn.style.cssText = "background: rgba(255,255,255,0.1); color: white; border: 1px solid var(--accent); padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;";
-        btn.onclick = () => { mathInput.value = f.eq; currentFormulaDesc = f.desc; mathExplanationInput.textContent = "ℹ️ " + f.desc; };
-        formulaLibrary.appendChild(btn);
-    });
-}
-if(mathCategory) { mathCategory.addEventListener("change", (e) => loadFormulas(e.target.value)); loadFormulas("algebra"); }
-if(mathInput) { mathInput.addEventListener("input", () => { currentFormulaDesc = "Custom User Equation"; mathExplanationInput.textContent = ""; }); }
-if(openMathBtn) { openMathBtn.addEventListener("click", () => mathModal.style.display = "block"); }
-if(closeMathBtn) { closeMathBtn.addEventListener("click", () => mathModal.style.display = "none"); }
-if(broadcastMathBtn) {
-    broadcastMathBtn.addEventListener("click", () => {
-        const eq = mathInput.value.trim(); if(!eq) return;
-        try { katex.renderToString(eq); socket.emit("math-equation", { room: currentRoom, equation: eq, desc: currentFormulaDesc, sender: usernameInput.value || "User" }); mathInput.value = ""; mathExplanationInput.textContent = ""; } 
-        catch(e) { showNotification("Invalid LaTeX Formula!", "danger"); }
-    });
-}
-
-// ==========================================
-// 8. Presentation (Graphs)
+// 7. PRESENTATION (Graphs)
 // ==========================================
 const presentationBox = document.getElementById("presentation-box");
-const presInputForm = document.getElementById("pres-input-form");
-const generateGraphBtn = document.getElementById("generateGraphBtn");
-const presTitle = document.getElementById("pres-title");
-const presentationContainer = document.getElementById("presentation-container");
-const laserPointer = document.getElementById("laser-pointer");
 const presMode = document.getElementById("presMode");
 const companyInputs = document.getElementById("companyInputs");
 const productInputs = document.getElementById("productInputs");
+const generateGraphBtn = document.getElementById("generateGraphBtn");
 const presCurrency = document.getElementById("presCurrency");
 const viewGraphBtn = document.getElementById("viewGraphBtn");
 const viewExcelBtn = document.getElementById("viewExcelBtn");
-const canvasElem = document.getElementById("presentationCanvas");
 const excelContainer = document.getElementById("excel-container");
+const canvasElem = document.getElementById("presentationCanvas");
 const excelTable = document.getElementById("excelTable");
+const presTitle = document.getElementById("pres-title");
+const presentationContainer = document.getElementById("presentation-container");
+const laserPointer = document.getElementById("laser-pointer");
+
 let businessChart = null;
-let currentChartData = null;
 
-if(presMode) {
-    presMode.addEventListener("change", (e) => {
-        if(e.target.value === "company") { companyInputs.style.display = "flex"; productInputs.style.display = "none"; } 
-        else { companyInputs.style.display = "none"; productInputs.style.display = "flex"; }
-    });
-}
+presMode?.addEventListener("change", (e) => {
+    if(e.target.value === "company") { if(companyInputs) companyInputs.style.display = "flex"; if(productInputs) productInputs.style.display = "none"; } 
+    else { if(companyInputs) companyInputs.style.display = "none"; if(productInputs) productInputs.style.display = "flex"; }
+});
 
-if(generateGraphBtn) {
-    generateGraphBtn.addEventListener("click", () => {
-        const industry = document.getElementById("presIndustry").value || (presMode.value==='company'?"Business":"Product");
-        const currency = presCurrency.value; const mode = presMode.value;
-        const growth = parseFloat(document.getElementById("presGrowth").value) || 10;
-        let baseYear = parseInt(document.getElementById("presBaseYear").value) || new Date().getFullYear();
-        let endYear = parseInt(document.getElementById("presEndYear").value) || baseYear + 5;
-        if(baseYear < 2001) baseYear = 2001; if(baseYear > 2500) baseYear = 2500;
-        if(endYear < 2001) endYear = 2001; if(endYear > 2500) endYear = 2500; if(endYear < baseYear) endYear = baseYear + 5;
+generateGraphBtn?.addEventListener("click", () => {
+    const industry = document.getElementById("presIndustry")?.value || (presMode.value==='company'?"Business":"Product");
+    const currency = presCurrency?.value || "$";
+    const mode = presMode?.value || "company";
+    const growth = parseFloat(document.getElementById("presGrowth")?.value) || 10;
+    
+    let baseYear = parseInt(document.getElementById("presBaseYear")?.value) || new Date().getFullYear();
+    let endYear = parseInt(document.getElementById("presEndYear")?.value) || baseYear + 5;
+    if(baseYear < 2001) baseYear = 2001; if(baseYear > 2500) baseYear = 2500;
+    if(endYear < 2001) endYear = 2001; if(endYear > 2500) endYear = 2500; if(endYear < baseYear) endYear = baseYear + 5;
 
-        let labels = []; let revenues = []; let unitsArr = []; let currentRevenue = 0; let currentUnits = 0; let unitPrice = 0;
-        if(mode === "company") {
-            currentRevenue = parseFloat(document.getElementById("presBaseValue").value) || 1000;
-            for(let y = baseYear; y <= endYear; y++) { labels.push(y.toString()); revenues.push(Math.round(currentRevenue)); currentRevenue += (currentRevenue * (growth / 100)); }
-        } else {
-            unitPrice = parseFloat(document.getElementById("presUnitPrice").value) || 50; currentUnits = parseFloat(document.getElementById("presUnitsSold").value) || 100;
-            for(let y = baseYear; y <= endYear; y++) {
-                labels.push(y.toString()); let rev = unitPrice * currentUnits; revenues.push(Math.round(rev)); unitsArr.push(Math.round(currentUnits));
-                currentUnits += (currentUnits * (growth / 100)); 
-            }
+    let labels = []; let revenues = []; let unitsArr = []; let currentRevenue = 0; let currentUnits = 0; let unitPrice = 0;
+
+    if(mode === "company") {
+        currentRevenue = parseFloat(document.getElementById("presBaseValue")?.value) || 1000;
+        for(let y = baseYear; y <= endYear; y++) { labels.push(y.toString()); revenues.push(Math.round(currentRevenue)); currentRevenue += (currentRevenue * (growth / 100)); }
+    } else {
+        unitPrice = parseFloat(document.getElementById("presUnitPrice")?.value) || 50;
+        currentUnits = parseFloat(document.getElementById("presUnitsSold")?.value) || 100;
+        for(let y = baseYear; y <= endYear; y++) {
+            labels.push(y.toString()); let rev = unitPrice * currentUnits; revenues.push(Math.round(rev)); unitsArr.push(Math.round(currentUnits));
+            currentUnits += (currentUnits * (growth / 100)); 
         }
+    }
 
-        const chartConfig = {
-            type: 'line',
-            data: { labels: labels, datasets: [{ label: `${industry} Projected Growth (${currency})`, data: revenues, borderColor: '#2ecc71', backgroundColor: 'rgba(46, 204, 113, 0.2)', borderWidth: 3, fill: true, tension: 0.4, pointBackgroundColor: '#e74c3c', pointRadius: 6 }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { font: { size: 16 } } } }, scales: { y: { beginAtZero: true, ticks: { font: { size: 14 } } }, x: { ticks: { font: { size: 14 } } } } }
-        };
-        
-        let tableHTML = `<tr><th>Year</th>`;
-        if(mode === "product") tableHTML += `<th>Units Sold</th><th>Unit Price</th>`;
-        tableHTML += `<th>Revenue (${currency})</th></tr>`;
-        for(let i=0; i<labels.length; i++) {
-            tableHTML += `<tr><td>${labels[i]}</td>`;
-            if(mode === "product") tableHTML += `<td>${unitsArr[i].toLocaleString()}</td><td>${currency}${unitPrice.toLocaleString()}</td>`;
-            tableHTML += `<td><strong style="color:var(--primary)">${currency}${revenues[i].toLocaleString()}</strong></td></tr>`;
-        }
-        socket.emit("presentation-data", { room: currentRoom, chartConfig, industry, tableHTML, view: 'chart' });
-    });
-}
+    const chartConfig = {
+        type: 'line',
+        data: { labels: labels, datasets: [{ label: `${industry} Projected Growth (${currency})`, data: revenues, borderColor: '#2ecc71', backgroundColor: 'rgba(46, 204, 113, 0.2)', borderWidth: 3, fill: true, tension: 0.4, pointBackgroundColor: '#e74c3c', pointRadius: 6 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { font: { size: 16 } } } }, scales: { y: { beginAtZero: true, ticks: { font: { size: 14 } } }, x: { ticks: { font: { size: 14 } } } } }
+    };
+    
+    let tableHTML = `<tr><th>Year</th>`;
+    if(mode === "product") tableHTML += `<th>Units Sold</th><th>Unit Price</th>`;
+    tableHTML += `<th>Revenue (${currency})</th></tr>`;
+    for(let i=0; i<labels.length; i++) {
+        tableHTML += `<tr><td>${labels[i]}</td>`;
+        if(mode === "product") tableHTML += `<td>${unitsArr[i].toLocaleString()}</td><td>${currency}${unitPrice.toLocaleString()}</td>`;
+        tableHTML += `<td><strong style="color:var(--primary)">${currency}${revenues[i].toLocaleString()}</strong></td></tr>`;
+    }
+    socket.emit("presentation-data", { room: currentRoom, chartConfig, industry, tableHTML, view: 'chart' });
+});
 
-if(viewGraphBtn) viewGraphBtn.addEventListener("click", () => { socket.emit("pres-view-switch", {room: currentRoom, view: 'chart'}); });
-if(viewExcelBtn) viewExcelBtn.addEventListener("click", () => { socket.emit("pres-view-switch", {room: currentRoom, view: 'excel'}); });
+viewGraphBtn?.addEventListener("click", () => { socket.emit("pres-view-switch", {room: currentRoom, view: 'chart'}); });
+viewExcelBtn?.addEventListener("click", () => { socket.emit("pres-view-switch", {room: currentRoom, view: 'excel'}); });
 
 let laserTimeout;
-if(presentationContainer) {
-    presentationContainer.addEventListener("pointermove", (e) => {
-        if(!isHost || presentationBox.style.display === "none") return;
-        const rect = presentationContainer.getBoundingClientRect();
-        socket.emit("laser-pointer", { room: currentRoom, x: (e.clientX - rect.left) / rect.width, y: (e.clientY - rect.top) / rect.height });
-    });
-    presentationContainer.addEventListener("pointerleave", () => { if(isHost) socket.emit("laser-pointer", { room: currentRoom, hide: true }); });
-}
+presentationContainer?.addEventListener("pointermove", (e) => {
+    if(!isHost || presentationBox.style.display === "none") return;
+    const rect = presentationContainer.getBoundingClientRect();
+    socket.emit("laser-pointer", { room: currentRoom, x: (e.clientX - rect.left) / rect.width, y: (e.clientY - rect.top) / rect.height });
+});
+presentationContainer?.addEventListener("pointerleave", () => { if(isHost) socket.emit("laser-pointer", { room: currentRoom, hide: true }); });
+
 
 // ==========================================
-// 9. Dual-Layer Whiteboard & Multi-PDF Logic
+// 8. DUAL-LAYER WHITEBOARD
 // ==========================================
 const whiteboardBox = document.getElementById("whiteboard-box");
 const canvas = document.getElementById('whiteboard');
@@ -478,18 +496,18 @@ function loadPage(index) {
     if(isHost) socket.emit("wb-page-sync", { room: currentRoom, imageBg: wbPagesBg[currentWbPage], imageFg: wbPagesFg[currentWbPage], num: currentWbPage + 1, total: wbPagesBg.length });
 }
 
-if(wbAddPageBtn) {
-    wbAddPageBtn.addEventListener("click", () => {
-        saveCurrentPage(); wbPagesBg.push(''); wbPagesFg.push(''); 
-        currentWbPage = wbPagesBg.length - 1;
-        wbPageNumText.textContent = `${currentWbPage + 1} / ${wbPagesBg.length}`;
-        bgCtx.fillStyle = "#ffffff"; bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height); ctx.clearRect(0, 0, canvas.width, canvas.height);
-        showNotification("Created new whiteboard page!", "info");
-        socket.emit("wb-page-sync", { room: currentRoom, imageBg: '', imageFg: '', num: currentWbPage + 1, total: wbPagesBg.length });
-    });
-}
-if(wbPrevPageBtn) wbPrevPageBtn.addEventListener("click", () => loadPage(currentWbPage - 1)); 
-if(wbNextPageBtn) wbNextPageBtn.addEventListener("click", () => loadPage(currentWbPage + 1)); 
+wbAddPageBtn?.addEventListener("click", () => {
+    saveCurrentPage(); wbPagesBg.push(''); wbPagesFg.push(''); 
+    currentWbPage = wbPagesBg.length - 1;
+    if(wbPageNumText) wbPageNumText.textContent = `${currentWbPage + 1} / ${wbPagesBg.length}`;
+    if(bgCtx) { bgCtx.fillStyle = "#ffffff"; bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height); }
+    if(ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    showNotification("Created new whiteboard page!", "info");
+    socket.emit("wb-page-sync", { room: currentRoom, imageBg: '', imageFg: '', num: currentWbPage + 1, total: wbPagesBg.length });
+});
+
+wbPrevPageBtn?.addEventListener("click", () => loadPage(currentWbPage - 1)); 
+wbNextPageBtn?.addEventListener("click", () => loadPage(currentWbPage + 1)); 
 
 const toggleShapesBtn = document.getElementById("toggleShapesBtn");
 const wbShapesMenu = document.getElementById("wb-shapes-menu");
@@ -497,12 +515,8 @@ const toggleSubjectsBtn = document.getElementById("toggleSubjectsBtn");
 const wbSubjectsMenu = document.getElementById("wb-subjects-menu");
 const wbEraserMenu = document.getElementById("wb-eraser-menu");
 
-if(toggleShapesBtn) {
-    toggleShapesBtn.addEventListener("click", () => { wbShapesMenu.style.display = wbShapesMenu.style.display === "none" ? "block" : "none"; wbSubjectsMenu.style.display = "none"; wbEraserMenu.style.display = "none"; });
-}
-if(toggleSubjectsBtn) {
-    toggleSubjectsBtn.addEventListener("click", () => { wbSubjectsMenu.style.display = wbSubjectsMenu.style.display === "none" ? "block" : "none"; wbShapesMenu.style.display = "none"; wbEraserMenu.style.display = "none"; });
-}
+toggleShapesBtn?.addEventListener("click", () => { if(wbShapesMenu) wbShapesMenu.style.display = wbShapesMenu.style.display === "none" ? "block" : "none"; if(wbSubjectsMenu) wbSubjectsMenu.style.display = "none"; if(wbEraserMenu) wbEraserMenu.style.display = "none"; });
+toggleSubjectsBtn?.addEventListener("click", () => { if(wbSubjectsMenu) wbSubjectsMenu.style.display = wbSubjectsMenu.style.display === "none" ? "block" : "none"; if(wbShapesMenu) wbShapesMenu.style.display = "none"; if(wbEraserMenu) wbEraserMenu.style.display = "none"; });
 
 const subjectAssets = {
     geography: [ {name: "World Map", url: "assets/subjects/world_map.pdf"}, {name: "India Political", url: "assets/subjects/india_political.pdf"}, {name: "India Physical", url: "assets/subjects/india_physical.pdf"}, {name: "Solar System", url: "assets/subjects/solar_system.pdf"}, {name: "Earth Layers", url: "assets/subjects/earth_layers.pdf"}, {name: "Water Cycle", url: "assets/subjects/water_cycle.pdf"} ],
@@ -524,7 +538,7 @@ function prepareStamp(src) {
         isStamping = true; currentTool = 'stamp';
         document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active-tool'));
         showNotification("🖱️ Ready! Scroll to resize, Click to paste.", "info");
-        canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); 
+        if(ctx) canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); 
     };
     img.onerror = () => showNotification("Image error. File missing in folder.", "danger");
     img.src = src; 
@@ -536,6 +550,7 @@ async function loadAssetToCanvas(url, name) {
         const lowerUrl = url.toLowerCase();
         if (lowerUrl.endsWith('.png') || lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg')) { prepareStamp(url); if(wbSubjectsMenu) wbSubjectsMenu.style.display = "none"; } 
         else if (lowerUrl.endsWith('.pdf')) {
+            if(typeof pdfjsLib === 'undefined') return;
             const pdf = await pdfjsLib.getDocument(url).promise; const page = await pdf.getPage(1); const viewport = page.getViewport({scale: 2.0}); 
             const tc = document.createElement('canvas'); const tCtx = tc.getContext('2d'); tc.height = viewport.height; tc.width = viewport.width;
             await page.render({canvasContext: tCtx, viewport: viewport}).promise; prepareStamp(tc.toDataURL("image/jpeg", 0.8));
@@ -547,6 +562,7 @@ async function loadAssetToCanvas(url, name) {
 function loadSubjectAssets(cat) {
     if(!subjectAssetsList) return;
     subjectAssetsList.innerHTML = "";
+    if(!subjectAssets[cat]) return;
     subjectAssets[cat].forEach(asset => {
         const btn = document.createElement("button"); btn.textContent = "➕ Insert " + asset.name;
         btn.style.cssText = "background: rgba(255,255,255,0.1); color: white; border: 1px solid var(--accent); padding: 8px; border-radius: 6px; cursor: pointer; text-align: left; font-size: 13px;";
@@ -554,10 +570,8 @@ function loadSubjectAssets(cat) {
     });
 }
 
-if(subjectCategory) {
-    subjectCategory.addEventListener("change", (e) => loadSubjectAssets(e.target.value));
-    loadSubjectAssets("geography");
-}
+subjectCategory?.addEventListener("change", (e) => loadSubjectAssets(e.target.value));
+loadSubjectAssets("geography");
 
 document.querySelectorAll('.tool-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -583,16 +597,14 @@ const wbColorInput = document.getElementById('wb-color');
 const wbSizeInput = document.getElementById('wb-size');
 const wbClearBtn = document.getElementById('wb-clear');
 
-if(wbColorInput) wbColorInput.addEventListener("input", (e) => { currentBrushColor = e.target.value; });
-if(wbSizeInput) wbSizeInput.addEventListener("input", (e) => { currentBrushSize = e.target.value; });
-if(wbClearBtn) {
-    wbClearBtn.addEventListener("click", () => {
-        if (!canDraw || !ctx || !canvas) return; 
-        ctx.clearRect(0, 0, canvas.width, canvas.height); 
-        socket.emit("clear-whiteboard", { room: currentRoom });
-        wbPagesFg[currentWbPage] = canvas.toDataURL("image/png", 0.5); showNotification("Annotations cleared. Background kept intact.", "info");
-    });
-}
+wbColorInput?.addEventListener("input", (e) => { currentBrushColor = e.target.value; });
+wbSizeInput?.addEventListener("input", (e) => { currentBrushSize = e.target.value; });
+wbClearBtn?.addEventListener("click", () => {
+    if (!canDraw || !ctx || !canvas) return; 
+    ctx.clearRect(0, 0, canvas.width, canvas.height); 
+    socket.emit("clear-whiteboard", { room: currentRoom });
+    wbPagesFg[currentWbPage] = canvas.toDataURL("image/png", 0.5); showNotification("Annotations cleared. Background kept intact.", "info");
+});
 
 function getCanvasPoint(e) { const rect = canvas.getBoundingClientRect(); const scaleX = canvas.width / rect.width; const scaleY = canvas.height / rect.height; return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY }; }
 
@@ -600,8 +612,9 @@ if(canvas) {
     canvas.addEventListener('wheel', (e) => {
         if (isStamping && stampImage) {
             e.preventDefault(); if (e.deltaY < 0) stampScale *= 1.1; else stampScale *= 0.9; 
-            const pt = getCanvasPoint(e); ctx.putImageData(canvasSnapshot, 0, 0);
-            let w = stampImage.width * stampScale; let h = stampImage.height * stampScale; ctx.globalAlpha = 0.6; ctx.drawImage(stampImage, pt.x - w/2, pt.y - h/2, w, h); ctx.globalAlpha = 1.0;
+            const pt = getCanvasPoint(e); if(ctx) ctx.putImageData(canvasSnapshot, 0, 0);
+            let w = stampImage.width * stampScale; let h = stampImage.height * stampScale;
+            if(ctx) { ctx.globalAlpha = 0.6; ctx.drawImage(stampImage, pt.x - w/2, pt.y - h/2, w, h); ctx.globalAlpha = 1.0; }
         }
     }, {passive: false});
 
@@ -612,26 +625,29 @@ if(canvas) {
       
       const pt = getCanvasPoint(e);
       if (isStamping && stampImage && !isRightClickErasing) {
-          ctx.putImageData(canvasSnapshot, 0, 0); let w = stampImage.width * stampScale; let h = stampImage.height * stampScale;
-          bgCtx.drawImage(stampImage, pt.x - w/2, pt.y - h/2, w, h);
+          if(ctx) ctx.putImageData(canvasSnapshot, 0, 0); let w = stampImage.width * stampScale; let h = stampImage.height * stampScale;
+          if(bgCtx) bgCtx.drawImage(stampImage, pt.x - w/2, pt.y - h/2, w, h);
           let tempCanvas = document.createElement("canvas"); let syncScale = Math.min(1, 800 / Math.max(w, h)); tempCanvas.width = w * syncScale; tempCanvas.height = h * syncScale; let tCtx = tempCanvas.getContext("2d");
           tCtx.fillStyle = "#ffffff"; tCtx.fillRect(0,0, tempCanvas.width, tempCanvas.height); tCtx.drawImage(stampImage, 0, 0, tempCanvas.width, tempCanvas.height);
           let sendSrc = tempCanvas.toDataURL("image/jpeg", 0.5); 
           socket.emit("wb-stamp", { room: currentRoom, image: sendSrc, x: pt.x - w/2, y: pt.y - h/2, w: w, h: h });
-          wbPagesBg[currentWbPage] = bgCanvas.toDataURL("image/jpeg", 0.5);
-          isStamping = false; currentTool = 'pen'; document.getElementById('tool-pen').classList.add('active-tool');
-          canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); showNotification("Stamped successfully!", "join"); return;
+          if(bgCanvas) wbPagesBg[currentWbPage] = bgCanvas.toDataURL("image/jpeg", 0.5);
+          isStamping = false; currentTool = 'pen'; document.getElementById('tool-pen')?.classList.add('active-tool');
+          if(ctx) canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); showNotification("Stamped successfully!", "join"); return;
       }
 
       if(currentTool === 'pointer') return; 
       if(currentTool === 'fill') { floodFill(pt.x, pt.y, currentBrushColor, true); return; }
-      drawing = true; startX = pt.x; startY = pt.y; canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      drawing = true; startX = pt.x; startY = pt.y; if(ctx) canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
     });
 
     canvas.addEventListener('pointermove', (e) => {
       if (!canDraw) return;
       const pt = getCanvasPoint(e);
-      if (isStamping && stampImage && !isRightClickErasing) { ctx.putImageData(canvasSnapshot, 0, 0); let w = stampImage.width * stampScale; let h = stampImage.height * stampScale; ctx.globalAlpha = 0.6; ctx.drawImage(stampImage, pt.x - w/2, pt.y - h/2, w, h); ctx.globalAlpha = 1.0; return; }
+      if (isStamping && stampImage && !isRightClickErasing) { 
+          if(ctx) { ctx.putImageData(canvasSnapshot, 0, 0); let w = stampImage.width * stampScale; let h = stampImage.height * stampScale; ctx.globalAlpha = 0.6; ctx.drawImage(stampImage, pt.x - w/2, pt.y - h/2, w, h); ctx.globalAlpha = 1.0; }
+          return; 
+      }
       if(currentTool === 'pointer') { socket.emit("wb-pointer", { room: currentRoom, x: pt.x / canvas.width, y: pt.y / canvas.height }); return; }
       if (!drawing || currentTool === 'fill') return;
       if(['pen', 'brush', 'spray', 'eraser'].includes(currentTool)) {
@@ -639,7 +655,7 @@ if(canvas) {
           let activeSize = currentTool === 'eraser' ? currentEraserSize : (currentBrushSize * pressureMult); if(activeSize < 1) activeSize = 1;
           drawFreehand(startX, startY, pt.x, pt.y, currentBrushColor, activeSize, currentTool, true); startX = pt.x; startY = pt.y;
       } else {
-          ctx.putImageData(canvasSnapshot, 0, 0); drawShapeObj(startX, startY, pt.x, pt.y, currentTool, currentBrushColor, currentBrushSize, false);
+          if(ctx) ctx.putImageData(canvasSnapshot, 0, 0); drawShapeObj(startX, startY, pt.x, pt.y, currentTool, currentBrushColor, currentBrushSize, false);
       }
     });
 
@@ -647,7 +663,7 @@ if(canvas) {
       if (drawing && canDraw && currentTool !== 'pointer' && currentTool !== 'fill') {
           drawing = false; const pt = getCanvasPoint(e);
           if(!['pen', 'brush', 'spray', 'eraser'].includes(currentTool)) { drawShapeObj(startX, startY, pt.x, pt.y, currentTool, currentBrushColor, currentBrushSize, true); }
-          ctx.shadowBlur = 0; wbPagesFg[currentWbPage] = canvas.toDataURL("image/png", 0.5);
+          if(ctx) ctx.shadowBlur = 0; wbPagesFg[currentWbPage] = canvas.toDataURL("image/png", 0.5);
       }
       if (isRightClickErasing) { currentTool = prevToolState; isRightClickErasing = false; }
     });
@@ -731,10 +747,10 @@ function drawShapeObj(x0, y0, x1, y1, type, color, size, emit = false) {
   ctx.stroke(); if (emit) socket.emit('drawing', { type: type, x0, y0, x1, y1, color, size, room: currentRoom });
 }
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 const wbPdfUpload = document.getElementById('wbPdfUpload');
-if(wbPdfUpload) {
-    document.getElementById('tool-pdf').addEventListener("click", () => wbPdfUpload.click());
+if(wbPdfUpload && typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    document.getElementById('tool-pdf')?.addEventListener("click", () => wbPdfUpload.click());
     wbPdfUpload.addEventListener('change', async (e) => {
       const file = e.target.files[0]; if(!file) return; 
       if (file.type.startsWith('image/')) {
@@ -768,10 +784,10 @@ if(wbPdfUpload) {
 }
 
 // ==========================================
-// 10. Map Logic
+// 10. MAPS
 // ==========================================
 function initWorldMap() {
-  if(!document.getElementById('map-container')) return;
+  if(!document.getElementById('map-container') || typeof L === 'undefined') return;
   geoMap = L.map('map-container', { center: [20.0, 0.0], zoom: 3, zoomControl: false });
   L.control.zoom({ position: 'bottomleft' }).addTo(geoMap);
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '&copy; Esri', crossOrigin: true }).addTo(geoMap);
@@ -783,22 +799,20 @@ function initWorldMap() {
 initWorldMap();
 document.getElementById("toggleLabelsBtn")?.addEventListener("click", function() { labelsVisible = !labelsVisible; if (labelsVisible) { geoMap.addLayer(labelsLayer); this.style.background = "var(--primary)"; } else { geoMap.removeLayer(labelsLayer); this.style.background = "var(--danger)"; } });
 
-// ==========================================
-// 11. Agora WebRTC & Socket Handlers
-// ==========================================
-function showNotification(message, type = 'info') { const container = document.getElementById('notification-container'); if (!container) return; const toast = document.createElement('div'); toast.className = `toast toast-${type}`; toast.innerHTML = `<span>${message}</span>`; container.appendChild(toast); setTimeout(() => { toast.classList.add('toast-exit'); setTimeout(() => toast.remove(), 500); }, 4000); }
-function appendMessage(text) { const d = document.createElement("div"); d.textContent = text; messages.appendChild(d); messages.scrollTop = messages.scrollHeight; }
 
+// ==========================================
+// 11. AGORA WEBRTC & SOCKET EVENTS
+// ==========================================
 function createLocalCard(name) {
-  let el = document.getElementById("local-player"); if (el) return el;
+  let el = document.getElementById("local-player"); if (el) return "local-player";
   const localContainer = document.createElement("div"); localContainer.className = "video-card"; localContainer.id = "local-player";
   localContainer.style.width = "100%"; localContainer.style.height = "200px"; localContainer.style.position = "relative";
   const label = document.createElement("div"); label.style.position = "absolute"; label.style.top = "6px"; label.style.left = "6px"; label.style.padding = "4px 8px"; label.style.background = "rgba(0,0,0,0.5)"; label.style.color = "#fff"; label.style.borderRadius = "6px"; label.style.fontSize = "13px"; label.style.zIndex = "10"; label.textContent = `${name} (You)`;
-  localContainer.appendChild(label); addSizeControls(localContainer, localContainer); videoArea.prepend(localContainer); return localContainer;
+  localContainer.appendChild(label); addSizeControls(localContainer, localContainer); if(videoArea) videoArea.prepend(localContainer); return "local-player";
 }
 
 function createRemoteWrapper(uid, labelText) {
-  let wrapper = document.getElementById(`remote-wrapper-${uid}`); if (wrapper) return wrapper;
+  let wrapper = document.getElementById(`remote-wrapper-${uid}`); if (wrapper) return `remote-${uid}`;
   wrapper = document.createElement("div"); wrapper.id = `remote-wrapper-${uid}`; wrapper.style.display = "flex"; wrapper.style.flexDirection = "column"; wrapper.style.alignItems = "center"; wrapper.style.gap = "6px"; wrapper.style.width = "100%"; 
   const card = document.createElement("div"); card.className = "video-card"; card.id = `remote-${uid}`; card.style.width = "100%"; card.style.height = "200px"; card.style.position = "relative";
   const labelDiv = document.createElement("div"); labelDiv.style.position = "absolute"; labelDiv.style.top = "6px"; labelDiv.style.left = "6px"; labelDiv.style.padding = "4px 8px"; labelDiv.style.background = "rgba(0,0,0,0.5)"; labelDiv.style.color = "#fff"; labelDiv.style.borderRadius = "6px"; labelDiv.style.fontSize = "13px"; labelDiv.style.zIndex = "10"; labelDiv.textContent = labelText || `User ${uid}`; card.appendChild(labelDiv);
@@ -808,113 +822,82 @@ function createRemoteWrapper(uid, labelText) {
   const wbBtn = document.createElement("button"); wbBtn.className = "small-btn host-only-btn"; wbBtn.style.display = isHost ? "inline-block" : "none"; wbBtn.textContent = "🖍️ WB"; wbBtn.dataset.access = "false"; wbBtn.style.background = "var(--primary)";
   wbBtn.onclick = () => { const isGranting = wbBtn.dataset.access === "false"; socket.emit("wb-control", { room: currentRoom, targetUid: uid.toString(), action: isGranting ? "grant" : "revoke" }); wbBtn.dataset.access = isGranting ? "true" : "false"; wbBtn.textContent = isGranting ? "🚫🖍️ WB" : "🖍️ WB"; wbBtn.style.background = isGranting ? "var(--danger)" : "var(--primary)"; };
   controlsDiv.appendChild(muteRemoteBtn); controlsDiv.appendChild(camOffBtn); controlsDiv.appendChild(wbBtn); 
-  wrapper.appendChild(card); wrapper.appendChild(controlsDiv); addSizeControls(wrapper, card); videoArea.appendChild(wrapper); return wrapper;
+  wrapper.appendChild(card); wrapper.appendChild(controlsDiv); addSizeControls(wrapper, card); if(videoArea) videoArea.appendChild(wrapper); return `remote-${uid}`;
 }
 
-joinBtn.addEventListener("click", async () => {
+joinBtn?.addEventListener("click", async () => {
   if (joined) return;
-  try { remoteMusicPlayer.volume = 0; let playPromise = remoteMusicPlayer.play(); if (playPromise !== undefined) { playPromise.then(() => { remoteMusicPlayer.pause(); remoteMusicPlayer.volume = 1; }).catch(e => e); } } catch(e) {}
-  const userName = usernameInput.value.trim(); const roomId = roomInput.value.trim(); if (!userName || !roomId) { alert("Enter both Name and Room ID"); return; }
+  const remoteAudio = document.getElementById("remoteMusicPlayer");
+  if(remoteAudio) { try { remoteAudio.volume = 0; let playPromise = remoteAudio.play(); if (playPromise !== undefined) { playPromise.then(() => { remoteAudio.pause(); remoteAudio.volume = 1; }).catch(e => e); } } catch(e) {} }
+  const userName = usernameInput?.value.trim(); const roomId = roomInput?.value.trim(); if (!userName || !roomId) { alert("Enter both Name and Room ID"); return; }
   try {
     const uid = await client.join(APP_ID, roomId, null, userName); localUid = uid.toString();
     try { const [microphoneTrack, cameraTrack] = await AgoraRTC.createMicrophoneAndCameraTracks(); localTracks.audioTrack = microphoneTrack; localTracks.videoTrack = cameraTrack; await client.publish([microphoneTrack, cameraTrack]); } catch (mediaErr) { showNotification("Camera/Mic busy. Joined as viewer.", "info"); }
-    joined = true; currentRoom = roomId; joinSection.classList.add("form-out");
+    joined = true; currentRoom = roomId; if(joinSection) joinSection.classList.add("form-out");
     setTimeout(() => {
-      joinSection.style.display = "none"; workspace.classList.remove("hidden"); workspace.classList.add("workspace-active"); 
-      setTimeout(() => { if(geoMap) geoMap.invalidateSize(); const localContainer = createLocalCard(userName); if (localTracks.videoTrack) localTracks.videoTrack.play(localContainer, { fit: "cover" }); }, 300);
+      if(joinSection) joinSection.style.display = "none"; if(workspace) { workspace.classList.remove("hidden"); workspace.classList.add("workspace-active"); }
+      setTimeout(() => { if(geoMap) geoMap.invalidateSize(); const localId = createLocalCard(userName); if (localTracks.videoTrack) localTracks.videoTrack.play(localId, { fit: "cover" }); }, 300);
     }, 500); 
     socket.emit("join-room", { room: roomId, uid: localUid, name: userName });
     showNotification(`You joined room ${roomId}`, "join"); appendMessage(`System: You joined room ${roomId}`);
   } catch (err) { showNotification("Join failed!", "danger"); }
 });
 
-function addSizeControls(targetWrapper, elementToFullscreen) {
-  const controlsDiv = document.createElement("div"); controlsDiv.className = "local-controls";
-  if(targetWrapper !== mapBox) {
-      const enlargeBtn = document.createElement("button"); enlargeBtn.className = "icon-btn"; enlargeBtn.innerHTML = "➕";
-      enlargeBtn.onclick = () => { targetWrapper.classList.remove("video-wrapper-small"); targetWrapper.classList.toggle("video-wrapper-large"); };
-      const shrinkBtn = document.createElement("button"); shrinkBtn.className = "icon-btn"; shrinkBtn.innerHTML = "➖";
-      shrinkBtn.onclick = () => { targetWrapper.classList.remove("video-wrapper-large"); targetWrapper.classList.toggle("video-wrapper-small"); };
-      controlsDiv.appendChild(enlargeBtn); controlsDiv.appendChild(shrinkBtn);
-  }
-  if(targetWrapper !== mapBox) {
-      const maxBtn = document.createElement("button"); maxBtn.className = "icon-btn"; maxBtn.innerHTML = "🖥️";
-      maxBtn.onclick = () => { if (!document.fullscreenElement) { targetWrapper.requestFullscreen().catch(e => e); } else { document.exitFullscreen(); } };
-      controlsDiv.appendChild(maxBtn);
-  }
-  targetWrapper.appendChild(controlsDiv);
-}
-
 function hideAllBigPanels() {
-    whiteboardBox.style.display = "none"; mapBox.style.display = "none"; presentationBox.style.display = "none"; officeBox.style.display = "none";
-    toggleWbBtn.dataset.show = "false"; toggleWbBtn.style.background = "linear-gradient(135deg, #3498db, #2980b9)";
-    toggleMapBtn.dataset.show = "false"; toggleMapBtn.style.background = "linear-gradient(135deg, #27ae60, #2ecc71)";
-    togglePresBtn.dataset.show = "false"; togglePresBtn.style.background = "linear-gradient(135deg, #f1c40f, #f39c12)";
-    toggleOfficeBtn.dataset.show = "false"; toggleOfficeBtn.style.background = "linear-gradient(135deg, #c0392b, #e74c3c)";
+    if(whiteboardBox) whiteboardBox.style.display = "none"; if(mapBox) mapBox.style.display = "none"; if(presentationBox) presentationBox.style.display = "none"; if(officeBox) officeBox.style.display = "none";
+    if(toggleWbBtn) { toggleWbBtn.dataset.show = "false"; toggleWbBtn.style.background = "linear-gradient(135deg, #3498db, #2980b9)"; }
+    if(toggleMapBtn) { toggleMapBtn.dataset.show = "false"; toggleMapBtn.style.background = "linear-gradient(135deg, #27ae60, #2ecc71)"; }
+    if(togglePresBtn) { togglePresBtn.dataset.show = "false"; togglePresBtn.style.background = "linear-gradient(135deg, #f1c40f, #f39c12)"; }
+    if(toggleOfficeBtn) { toggleOfficeBtn.dataset.show = "false"; toggleOfficeBtn.style.background = "linear-gradient(135deg, #c0392b, #e74c3c)"; }
 }
-
-togglePresBtn.addEventListener("click", () => { const isShowing = togglePresBtn.dataset.show === "true"; socket.emit("pres-toggle", { room: currentRoom, show: !isShowing }); });
-toggleWbBtn.addEventListener("click", () => { const isShowing = toggleWbBtn.dataset.show === "true"; socket.emit("wb-toggle", { room: currentRoom, show: !isShowing }); });
-toggleMapBtn.addEventListener("click", () => { const isShowing = toggleMapBtn.dataset.show === "true"; socket.emit("map-toggle", { room: currentRoom, show: !isShowing }); });
-toggleOfficeBtn.addEventListener("click", () => { const isShowing = toggleOfficeBtn.dataset.show === "true"; socket.emit("office-toggle", { room: currentRoom, show: !isShowing }); });
-
-socket.on("pres-toggle", (data) => { if(data.show) { hideAllBigPanels(); presentationBox.style.display = "block"; if(isHost){togglePresBtn.dataset.show="true"; togglePresBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } else { presentationBox.style.display = "none"; if(isHost){togglePresBtn.dataset.show="false"; togglePresBtn.style.background="linear-gradient(135deg, #f1c40f, #f39c12)";} } });
-socket.on("wb-toggle", (data) => { if (data.show) { hideAllBigPanels(); whiteboardBox.style.display = "block"; if(isHost){toggleWbBtn.dataset.show="true"; toggleWbBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } else { whiteboardBox.style.display = "none"; if(isHost){toggleWbBtn.dataset.show="false"; toggleWbBtn.style.background="linear-gradient(135deg, #3498db, #2980b9)";} } });
-socket.on("map-toggle", (data) => { if (data.show) { hideAllBigPanels(); mapBox.style.display = "block"; setTimeout(() => { if(geoMap) geoMap.invalidateSize(); }, 100); if(isHost){toggleMapBtn.dataset.show="true"; toggleMapBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } else { mapBox.style.display = "none"; if(isHost){toggleMapBtn.dataset.show="false"; toggleMapBtn.style.background="linear-gradient(135deg, #27ae60, #2ecc71)";} } });
-socket.on("office-toggle", (data) => { if (data.show) { hideAllBigPanels(); officeBox.style.display = "block"; if(isHost){toggleOfficeBtn.dataset.show="true"; toggleOfficeBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } else { officeBox.style.display = "none"; if(isHost){toggleOfficeBtn.dataset.show="false"; toggleOfficeBtn.style.background="linear-gradient(135deg, #c0392b, #e74c3c)";} } });
 
 socket.on("room-history", (data) => {
   if(data.hostUid) globalHostUid = data.hostUid;
   if (data.chats) data.chats.forEach(chat => { if(chat.name === "System" && chat.text.includes("left")) return; appendMessage(`${chat.name}: ${chat.text}`); });
-  if (data.files) [...data.files].reverse().forEach(file => addFileLink(file.filename, file.url));
-  if (data.wbVisible) { hideAllBigPanels(); whiteboardBox.style.display = "block"; if(isHost) toggleWbBtn.dataset.show = "true"; }
-  if (data.mapVisible) { hideAllBigPanels(); mapBox.style.display = "block"; setTimeout(() => geoMap.invalidateSize(), 100); if(isHost) toggleMapBtn.dataset.show = "true"; }
-  if (data.presVisible) { hideAllBigPanels(); presentationBox.style.display = "block"; if(isHost) togglePresBtn.dataset.show = "true"; }
-  if (data.officeVisible) { hideAllBigPanels(); officeBox.style.display = "block"; if(isHost) toggleOfficeBtn.dataset.show = "true"; }
-  if (data.chartData) { currentChartData = data.chartData; presTitle.textContent = `${data.chartData.industry} Growth Projection`; excelTable.innerHTML = data.chartData.tableHTML; const ctxChart = document.getElementById('presentationCanvas').getContext('2d'); if(businessChart) businessChart.destroy(); businessChart = new Chart(ctxChart, data.chartData.chartConfig); if(data.chartData.view === 'chart') { excelContainer.style.display = "none"; canvasElem.style.display = "block"; } else { canvasElem.style.display = "none"; excelContainer.style.display = "block"; } }
+  if (data.files && fileList) [...data.files].reverse().forEach(file => addFileLink(file.filename, file.url));
+  if (data.wbVisible && whiteboardBox) { hideAllBigPanels(); whiteboardBox.style.display = "block"; if(isHost && toggleWbBtn) toggleWbBtn.dataset.show = "true"; }
+  if (data.mapVisible && mapBox) { hideAllBigPanels(); mapBox.style.display = "block"; setTimeout(() => {if(geoMap) geoMap.invalidateSize();}, 100); if(isHost && toggleMapBtn) toggleMapBtn.dataset.show = "true"; }
+  if (data.presVisible && presentationBox) { hideAllBigPanels(); presentationBox.style.display = "block"; if(isHost && togglePresBtn) togglePresBtn.dataset.show = "true"; }
+  if (data.officeVisible && officeBox) { hideAllBigPanels(); officeBox.style.display = "block"; if(isHost && toggleOfficeBtn) toggleOfficeBtn.dataset.show = "true"; }
 });
 
 socket.on("host-assignment", (data) => {
   isHost = data.isHost; if(data.hostUid) globalHostUid = data.hostUid;
+  const hostAudioCont = document.getElementById("hostAudioContainer");
+  const wbToolbar = document.getElementById('wb-toolbar');
   if (isHost) {
-    document.getElementById("hostAudioContainer").style.display = "block"; canDraw = true; document.getElementById('wb-toolbar').style.display = "flex"; canvas.style.cursor = "crosshair"; wbStatus.textContent = "(Host Mode)";
-    presInputForm.style.display = "flex"; toggleWbBtn.style.display = "inline-block"; toggleMapBtn.style.display = "inline-block"; togglePresBtn.style.display = "inline-block"; toggleOfficeBtn.style.display = "inline-block";
-    document.querySelectorAll('.host-only-btn').forEach(btn => btn.style.display = "flex");
+    if(hostAudioCont) hostAudioCont.style.display = "block"; canDraw = true; if(wbToolbar) wbToolbar.style.display = "flex"; if(canvas) canvas.style.cursor = "crosshair"; if(wbStatus) wbStatus.textContent = "(Host Mode)";
+    if(presInputForm) presInputForm.style.display = "flex"; if(toggleWbBtn) toggleWbBtn.style.display = "inline-block"; if(toggleMapBtn) toggleMapBtn.style.display = "inline-block"; if(togglePresBtn) togglePresBtn.style.display = "inline-block"; if(toggleOfficeBtn) toggleOfficeBtn.style.display = "inline-block";
+    document.querySelectorAll('.host-only-btn').forEach(btn => btn.style.setProperty("display", "flex", "important"));
   } else {
-    document.getElementById("hostAudioContainer").style.display = "none"; canDraw = false; document.getElementById('wb-toolbar').style.display = "none"; canvas.style.cursor = "not-allowed"; wbStatus.textContent = "(View Only)";
-    presInputForm.style.display = "none"; toggleWbBtn.style.display = "none"; toggleMapBtn.style.display = "none"; togglePresBtn.style.display = "none"; toggleOfficeBtn.style.display = "none";
-    viewGraphBtn.parentElement.style.display = "none"; document.querySelectorAll('.host-only-btn').forEach(btn => btn.style.display = "none");
+    if(hostAudioCont) hostAudioCont.style.display = "none"; canDraw = false; if(wbToolbar) wbToolbar.style.display = "none"; if(canvas) canvas.style.cursor = "not-allowed"; if(wbStatus) wbStatus.textContent = "(View Only)";
+    if(presInputForm) presInputForm.style.display = "none"; if(toggleWbBtn) toggleWbBtn.style.display = "none"; if(toggleMapBtn) toggleMapBtn.style.display = "none"; if(togglePresBtn) togglePresBtn.style.display = "none"; if(toggleOfficeBtn) toggleOfficeBtn.style.display = "none";
+    if(viewGraphBtn && viewGraphBtn.parentElement) viewGraphBtn.parentElement.style.display = "none"; document.querySelectorAll('.host-only-btn').forEach(btn => btn.style.setProperty("display", "none", "important"));
   }
 });
 
 socket.on("room-update", (data) => {
-  if (isHost && data.size > 1) { muteAllBtn.style.display = "inline-block"; unmuteAllBtn.style.display = "inline-block"; } 
-  else if (isHost) { muteAllBtn.style.display = "none"; unmuteAllBtn.style.display = "none"; }
+  if (isHost && data.size > 1) { if(muteAllBtn) muteAllBtn.style.display = "inline-block"; if(unmuteAllBtn) unmuteAllBtn.style.display = "inline-block"; } 
+  else if (isHost) { if(muteAllBtn) muteAllBtn.style.display = "none"; if(unmuteAllBtn) unmuteAllBtn.style.display = "none"; }
 });
 
 socket.on('drawing', (data) => {
   if(data.type === 'free') drawFreehand(data.x0, data.y0, data.x1, data.y1, data.color, data.size, data.toolType, false);
   else drawShapeObj(data.x0, data.y0, data.x1, data.y1, data.type, data.color, data.size, false);
-  if(isHost) wbPagesFg[currentWbPage] = canvas.toDataURL("image/png", 0.5);
+  if(isHost && canvas) wbPagesFg[currentWbPage] = canvas.toDataURL("image/png", 0.5);
 });
 
 socket.on("wb-stamp", (data) => {
-    const img = new Image(); img.onload = () => { bgCtx.drawImage(img, data.x, data.y, data.w, data.h); if(isHost) wbPagesBg[currentWbPage] = bgCanvas.toDataURL("image/jpeg", 0.5); }; img.src = data.image;
+    const img = new Image(); img.onload = () => { if(bgCtx) bgCtx.drawImage(img, data.x, data.y, data.w, data.h); if(isHost && bgCanvas) wbPagesBg[currentWbPage] = bgCanvas.toDataURL("image/jpeg", 0.5); }; img.src = data.image;
 });
 
-socket.on("wb-pointer", (data) => {
-    if(data.hide) { document.getElementById("wb-laser").style.display = "none"; return; }
-    document.getElementById("wb-laser").style.display = "block"; document.getElementById("wb-laser").style.left = (data.x * 100) + "%"; document.getElementById("wb-laser").style.top = (data.y * 100) + "%";
-    clearTimeout(wbLaserTimeout); wbLaserTimeout = setTimeout(() => { document.getElementById("wb-laser").style.display = "none"; }, 2000);
-});
-
-document.getElementById("hostAudioFile").addEventListener("change", async (e) => {
+document.getElementById("hostAudioFile")?.addEventListener("change", async (e) => {
   const file = e.target.files[0]; if (!file) return; const fd = new FormData(); fd.append("file", file); fd.append("room", currentRoom || ""); fd.append("uploader", "Host-Music");
   try { currentMusicUrl = (await (await fetch("/upload", { method: "POST", body: fd })).json()).url; document.getElementById("hostAudioPlayer").src = currentMusicUrl; showNotification("Music ready", "join"); } catch (err) {}
 });
-document.getElementById("hostAudioPlayer").addEventListener("play", () => { if (!joined || !isHost || !currentMusicUrl) return; socket.emit("control", { room: currentRoom, action: "music-play", url: currentMusicUrl, time: document.getElementById("hostAudioPlayer").currentTime }); });
-document.getElementById("hostAudioPlayer").addEventListener("pause", () => { if (!joined || !isHost) return; socket.emit("control", { room: currentRoom, action: "music-pause" }); });
-document.getElementById("hostAudioPlayer").addEventListener("seeked", () => { if (!joined || !isHost || !currentMusicUrl) return; socket.emit("control", { room: currentRoom, action: "music-seek", time: document.getElementById("hostAudioPlayer").currentTime }); });
+document.getElementById("hostAudioPlayer")?.addEventListener("play", () => { if (!joined || !isHost || !currentMusicUrl) return; socket.emit("control", { room: currentRoom, action: "music-play", url: currentMusicUrl, time: document.getElementById("hostAudioPlayer").currentTime }); });
+document.getElementById("hostAudioPlayer")?.addEventListener("pause", () => { if (!joined || !isHost) return; socket.emit("control", { room: currentRoom, action: "music-pause" }); });
+document.getElementById("hostAudioPlayer")?.addEventListener("seeked", () => { if (!joined || !isHost || !currentMusicUrl) return; socket.emit("control", { room: currentRoom, action: "music-seek", time: document.getElementById("hostAudioPlayer").currentTime }); });
 
 client.on("user-published", async (user, mediaType) => {
   try {
@@ -922,8 +905,11 @@ client.on("user-published", async (user, mediaType) => {
     if (mediaType === "video") {
       if (user.videoTrack.getTrackId().includes("screen") || uid.includes("screen")) {
         const sc = document.createElement("div"); sc.className = "video-card screen-share-card"; sc.id = `screen-card-${uid}`; sc.style.width = "100%"; sc.style.height = "320px"; sc.style.gridColumn = "1 / -1"; sc.style.border = "3px solid var(--accent)";
-        addSizeControls(sc, sc); videoArea.appendChild(sc); user.videoTrack.play(sc);
-      } else { createRemoteWrapper(uid, `User ${uid}`); user.videoTrack.play(document.getElementById(`remote-${uid}`)); }
+        addSizeControls(sc, sc); if(videoArea) videoArea.appendChild(sc); user.videoTrack.play(`screen-card-${uid}`, { fit: "contain" });
+      } else { 
+          const remoteId = createRemoteWrapper(uid, `User ${uid}`); 
+          user.videoTrack.play(remoteId, { fit: "cover" }); 
+      }
     }
     if (mediaType === "audio" && user.audioTrack) user.audioTrack.play();
   } catch (e) { console.error(e); }
@@ -934,41 +920,41 @@ client.on("user-left", (user) => removeRemoteUser(user.uid.toString()));
 socket.on("user-left", info => { if (info && info.uid) removeRemoteUser(info.uid.toString(), info.name); });
 function removeRemoteUser(uid, name = null) { document.getElementById(`remote-wrapper-${uid}`)?.remove(); document.getElementById(`screen-card-${uid}`)?.remove(); delete remoteUsers[uid]; }
 
-leaveBtn.addEventListener("click", async () => { socket.emit("leave-room"); await client.leave(); window.location.reload(); });
-muteAllBtn.addEventListener("click", () => { if (joined && isHost) socket.emit("control", { room: currentRoom, action: "mute-all" }); });
-unmuteAllBtn.addEventListener("click", () => { if (joined && isHost) socket.emit("control", { room: currentRoom, action: "unmute-all" }); });
+leaveBtn?.addEventListener("click", async () => { socket.emit("leave-room"); await client.leave(); window.location.reload(); });
+muteAllBtn?.addEventListener("click", () => { if (joined && isHost) socket.emit("control", { room: currentRoom, action: "mute-all" }); });
+unmuteAllBtn?.addEventListener("click", () => { if (joined && isHost) socket.emit("control", { room: currentRoom, action: "unmute-all" }); });
 
-cameraBtn.addEventListener("click", async () => {
+cameraBtn?.addEventListener("click", async () => {
   if (!joined || !localTracks.videoTrack) return;
   const en = localTracks.videoTrack.enabled; await localTracks.videoTrack.setEnabled(!en);
   cameraBtn.textContent = en ? "📹 Camera" : "🚫📹 Camera"; cameraBtn.style.background = en ? "" : "rgba(231, 76, 60, 0.7)"; 
   socket.emit("control", { room: currentRoom, targetUid: localUid, action: en ? "disable-video" : "enable-video" });
 });
-muteBtn.addEventListener("click", async () => {
+muteBtn?.addEventListener("click", async () => {
   if (!joined || !localTracks.audioTrack) return;
   const en = localTracks.audioTrack.enabled; await localTracks.audioTrack.setEnabled(!en);
   muteBtn.textContent = en ? "🎙️ Mic" : "🔇 Mic"; muteBtn.style.background = en ? "" : "rgba(231, 76, 60, 0.7)"; 
   socket.emit("control", { room: currentRoom, targetUid: localUid, action: en ? "mute-audio" : "enable-audio" });
 });
 
-shareBtn.addEventListener("click", async () => {
+shareBtn?.addEventListener("click", async () => {
   if (!joined) return;
   if (isSharing) {
     isSharing = false; if (screenTrack) { await client.unpublish(screenTrack); screenTrack.close(); screenTrack = null; }
     socket.emit("control", { room: currentRoom, action: "share-stop", uid: localUid });
     const myContainer = document.getElementById("local-player");
     if(myContainer) { myContainer.style.height = "200px"; myContainer.parentElement.style.width = "100%"; myContainer.parentElement.classList.remove("video-wrapper-large"); }
-    if (localTracks.videoTrack) { await client.publish(localTracks.videoTrack); localTracks.videoTrack.play(myContainer); }
+    if (localTracks.videoTrack) { await client.publish(localTracks.videoTrack); localTracks.videoTrack.play("local-player", { fit: "cover" }); }
     shareBtn.textContent = "🖥️ Share Screen"; shareBtn.style.background = ""; return;
   }
   if (localTracks.videoTrack) await client.unpublish(localTracks.videoTrack);
   try {
       screenTrack = await AgoraRTC.createScreenVideoTrack({ encoderConfig: "1080p_1" }, "auto"); isSharing = true; shareBtn.textContent = "🛑 Stop Share"; shareBtn.style.background = "linear-gradient(135deg, #e74c3c, #c0392b)";
       const myContainer = document.getElementById("local-player");
-      if(myContainer) { myContainer.style.height = "400px"; myContainer.parentElement.classList.add("video-wrapper-large"); screenTrack.play(myContainer); }
+      if(myContainer) { myContainer.style.height = "400px"; myContainer.parentElement.classList.add("video-wrapper-large"); screenTrack.play("local-player", { fit: "contain" }); }
       await client.publish(screenTrack); socket.emit("control", { room: currentRoom, action: "share-start", uid: localUid });
       screenTrack.on("track-ended", () => { if (isSharing) shareBtn.click(); });
-  } catch(e) { if (localTracks.videoTrack) { await client.publish(localTracks.videoTrack); localTracks.videoTrack.play(document.getElementById("local-player")); } }
+  } catch(e) { if (localTracks.videoTrack) { await client.publish(localTracks.videoTrack); localTracks.videoTrack.play("local-player", { fit: "cover" }); } }
 });
 
 socket.on("control", async (data) => {
@@ -977,38 +963,39 @@ socket.on("control", async (data) => {
   if (data.action === "share-stop") { const w = document.getElementById(`remote-wrapper-${data.uid}`); if (w) w.classList.remove("video-wrapper-large"); }
   
   if (data.action === "music-play" && !isHost) { 
-      document.getElementById("remoteMusicPlayer").src = data.url; document.getElementById("remoteMusicPlayer").currentTime = data.time || 0; 
+      const remoteMusicPlayer = document.getElementById("remoteMusicPlayer");
+      if(remoteMusicPlayer) { remoteMusicPlayer.src = data.url; remoteMusicPlayer.currentTime = data.time || 0; }
       let listenBtn = document.getElementById("listenMusicBtn");
       if(!listenBtn) {
           listenBtn = document.createElement("button"); listenBtn.id = "listenMusicBtn"; listenBtn.innerHTML = "🎵 Host is playing music! Click to Listen";
           listenBtn.style.cssText = "position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999999; background: #2ecc71; color: white; padding: 15px 30px; border: 2px solid white; border-radius: 50px; font-size: 16px; font-weight: bold; cursor: pointer; animation: pulseMusic 1.5s infinite;";
           document.body.appendChild(listenBtn);
-          listenBtn.onclick = () => { document.getElementById("remoteMusicPlayer").play().then(() => { listenBtn.style.display = "none"; localMusicMuteBtn.style.display = "inline-block"; }).catch(e => { alert("Tap anywhere on the screen first to allow audio."); }); };
+          listenBtn.onclick = () => { if(remoteMusicPlayer) remoteMusicPlayer.play().then(() => { listenBtn.style.display = "none"; if(localMusicMuteBtn) localMusicMuteBtn.style.display = "inline-block"; }).catch(e => { alert("Tap anywhere on the screen first to allow audio."); }); };
       } else { listenBtn.style.display = "block"; }
   }
-  if (data.action === "music-pause" && !isHost) document.getElementById("remoteMusicPlayer").pause();
-  if (data.action === "music-seek" && !isHost) document.getElementById("remoteMusicPlayer").currentTime = data.time || 0;
-  if (data.action === "mute-all" && localTracks.audioTrack) { await localTracks.audioTrack.setEnabled(false); muteBtn.textContent = "🔇 Mic"; muteBtn.style.background = "rgba(231, 76, 60, 0.7)"; }
-  if (data.action === "unmute-all" && localTracks.audioTrack) { await localTracks.audioTrack.setEnabled(true); muteBtn.textContent = "🎙️ Mic"; muteBtn.style.background = ""; }
+  if (data.action === "music-pause" && !isHost) document.getElementById("remoteMusicPlayer")?.pause();
+  if (data.action === "music-seek" && !isHost && document.getElementById("remoteMusicPlayer")) document.getElementById("remoteMusicPlayer").currentTime = data.time || 0;
+  if (data.action === "mute-all" && localTracks.audioTrack) { await localTracks.audioTrack.setEnabled(false); if(muteBtn) { muteBtn.textContent = "🔇 Mic"; muteBtn.style.background = "rgba(231, 76, 60, 0.7)"; } }
+  if (data.action === "unmute-all" && localTracks.audioTrack) { await localTracks.audioTrack.setEnabled(true); if(muteBtn) { muteBtn.textContent = "🎙️ Mic"; muteBtn.style.background = ""; } }
   if (data.targetUid === localUid) {
-    if (data.action === "mute-audio" && localTracks.audioTrack) { await localTracks.audioTrack.setEnabled(false); muteBtn.textContent = "🔇 Mic"; muteBtn.style.background = "rgba(231, 76, 60, 0.7)"; showNotification("Host muted you", "danger"); }
-    if (data.action === "disable-video" && localTracks.videoTrack) { await localTracks.videoTrack.setEnabled(false); cameraBtn.textContent = "🚫📹 Camera"; cameraBtn.style.background = "rgba(231, 76, 60, 0.7)"; }
-    if (data.action === "enable-audio" && localTracks.audioTrack) { await localTracks.audioTrack.setEnabled(true); muteBtn.textContent = "🎙️ Mic"; muteBtn.style.background = ""; }
-    if (data.action === "enable-video" && localTracks.videoTrack) { await localTracks.videoTrack.setEnabled(true); cameraBtn.textContent = "📹 Camera"; cameraBtn.style.background = ""; }
+    if (data.action === "mute-audio" && localTracks.audioTrack) { await localTracks.audioTrack.setEnabled(false); if(muteBtn) { muteBtn.textContent = "🔇 Mic"; muteBtn.style.background = "rgba(231, 76, 60, 0.7)"; } showNotification("Host muted you", "danger"); }
+    if (data.action === "disable-video" && localTracks.videoTrack) { await localTracks.videoTrack.setEnabled(false); if(cameraBtn) { cameraBtn.textContent = "🚫📹 Camera"; cameraBtn.style.background = "rgba(231, 76, 60, 0.7)"; } }
+    if (data.action === "enable-audio" && localTracks.audioTrack) { await localTracks.audioTrack.setEnabled(true); if(muteBtn) { muteBtn.textContent = "🎙️ Mic"; muteBtn.style.background = ""; } }
+    if (data.action === "enable-video" && localTracks.videoTrack) { await localTracks.videoTrack.setEnabled(true); if(cameraBtn) { cameraBtn.textContent = "📹 Camera"; cameraBtn.style.background = ""; } }
   }
 });
 
 socket.on("wb-control", (data) => {
   if (data.targetUid === localUid) {
-    if (data.action === "grant") { canDraw = true; document.getElementById('wb-toolbar').style.display = "flex"; canvas.style.cursor = "crosshair"; wbStatus.textContent = "(You have access)"; showNotification("Host gave you Whiteboard access! 🎨", "join"); } 
-    else if (data.action === "revoke") { canDraw = false; document.getElementById('wb-toolbar').style.display = "none"; canvas.style.cursor = "not-allowed"; wbStatus.textContent = "(View Only - Access Revoked)"; showNotification("Your whiteboard access was revoked.", "danger"); }
+    if (data.action === "grant") { canDraw = true; const wbt = document.getElementById('wb-toolbar'); if(wbt) wbt.style.display = "flex"; if(canvas) canvas.style.cursor = "crosshair"; if(wbStatus) wbStatus.textContent = "(You have access)"; showNotification("Host gave you Whiteboard access! 🎨", "join"); } 
+    else if (data.action === "revoke") { canDraw = false; const wbt = document.getElementById('wb-toolbar'); if(wbt) wbt.style.display = "none"; if(canvas) canvas.style.cursor = "not-allowed"; if(wbStatus) wbStatus.textContent = "(View Only - Access Revoked)"; showNotification("Your whiteboard access was revoked.", "danger"); }
   }
 });
 
-sendMsgBtn.addEventListener("click", () => { const text = chatInput.value.trim(); if (!text) return; socket.emit("chat-message", { room: currentRoom, name: usernameInput.value || "Me", text }); appendMessage(`Me: ${text}`); chatInput.value = ""; });
-chatInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); sendMsgBtn.click(); } });
+sendMsgBtn?.addEventListener("click", () => { const text = chatInput?.value.trim(); if (!text) return; socket.emit("chat-message", { room: currentRoom, name: usernameInput?.value || "Me", text }); appendMessage(`Me: ${text}`); if(chatInput) chatInput.value = ""; });
+chatInput?.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); sendMsgBtn?.click(); } });
 socket.on("chat-message", data => { if(data.name === "System" && data.text.includes("left")) return; appendMessage(`${data.name}: ${data.text}`); });
-document.getElementById("uploadBtn").addEventListener("click", async () => { const f = fileUpload.files[0]; if (!f) return; const fd = new FormData(); fd.append("file", f); fd.append("room", currentRoom); fd.append("uploader", usernameInput.value || "User"); try { addFileLink((await (await fetch("/upload", { method: "POST", body: fd })).json()).filename, (await (await fetch("/upload", { method: "POST", body: fd })).json()).url); } catch (err) { } });
-function addFileLink(name, url) { const a = document.createElement("a"); a.href = url; a.textContent = name; a.download = name; a.target = "_blank"; fileList.prepend(a); }
+document.getElementById("uploadBtn")?.addEventListener("click", async () => { const f = fileUpload?.files[0]; if (!f) return; const fd = new FormData(); fd.append("file", f); fd.append("room", currentRoom); fd.append("uploader", usernameInput?.value || "User"); try { addFileLink((await (await fetch("/upload", { method: "POST", body: fd })).json()).filename, (await (await fetch("/upload", { method: "POST", body: fd })).json()).url); } catch (err) { } });
+function addFileLink(name, url) { const a = document.createElement("a"); a.href = url; a.textContent = name; a.download = name; a.target = "_blank"; if(fileList) fileList.prepend(a); }
 socket.on("file-uploaded", data => { addFileLink(data.filename, data.url); showNotification(`${data.uploader} uploaded a file`, "info"); });
 socket.on("user-joined", info => showNotification(`${info.name || "User"} joined the room!`, "join"));
