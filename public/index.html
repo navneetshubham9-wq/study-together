@@ -167,84 +167,297 @@
             <button id="officeDownloadBtn" class="icon-btn" style="margin-left:auto; background:#2ecc71;">⬇️ Download</button>
         </div>
 
-        <div id="office-word" class="office-tab" style="display:flex; flex-direction:column; height: 460px; background: #fff; border-radius: 8px; color: #000; overflow:hidden;">
-            <div class="office-toolbar">
+        <div id="office-word" class="office-tab" style="display:flex; flex-direction:column; height:460px; background:#fff; border-radius:8px; color:#000; overflow:hidden;">
+            <div class="office-subtabs">
+                <button class="office-subtab active" data-toolbar="word-home">Home</button>
+                <button class="office-subtab" data-toolbar="word-insert">Insert</button>
+                <button class="office-subtab" data-toolbar="word-layout">Layout</button>
+                <button class="office-subtab" data-toolbar="word-references">References</button>
+                <button class="office-subtab" data-toolbar="word-review">Review</button>
+                <button class="office-subtab" data-toolbar="word-view">View</button>
+            </div>
+            <div class="office-toolbar" id="word-home" style="display:flex;">
+                <span class="office-label">Font</span>
                 <select id="wordFontFamily" title="Font Family"><option value="Arial">Arial</option><option value="Times New Roman">Times New Roman</option><option value="Courier New">Courier New</option><option value="Georgia">Georgia</option><option value="Verdana">Verdana</option><option value="Impact">Impact</option></select>
                 <select id="wordFontSize" title="Font Size"><option value="1">8pt</option><option value="2">10pt</option><option value="3">12pt</option><option value="4">18pt</option><option value="5">24pt</option><option value="6">36pt</option><option value="7">48pt</option></select>
-                <span class="office-sep"></span>
                 <button onclick="document.execCommand('bold',false,null)" title="Bold"><b>B</b></button>
                 <button onclick="document.execCommand('italic',false,null)" title="Italic"><i>I</i></button>
                 <button onclick="document.execCommand('underline',false,null)" title="Underline"><u>U</u></button>
                 <button onclick="document.execCommand('strikeThrough',false,null)" title="Strikethrough" style="text-decoration:line-through;">S</button>
-                <span class="office-sep"></span>
+                <button onclick="document.execCommand('superscript',false,null)" title="Superscript">x²</button>
+                <button onclick="document.execCommand('subscript',false,null)" title="Subscript">x₂</button>
                 <input type="color" id="wordTextColor" value="#000000" title="Text Color" style="width:24px;height:24px;padding:0;border:none;cursor:pointer;" onchange="document.execCommand('foreColor',false,this.value)">
                 <input type="color" id="wordBgColor" value="#ffff00" title="Highlight Color" style="width:24px;height:24px;padding:0;border:none;cursor:pointer;" onchange="document.execCommand('hiliteColor',false,this.value)">
                 <span class="office-sep"></span>
+                <span class="office-label">Paragraph</span>
                 <button onclick="document.execCommand('justifyLeft',false,null)" title="Align Left">≡</button>
                 <button onclick="document.execCommand('justifyCenter',false,null)" title="Center">≡</button>
                 <button onclick="document.execCommand('justifyRight',false,null)" title="Align Right">≡</button>
-                <span class="office-sep"></span>
+                <button onclick="document.execCommand('justifyFull',false,null)" title="Justify">≡</button>
                 <button onclick="document.execCommand('insertOrderedList',false,null)" title="Numbered List">1.</button>
                 <button onclick="document.execCommand('insertUnorderedList',false,null)" title="Bullet List">•</button>
                 <button onclick="document.execCommand('indent',false,null)" title="Indent">→</button>
                 <button onclick="document.execCommand('outdent',false,null)" title="Outdent">←</button>
+                <button onclick="var s=prompt('Line spacing (1-3):','1.5');if(s)document.execCommand('formatBlock',false,`<div style='line-height:${s}'>`)" title="Line Spacing">↕</button>
                 <span class="office-sep"></span>
-                <button onclick="var l=prompt('Link URL:','https://');if(l)document.execCommand('createLink',false,l)" title="Insert Link">🔗</button>
-                <button onclick="var m=prompt('Image URL:','https://');if(m)document.execCommand('insertImage',false,m)" title="Insert Image">🖼</button>
-                <button onclick="officeInsertTable()" title="Insert Table">⊞</button>
-                <button onclick="document.execCommand('insertHorizontalRule',false,null)" title="Horizontal Rule">—</button>
-                <span class="office-sep"></span>
+                <span class="office-label">Clipboard</span>
                 <button onclick="document.execCommand('undo',false,null)" title="Undo">↩</button>
                 <button onclick="document.execCommand('redo',false,null)" title="Redo">↪</button>
                 <button onclick="document.execCommand('removeFormat',false,null)" title="Clear Formatting">✕</button>
             </div>
-            <div id="wordEditor" contenteditable="false" style="flex:1; padding: 20px; outline: none; overflow-y: auto;">Start typing your document here...</div>
+            <div class="office-toolbar" id="word-insert" style="display:none;">
+                <span class="office-label">Insert</span>
+                <button onclick="officeInsertTable()" title="Table">⊞ Table</button>
+                <button onclick="var m=prompt('Image URL:','https://');if(m)document.execCommand('insertImage',false,m)" title="Picture">🖼 Picture</button>
+                <button onclick="showNotification('Shapes - coming soon','info')" title="Shapes">⬡ Shapes</button>
+                <button onclick="showNotification('Icons - coming soon','info')" title="Icons">◎ Icons</button>
+                <button onclick="showNotification('SmartArt - coming soon','info')" title="SmartArt">🧠 SmartArt</button>
+                <button onclick="showNotification('Chart - coming soon','info')" title="Chart">📊 Chart</button>
+                <button onclick="showNotification('Screenshot - coming soon','info')" title="Screenshot">📷 Screenshot</button>
+                <span class="office-sep"></span>
+                <button onclick="var h=prompt('Header HTML:','<h2>Header</h2>');if(h)document.execCommand('insertHTML',false,h)" title="Header">📐 Header</button>
+                <button onclick="var f=prompt('Footer HTML:','<p>Footer</p>');if(f)document.execCommand('insertHTML',false,f)" title="Footer">📐 Footer</button>
+                <button onclick="showNotification('Page Number - coming soon','info')" title="Page Number"># Page #</button>
+                <button onclick="var t=prompt('Text Box content:','Your text here');if(t)document.execCommand('insertHTML',false,`<div style="border:1px dashed #999;padding:10px;margin:8px 0;">${t}</div>`)" title="Text Box">📦 Text Box</button>
+                <span class="office-sep"></span>
+                <button onclick="var l=prompt('Link URL:','https://');if(l)document.execCommand('createLink',false,l)" title="Hyperlink">🔗 Link</button>
+                <button onclick="document.execCommand('insertHorizontalRule',false,null)" title="Horizontal Rule">—</button>
+            </div>
+            <div class="office-toolbar" id="word-layout" style="display:none;">
+                <span class="office-label">Page Setup</span>
+                <button onclick="document.getElementById('wordEditor').style.margin=prompt('Margins (px):','20px')" title="Margins">📏 Margins</button>
+                <button onclick="var o=prompt('Orientation (portrait/landscape):','portrait');if(o)document.getElementById('wordEditor').style.writingMode=o==='landscape'?'vertical-rl':'horizontal-tb'" title="Orientation">🔄 Orientation</button>
+                <button onclick="showNotification('Page Size - coming soon','info')" title="Size">📄 Size</button>
+                <button onclick="var c=prompt('Columns:','2');if(c)document.execCommand('formatBlock',false,`<div style='column-count:${c}'>`)" title="Columns">☰ Columns</button>
+                <button onclick="showNotification('Breaks - coming soon','info')" title="Breaks">⏎ Breaks</button>
+                <button onclick="showNotification('Line Numbers - coming soon','info')" title="Line Numbers"># Line#</button>
+            </div>
+            <div class="office-toolbar" id="word-references" style="display:none;">
+                <span class="office-label">References</span>
+                <button onclick="showNotification('Table of Contents - coming soon','info')">📑 TOC</button>
+                <button onclick="showNotification('Insert Footnote - coming soon','info')">📝 Footnote</button>
+                <button onclick="showNotification('Insert Citation - coming soon','info')">📚 Citation</button>
+                <button onclick="showNotification('Bibliography - coming soon','info')">📖 Bibliography</button>
+                <button onclick="showNotification('Captions - coming soon','info')">🏷 Captions</button>
+                <button onclick="showNotification('Index - coming soon','info')">📋 Index</button>
+            </div>
+            <div class="office-toolbar" id="word-review" style="display:none;">
+                <span class="office-label">Proofing</span>
+                <button onclick="showNotification('Words: '+document.getElementById('wordEditor').innerText.trim().split(/\s+/).filter(Boolean).length,'info')" title="Word Count">🔤 Word Count</button>
+                <button onclick="showNotification('Spelling check - coming soon','info')">✓ Spelling</button>
+                <button onclick="showNotification('Thesaurus - coming soon','info')">📕 Thesaurus</button>
+                <button onclick="showNotification('Translate - coming soon','info')">🌐 Translate</button>
+                <span class="office-sep"></span>
+                <button onclick="showNotification('Language - coming soon','info')">🗣 Language</button>
+                <button onclick="showNotification('New Comment - coming soon','info')">💬 Comment</button>
+                <button onclick="showNotification('Track Changes - coming soon','info')">✏ Track Changes</button>
+            </div>
+            <div class="office-toolbar" id="word-view" style="display:none;">
+                <span class="office-label">View</span>
+                <button onclick="showNotification('Read Mode - coming soon','info')">📖 Read Mode</button>
+                <button onclick="showNotification('Print Layout - coming soon','info')">🖨 Print Layout</button>
+                <button onclick="showNotification('Web Layout - coming soon','info')">🌐 Web Layout</button>
+                <button onclick="var z=prompt('Zoom %:','100');if(z)document.getElementById('wordEditor').style.zoom=z/100">🔍 Zoom</button>
+                <span class="office-sep"></span>
+                <button onclick="showNotification('Show Ruler - coming soon','info')">📐 Ruler</button>
+                <button onclick="showNotification('Gridlines - coming soon','info')">⊞ Gridlines</button>
+            </div>
+            <div id="wordEditor" contenteditable="false" style="flex:1; padding:20px; outline:none; overflow-y:auto;">Start typing your document here...</div>
         </div>
 
-        <div id="office-excel" class="office-tab" style="display:none; flex-direction:column; height: 460px; background: #fff; border-radius: 8px; color: #000; overflow:hidden;">
-            <div class="office-toolbar" id="excelToolbar">
+        <div id="office-excel" class="office-tab" style="display:none; flex-direction:column; height:460px; background:#fff; border-radius:8px; color:#000; overflow:hidden;">
+            <div class="office-subtabs">
+                <button class="office-subtab active" data-toolbar="excel-home">Home</button>
+                <button class="office-subtab" data-toolbar="excel-insert">Insert</button>
+                <button class="office-subtab" data-toolbar="excel-layout">Page Layout</button>
+                <button class="office-subtab" data-toolbar="excel-formulas">Formulas</button>
+                <button class="office-subtab" data-toolbar="excel-data">Data</button>
+                <button class="office-subtab" data-toolbar="excel-review">Review</button>
+            </div>
+            <div class="office-toolbar" id="excel-home" style="display:flex;">
+                <span class="office-label">Font</span>
                 <button onclick="excelBold()" title="Bold"><b>B</b></button>
                 <button onclick="excelItalic()" title="Italic"><i>I</i></button>
+                <button onclick="var s=prompt('Font size:','14');if(s)excelFontSize(s)" title="Font Size">📏 Size</button>
                 <input type="color" id="excelFillColor" value="#ffff00" title="Cell Background" style="width:24px;height:24px;padding:0;border:none;cursor:pointer;" onchange="excelBgColor(this.value)">
                 <input type="color" id="excelTextColor" value="#000000" title="Text Color" style="width:24px;height:24px;padding:0;border:none;cursor:pointer;" onchange="excelFgColor(this.value)">
                 <span class="office-sep"></span>
-                <button onclick="excelAddRow()" title="Add Row">＋ Row</button>
-                <button onclick="excelAddCol()" title="Add Column">＋ Col</button>
-                <button onclick="excelDeleteRow()" title="Delete Row">－ Row</button>
-                <button onclick="excelDeleteCol()" title="Delete Column">－ Col</button>
+                <span class="office-label">Alignment</span>
+                <button onclick="excelAlign('left')" title="Align Left">≡</button>
+                <button onclick="excelAlign('center')" title="Center">≡</button>
+                <button onclick="excelAlign('right')" title="Align Right">≡</button>
+                <button onclick="excelMerge()" title="Merge & Center">⊕ Merge</button>
+                <button onclick="excelWrap()" title="Wrap Text">↩ Wrap</button>
                 <span class="office-sep"></span>
-                <button onclick="excelSortCol()" title="Sort Column A-Z">⇅ Sort</button>
+                <span class="office-label">Number</span>
+                <select onchange="excelFormat(this.value)" style="font-size:11px;"><option value="">General</option><option value="number">Number</option><option value="currency">$ Currency</option><option value="percentage">% Percentage</option><option value="date">📅 Date</option><option value="time">🕐 Time</option></select>
+                <span class="office-sep"></span>
+                <span class="office-label">Editing</span>
+                <button onclick="excelSortCol(true)" title="Sort A-Z">⇅ A→Z</button>
+                <button onclick="excelSortCol(false)" title="Sort Z-A">⇅ Z→A</button>
+                <button onclick="showNotification('Find - coming soon','info')">🔍 Find</button>
+            </div>
+            <div class="office-toolbar" id="excel-insert" style="display:none;">
+                <span class="office-label">Insert</span>
+                <button onclick="showNotification('PivotTable - coming soon','info')">📊 PivotTable</button>
+                <button onclick="showNotification('Charts - coming soon','info')">📈 Chart</button>
+                <button onclick="showNotification('Pictures - coming soon','info')">🖼 Pictures</button>
+                <button onclick="showNotification('Shapes - coming soon','info')">⬡ Shapes</button>
+                <button onclick="showNotification('Sparklines - coming soon','info')">⚡ Sparklines</button>
+                <button onclick="showNotification('Slicer - coming soon','info')">🔪 Slicer</button>
+                <button onclick="showNotification('Hyperlink - coming soon','info')">🔗 Link</button>
+                <button onclick="showNotification('Text Box - coming soon','info')">📦 Text Box</button>
+            </div>
+            <div class="office-toolbar" id="excel-layout" style="display:none;">
+                <span class="office-label">Page Setup</span>
+                <button onclick="showNotification('Themes - coming soon','info')">🎨 Themes</button>
+                <button onclick="showNotification('Margins - coming soon','info')">📏 Margins</button>
+                <button onclick="showNotification('Orientation - coming soon','info')">🔄 Orientation</button>
+                <button onclick="showNotification('Print Area - coming soon','info')">🖨 Print Area</button>
+                <button onclick="showNotification('Breaks - coming soon','info')">⏎ Breaks</button>
+                <button onclick="showNotification('Background - coming soon','info')">🖼 Background</button>
+                <button onclick="showNotification('Print Titles - coming soon','info')">📄 Print Titles</button>
+            </div>
+            <div class="office-toolbar" id="excel-formulas" style="display:none;">
+                <span class="office-label">Functions</span>
+                <button onclick="excelAutoSum()" title="AutoSum">Σ AutoSum</button>
+                <button onclick="showNotification('Recently Used - coming soon','info')">⏳ Recently Used</button>
+                <button onclick="showNotification('Financial - coming soon','info')">💰 Financial</button>
+                <button onclick="showNotification('Logical - coming soon','info')">✓ Logical</button>
+                <button onclick="showNotification('Text - coming soon','info')">🔤 Text</button>
+                <button onclick="showNotification('Date & Time - coming soon','info')">📅 Date & Time</button>
+                <span class="office-sep"></span>
+                <button onclick="showNotification('Name Manager - coming soon','info')">🏷 Name Manager</button>
+                <button onclick="showNotification('Calculation Options - coming soon','info')">⚙ Calc Options</button>
+            </div>
+            <div class="office-toolbar" id="excel-data" style="display:none;">
+                <span class="office-label">Data Tools</span>
+                <button onclick="showNotification('Get Data - coming soon','info')">📥 Get Data</button>
+                <button onclick="showNotification('Refresh All - coming soon','info')">🔄 Refresh</button>
+                <button onclick="excelSortCol(true)" title="Sort A-Z">⇅ A→Z</button>
+                <button onclick="excelSortCol(false)" title="Sort Z-A">⇅ Z→A</button>
+                <button onclick="showNotification('Filter - coming soon','info')">🔍 Filter</button>
+                <button onclick="showNotification('Text to Columns - coming soon','info')">📋 Text to Cols</button>
+                <button onclick="showNotification('Flash Fill - coming soon','info')">⚡ Flash Fill</button>
+                <button onclick="showNotification('Remove Duplicates - coming soon','info')">🗑 Remove Dup</button>
+                <button onclick="showNotification('Data Validation - coming soon','info')">✓ Validation</button>
+            </div>
+            <div class="office-toolbar" id="excel-review" style="display:none;">
+                <span class="office-label">Review</span>
+                <button onclick="showNotification('Spelling - coming soon','info')">✓ Spelling</button>
+                <button onclick="showNotification('Thesaurus - coming soon','info')">📕 Thesaurus</button>
+                <span class="office-sep"></span>
+                <button onclick="showNotification('Protect Sheet - coming soon','info')">🔒 Protect Sheet</button>
+                <button onclick="showNotification('Protect Workbook - coming soon','info')">🔒 Protect Workbook</button>
+                <button onclick="showNotification('Share Workbook - coming soon','info')">👥 Share</button>
             </div>
             <div style="flex:1; overflow:auto;">
-                <table class="excel-table" id="excelGrid" style="margin: 0; width: auto; min-width:100%;">
+                <table class="excel-table" id="excelGrid" style="margin:0; width:auto; min-width:100%;">
                     <tr style="background:#e0e0e0;"><th style="width:40px;min-width:40px;"></th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th><th>F</th><th>G</th><th>H</th><th>I</th><th>J</th></tr>
                 </table>
             </div>
         </div>
 
-        <div id="office-ppt" class="office-tab" style="display:none; flex-direction:column; height: 460px; background: #2c3e50; border-radius: 8px; color: #fff; position: relative; overflow:hidden;">
-            <div class="office-toolbar" id="pptToolbar" style="background:#34495e; border-color:#555;">
-                <select id="pptFontFamily" style="background:#555;color:#fff;border-color:#777;"><option value="Arial">Arial</option><option value="Times New Roman">Times New Roman</option><option value="Courier New">Courier New</option><option value="Georgia">Georgia</option><option value="Verdana">Verdana</option></select>
-                <select id="pptFontSize" style="background:#555;color:#fff;border-color:#777;"><option value="3">12pt</option><option value="5">24pt</option><option value="6">36pt</option><option value="7">48pt</option></select>
-                <button onclick="document.execCommand('bold',false,null)" title="Bold"><b>B</b></button>
-                <button onclick="document.execCommand('italic',false,null)" title="Italic"><i>I</i></button>
-                <button onclick="document.execCommand('underline',false,null)" title="Underline"><u>U</u></button>
-                <input type="color" id="pptTextColor" value="#000000" title="Text Color" style="width:24px;height:24px;padding:0;border:none;cursor:pointer;" onchange="document.execCommand('foreColor',false,this.value)">
-                <span class="office-sep" style="background:#777;"></span>
-                <button onclick="document.execCommand('justifyLeft',false,null)" title="Align Left">≡</button>
-                <button onclick="document.execCommand('justifyCenter',false,null)" title="Center">≡</button>
-                <button onclick="document.execCommand('justifyRight',false,null)" title="Align Right">≡</button>
-                <span class="office-sep" style="background:#777;"></span>
-                <button onclick="document.execCommand('insertOrderedList',false,null)">1.</button>
-                <button onclick="document.execCommand('insertUnorderedList',false,null)">•</button>
-                <button onclick="pptAddSlide()" title="Add Slide" style="background:#27ae60;color:#fff;">＋ Slide</button>
+        <div id="office-ppt" class="office-tab" style="display:none; flex-direction:column; height:460px; background:#2c3e50; border-radius:8px; color:#fff; position:relative; overflow:hidden;">
+            <div class="office-subtabs">
+                <button class="office-subtab active" data-toolbar="ppt-home">Home</button>
+                <button class="office-subtab" data-toolbar="ppt-insert">Insert</button>
+                <button class="office-subtab" data-toolbar="ppt-design">Design</button>
+                <button class="office-subtab" data-toolbar="ppt-transitions">Transitions</button>
+                <button class="office-subtab" data-toolbar="ppt-animations">Animations</button>
+                <button class="office-subtab" data-toolbar="ppt-slideshow">Slide Show</button>
+            </div>
+            <div class="office-toolbar" id="ppt-home" style="display:flex; background:#34495e; border-color:#555;">
+                <span class="office-label" style="color:#aaa;">Slides</span>
+                <button onclick="pptAddSlide()" title="New Slide" style="background:#27ae60;color:#fff;">＋ Slide</button>
                 <button onclick="pptDeleteSlide()" title="Delete Slide" style="background:#e74c3c;color:#fff;">－ Slide</button>
                 <span style="color:#fff;font-size:12px;margin:0 8px;" id="pptSlideIndicator">1 / 1</span>
-                <button onclick="pptPrevSlide()" title="Previous Slide">◀</button>
-                <button onclick="pptNextSlide()" title="Next Slide">▶</button>
+                <button onclick="pptPrevSlide()" title="Previous Slide" style="color:#fff;">◀</button>
+                <button onclick="pptNextSlide()" title="Next Slide" style="color:#fff;">▶</button>
+                <span class="office-sep" style="background:#777;"></span>
+                <span class="office-label" style="color:#aaa;">Font</span>
+                <select id="pptFontFamily" style="background:#555;color:#fff;border-color:#777;"><option value="Arial">Arial</option><option value="Times New Roman">Times New Roman</option><option value="Courier New">Courier New</option><option value="Georgia">Georgia</option><option value="Verdana">Verdana</option></select>
+                <select id="pptFontSize" style="background:#555;color:#fff;border-color:#777;"><option value="3">12pt</option><option value="5">24pt</option><option value="6">36pt</option><option value="7">48pt</option></select>
+                <button onclick="document.execCommand('bold',false,null)" title="Bold" style="color:#fff;"><b>B</b></button>
+                <button onclick="document.execCommand('italic',false,null)" title="Italic" style="color:#fff;"><i>I</i></button>
+                <button onclick="document.execCommand('underline',false,null)" title="Underline" style="color:#fff;"><u>U</u></button>
+                <button onclick="document.execCommand('superscript',false,null)" title="Superscript" style="color:#fff;">x²</button>
+                <button onclick="document.execCommand('subscript',false,null)" title="Subscript" style="color:#fff;">x₂</button>
+                <input type="color" id="pptTextColor" value="#000000" title="Text Color" style="width:24px;height:24px;padding:0;border:none;cursor:pointer;" onchange="document.execCommand('foreColor',false,this.value)">
+                <span class="office-sep" style="background:#777;"></span>
+                <span class="office-label" style="color:#aaa;">Paragraph</span>
+                <button onclick="document.execCommand('justifyLeft',false,null)" title="Align Left" style="color:#fff;">≡</button>
+                <button onclick="document.execCommand('justifyCenter',false,null)" title="Center" style="color:#fff;">≡</button>
+                <button onclick="document.execCommand('justifyRight',false,null)" title="Align Right" style="color:#fff;">≡</button>
+                <button onclick="document.execCommand('insertOrderedList',false,null)" style="color:#fff;">1.</button>
+                <button onclick="document.execCommand('insertUnorderedList',false,null)" style="color:#fff;">•</button>
+                <span class="office-sep" style="background:#777;"></span>
+                <span class="office-label" style="color:#aaa;">Drawing</span>
+                <button onclick="showNotification('Shapes - coming soon','info')" style="color:#fff;">⬡ Shapes</button>
+                <button onclick="showNotification('Arrange - coming soon','info')" style="color:#fff;">↕ Arrange</button>
+                <button onclick="showNotification('Quick Styles - coming soon','info')" style="color:#fff;">🎨 Styles</button>
+                <input type="color" id="pptShapeFill" value="#3498db" title="Shape Fill" style="width:24px;height:24px;padding:0;border:none;cursor:pointer;" onchange="showNotification('Shape fill changed','info')">
+                <input type="color" id="pptShapeOutline" value="#000000" title="Shape Outline" style="width:24px;height:24px;padding:0;border:none;cursor:pointer;" onchange="showNotification('Shape outline changed','info')">
+            </div>
+            <div class="office-toolbar" id="ppt-insert" style="display:none; background:#34495e; border-color:#555;">
+                <span class="office-label" style="color:#aaa;">Insert</span>
+                <button onclick="pptAddSlide()" title="New Slide" style="background:#27ae60;color:#fff;">＋ Slide</button>
+                <button onclick="showNotification('Table - coming soon','info')" style="color:#fff;">⊞ Table</button>
+                <button onclick="showNotification('Pictures - coming soon','info')" style="color:#fff;">🖼 Pictures</button>
+                <button onclick="showNotification('Photo Album - coming soon','info')" style="color:#fff;">📸 Photo Album</button>
+                <button onclick="showNotification('Shapes - coming soon','info')" style="color:#fff;">⬡ Shapes</button>
+                <button onclick="showNotification('Icons - coming soon','info')" style="color:#fff;">◎ Icons</button>
+                <button onclick="showNotification('SmartArt - coming soon','info')" style="color:#fff;">🧠 SmartArt</button>
+                <button onclick="showNotification('Chart - coming soon','info')" style="color:#fff;">📊 Chart</button>
+                <button onclick="showNotification('Zoom - coming soon','info')" style="color:#fff;">🔍 Zoom</button>
+                <button onclick="showNotification('Link - coming soon','info')" style="color:#fff;">🔗 Link</button>
+                <button onclick="showNotification('Video - coming soon','info')" style="color:#fff;">🎬 Video</button>
+                <button onclick="showNotification('Audio - coming soon','info')" style="color:#fff;">🔊 Audio</button>
+            </div>
+            <div class="office-toolbar" id="ppt-design" style="display:none; background:#34495e; border-color:#555;">
+                <span class="office-label" style="color:#aaa;">Design</span>
+                <button onclick="showNotification('Themes - coming soon','info')" style="color:#fff;">🎨 Themes</button>
+                <button onclick="showNotification('Variants - coming soon','info')" style="color:#fff;">🌈 Variants</button>
+                <span class="office-sep" style="background:#777;"></span>
+                <button onclick="showNotification('Slide Size - coming soon','info')" style="color:#fff;">📐 Slide Size</button>
+                <button onclick="showNotification('Format Background - coming soon','info')" style="color:#fff;">🖼 Format BG</button>
+            </div>
+            <div class="office-toolbar" id="ppt-transitions" style="display:none; background:#34495e; border-color:#555;">
+                <span class="office-label" style="color:#aaa;">Transitions</span>
+                <select ondblclick="showNotification('Select a transition','info')" style="background:#555;color:#fff;border-color:#777;">
+                    <option value="">None</option><option value="morph">Morph</option><option value="fade">Fade</option><option value="push">Push</option><option value="wipe">Wipe</option><option value="dissolve">Dissolve</option>
+                </select>
+                <span class="office-sep" style="background:#777;"></span>
+                <span class="office-label" style="color:#aaa;">Timing</span>
+                <input type="number" id="pptTransDuration" value="1" step="0.5" min="0" max="10" style="width:50px;background:#555;color:#fff;border-color:#777;border-radius:4px;padding:3px;" title="Duration (s)">
+                <span style="color:#aaa;font-size:11px;">s</span>
+                <button onclick="showNotification('Transition Sound - coming soon','info')" style="color:#fff;">🔊 Sound</button>
+                <button onclick="showNotification('Advance Slide - coming soon','info')" style="color:#fff;">⏩ Advance</button>
+            </div>
+            <div class="office-toolbar" id="ppt-animations" style="display:none; background:#34495e; border-color:#555;">
+                <span class="office-label" style="color:#aaa;">Animation</span>
+                <select ondblclick="showNotification('Select an animation','info')" style="background:#555;color:#fff;border-color:#777;">
+                    <option value="">None</option><option value="appear">Appear</option><option value="fadeIn">Fade In</option><option value="flyIn">Fly In</option><option value="floatIn">Float In</option><option value="zoomIn">Zoom In</option>
+                </select>
+                <button onclick="showNotification('Animation Pane - coming soon','info')" style="color:#fff;">📋 Animation Pane</button>
+                <button onclick="showNotification('Trigger - coming soon','info')" style="color:#fff;">⚡ Trigger</button>
+                <span class="office-sep" style="background:#777;"></span>
+                <span class="office-label" style="color:#aaa;">Timing</span>
+                <input type="number" id="pptAnimDuration" value="0.5" step="0.1" min="0" max="10" style="width:50px;background:#555;color:#fff;border-color:#777;border-radius:4px;padding:3px;" title="Duration (s)"><span style="color:#aaa;font-size:11px;">s</span>
+                <input type="number" id="pptAnimDelay" value="0" step="0.1" min="0" max="30" style="width:50px;background:#555;color:#fff;border-color:#777;border-radius:4px;padding:3px;" title="Delay (s)"><span style="color:#aaa;font-size:11px;">delay</span>
+            </div>
+            <div class="office-toolbar" id="ppt-slideshow" style="display:none; background:#34495e; border-color:#555;">
+                <span class="office-label" style="color:#aaa;">Slide Show</span>
+                <button onclick="showNotification('From Beginning - coming soon','info')" style="color:#fff;">▶ From Start</button>
+                <button onclick="showNotification('From Current Slide - coming soon','info')" style="color:#fff;">▶ Current</button>
+                <span class="office-sep" style="background:#777;"></span>
+                <button onclick="showNotification('Present Online - coming soon','info')" style="color:#fff;">🌐 Present Online</button>
+                <button onclick="showNotification('Custom Slide Show - coming soon','info')" style="color:#fff;">🎬 Custom Show</button>
+                <button onclick="showNotification('Rehearse Timings - coming soon','info')" style="color:#fff;">⏱ Rehearse</button>
+                <button onclick="showNotification('Record Slide Show - coming soon','info')" style="color:#fff;">🔴 Record</button>
             </div>
             <div style="flex:1; display:flex; align-items:center; justify-content:center; padding:20px;">
-                <div id="pptEditor" contenteditable="false" style="width: 85%; height: 85%; background: #fff; color: #000; padding: 30px; box-shadow: 0 5px 25px rgba(0,0,0,0.5); font-size: 24px; text-align: center; border-radius: 4px; overflow-y:auto; outline:none;">
+                <div id="pptEditor" contenteditable="false" style="width:85%; height:85%; background:#fff; color:#000; padding:30px; box-shadow:0 5px 25px rgba(0,0,0,0.5); font-size:24px; text-align:center; border-radius:4px; overflow-y:auto; outline:none;">
                     <h2 style="margin-top:0;">Slide 1</h2><p>Click to add text</p>
                 </div>
             </div>

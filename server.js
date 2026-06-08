@@ -127,6 +127,7 @@ io.on("connection", socket => {
   
   socket.on("force-screen", data => { socket.to(data.room).emit("force-screen", data); });
   socket.on("office-sync", data => { socket.to(data.room).emit("office-sync", data); });
+  socket.on("music-play", data => { socket.to(data.room).emit("music-play", data); });
 
   socket.on("wb-control", data => io.to(data.room).emit("wb-control", data));
   socket.on("pres-view-switch", data => io.to(data.room).emit("pres-view-switch", data));

@@ -343,19 +343,11 @@ socket.on("wb-toggle", (data) => {
         hideAllBigPanels(); 
         if(whiteboardBox) whiteboardBox.style.display = "block"; 
         if(isHost){ const btn = document.getElementById("toggleWbBtn"); if(btn){btn.dataset.show="true"; btn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
-        if(isHost) {
-            socket.emit("force-screen", { room: currentRoom, target: "whiteboard-box", active: true });
-            const fsBtn = document.getElementById("wbForceFsBtn");
-            if(fsBtn) { fsBtn.dataset.forced = "true"; fsBtn.textContent = "🔓 Unlock Audience"; fsBtn.style.background = "#2ecc71"; }
-        }
     } else { 
         if(whiteboardBox) whiteboardBox.style.display = "none"; 
         if(isHost){ const btn = document.getElementById("toggleWbBtn"); if(btn){btn.dataset.show="false"; btn.style.background="linear-gradient(135deg, #3498db, #2980b9)";} } 
-        if(isHost) {
-            socket.emit("force-screen", { room: currentRoom, target: "whiteboard-box", active: false });
-            const fsBtn = document.getElementById("wbForceFsBtn");
-            if(fsBtn) { fsBtn.dataset.forced = "false"; fsBtn.textContent = "🔒 Force Fullscreen"; fsBtn.style.background = "#e74c3c"; }
-        }
+        const fsBtn = document.getElementById("wbForceFsBtn");
+        if(fsBtn) { fsBtn.dataset.forced = "false"; fsBtn.textContent = "🔒 Force Fullscreen"; fsBtn.style.background = "#e74c3c"; }
     }
 });
 
@@ -376,19 +368,11 @@ socket.on("office-toggle", (data) => {
         hideAllBigPanels(); 
         if(officeBox) officeBox.style.display = "block"; 
         if(isHost){ const btn = document.getElementById("toggleOfficeBtn"); if(btn){btn.dataset.show="true"; btn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
-        if(isHost) {
-            socket.emit("force-screen", { room: currentRoom, target: "office-box", active: true });
-            const fsBtn = document.getElementById("officeForceFsBtn");
-            if(fsBtn) { fsBtn.dataset.forced = "true"; fsBtn.textContent = "🔓 Unlock Audience"; fsBtn.style.background = "#2ecc71"; }
-        }
     } else { 
         if(officeBox) officeBox.style.display = "none"; 
         if(isHost){ const btn = document.getElementById("toggleOfficeBtn"); if(btn){btn.dataset.show="false"; btn.style.background="linear-gradient(135deg, #c0392b, #e74c3c)";} } 
-        if(isHost) {
-            socket.emit("force-screen", { room: currentRoom, target: "office-box", active: false });
-            const fsBtn = document.getElementById("officeForceFsBtn");
-            if(fsBtn) { fsBtn.dataset.forced = "false"; fsBtn.textContent = "🔒 Force Fullscreen"; fsBtn.style.background = "#e74c3c"; }
-        }
+        const fsBtn = document.getElementById("officeForceFsBtn");
+        if(fsBtn) { fsBtn.dataset.forced = "false"; fsBtn.textContent = "🔒 Force Fullscreen"; fsBtn.style.background = "#e74c3c"; }
     }
 });
 
@@ -670,6 +654,19 @@ officeTabBtns.forEach(btn => {
     });
 });
 
+// Office sub-tab switching (Word/Excel/PPT ribbon tabs)
+document.querySelectorAll(".office-subtab").forEach(btn => {
+    btn.addEventListener("click", () => {
+        const parent = btn.closest(".office-tab");
+        if(!parent) return;
+        parent.querySelectorAll(".office-subtab").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        parent.querySelectorAll(".office-toolbar").forEach(tb => tb.style.display = "none");
+        const target = document.getElementById(btn.dataset.toolbar);
+        if(target) target.style.display = "flex";
+    });
+});
+
 officeSyncToggle?.addEventListener("change", (e) => {
     isOfficeSyncing = e.target.checked;
     if(isOfficeSyncing) emitOfficeData();
@@ -819,7 +816,7 @@ function excelDeleteCol() {
     }
     emitOfficeData();
 }
-function excelSortCol() {
+function excelSortCol(ascending = true) {
     if(!excelGrid || excelGrid.rows.length <= 2) return;
     const sel = window.getSelection();
     if(!sel.rangeCount) return;
@@ -828,10 +825,84 @@ function excelSortCol() {
     const ci = td.cellIndex;
     if(ci === 0) return;
     const rows = Array.from(excelGrid.rows).slice(1);
-    rows.sort((a, b) => (a.cells[ci]?.innerText || '').localeCompare(b.cells[ci]?.innerText || ''));
+    rows.sort((a, b) => ascending
+        ? (a.cells[ci]?.innerText || '').localeCompare(b.cells[ci]?.innerText || '')
+        : (b.cells[ci]?.innerText || '').localeCompare(a.cells[ci]?.innerText || ''));
     const tbody = excelGrid.querySelector('tbody') || excelGrid;
     rows.forEach(r => tbody.appendChild(r));
     for(let r=1; r<excelGrid.rows.length; r++) excelGrid.rows[r].cells[0].textContent = r;
+    emitOfficeData();
+}
+function excelFontSize(size) {
+    if(!excelGrid) return;
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td');
+    if(!td) return;
+    td.style.fontSize = size + "px";
+    emitOfficeData();
+}
+function excelAlign(align) {
+    if(!excelGrid) return;
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td');
+    if(!td) return;
+    td.style.textAlign = align;
+    emitOfficeData();
+}
+function excelMerge() {
+    if(!excelGrid) return;
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td');
+    if(!td) return;
+    if(td.colSpan > 1) { td.colSpan = 1; return; }
+    const ri = td.parentElement.rowIndex;
+    let mergeWith = null;
+    for(let c=td.cellIndex+1; c<excelGrid.rows[ri].cells.length; c++) {
+        const next = excelGrid.rows[ri].cells[c];
+        if(next.tagName === 'TD') { mergeWith = next; break; }
+    }
+    if(mergeWith) { td.colSpan = (td.colSpan||1) + (mergeWith.colSpan||1); mergeWith.remove(); }
+    emitOfficeData();
+}
+function excelWrap() {
+    if(!excelGrid) return;
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td');
+    if(!td) return;
+    td.style.whiteSpace = td.style.whiteSpace === 'nowrap' ? 'normal' : 'nowrap';
+    emitOfficeData();
+}
+function excelFormat(fmt) {
+    if(!excelGrid) return;
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td');
+    if(!td) return;
+    if(fmt === 'currency') td.textContent = '$' + (parseFloat(td.textContent.replace(/[^0-9.-]/g,'')) || 0).toFixed(2);
+    else if(fmt === 'percentage') td.textContent = (parseFloat(td.textContent.replace(/[^0-9.-]/g,'')) || 0) + '%';
+    else if(fmt === 'number') td.textContent = parseFloat(td.textContent.replace(/[^0-9.-]/g,'')).toLocaleString();
+    else if(fmt === 'date') td.textContent = new Date().toLocaleDateString();
+    else if(fmt === 'time') td.textContent = new Date().toLocaleTimeString();
+    emitOfficeData();
+}
+function excelAutoSum() {
+    if(!excelGrid) return;
+    const sel = window.getSelection();
+    if(!sel.rangeCount) return;
+    const td = sel.anchorNode?.closest?.('td');
+    if(!td) return;
+    const ci = td.cellIndex;
+    const ri = td.parentElement.rowIndex;
+    let sum = 0;
+    for(let r=1; r<excelGrid.rows.length; r++) {
+        const val = parseFloat(excelGrid.rows[r].cells[ci]?.innerText?.replace(/[^0-9.-]/g,''));
+        if(!isNaN(val) && r !== ri) sum += val;
+    }
+    td.textContent = sum;
     emitOfficeData();
 }
 
@@ -1896,3 +1967,64 @@ document.getElementById("uploadBtn")?.addEventListener("click", async () => { co
 function addFileLink(name, url) { const a = document.createElement("a"); a.href = url; a.textContent = name; a.download = name; a.target = "_blank"; if(fileList) fileList.prepend(a); }
 socket.on("file-uploaded", data => { addFileLink(data.filename, data.url); showNotification(`${data.uploader} uploaded a file`, "info"); });
 socket.on("user-joined", info => showNotification(`${info.name || "User"} joined the room!`, "join"));
+
+// ==========================================
+// 12. MUSIC STUDIO (Host Upload, Sync, Per-User Mute)
+// ==========================================
+const hostAudioFile = document.getElementById("hostAudioFile");
+const hostAudioPlayer = document.getElementById("hostAudioPlayer");
+const remoteMusicPlayer = document.getElementById("remoteMusicPlayer");
+const localMusicMuteBtn = document.getElementById("localMusicMuteBtn");
+let currentMusicUrl = "";
+
+hostAudioFile?.addEventListener("change", async function() {
+    const file = this.files?.[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("room", currentRoom || "");
+    fd.append("uploader", "Host-Music");
+    try {
+        const res = await fetch("/upload", { method: "POST", body: fd });
+        const data = await res.json();
+        hostAudioPlayer.src = data.url;
+        hostAudioPlayer.load();
+        showNotification("Music uploaded! Press play to broadcast.", "info");
+    } catch(e) { showNotification("Upload failed", "danger"); }
+});
+
+hostAudioPlayer?.addEventListener("play", function() {
+    if(currentRoom) {
+        currentMusicUrl = this.src;
+        socket.emit("music-play", { room: currentRoom, url: this.src, playing: true, currentTime: this.currentTime });
+    }
+});
+hostAudioPlayer?.addEventListener("pause", function() {
+    if(currentRoom) socket.emit("music-play", { room: currentRoom, url: currentMusicUrl, playing: false, currentTime: this.currentTime });
+});
+
+socket.on("music-play", (data) => {
+    if(isHost) return;
+    currentMusicUrl = data.url;
+    if(data.playing) {
+        if(remoteMusicPlayer.src !== data.url) { remoteMusicPlayer.src = data.url; remoteMusicPlayer.load(); }
+        remoteMusicPlayer.currentTime = data.currentTime || 0;
+        remoteMusicPlayer.play().catch(() => {});
+        if(localMusicMuteBtn) localMusicMuteBtn.style.display = "inline-block";
+        showNotification(`🎵 Host is playing music${data.url ? ' — <button onclick="remoteMusicPlayer.play()" style="background:#2ecc71;color:#fff;border:none;padding:4px 12px;border-radius:12px;cursor:pointer;font-size:12px;">▶ Play</button>' : ''}`, "info");
+    } else {
+        remoteMusicPlayer.pause();
+    }
+});
+
+localMusicMuteBtn?.addEventListener("click", function() {
+    if(remoteMusicPlayer.paused) {
+        remoteMusicPlayer.play().catch(() => {});
+        this.textContent = "🎵🔇 Mute Music";
+        this.style.background = "#9b59b6";
+    } else {
+        remoteMusicPlayer.pause();
+        this.textContent = "🎵🔊 Unmute Music";
+        this.style.background = "#2ecc71";
+    }
+});

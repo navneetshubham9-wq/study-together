@@ -107,6 +107,13 @@ body.locked-fullscreen-active #workspace > *:not(.locked-fullscreen) {
 .office-toolbar button:hover { background: #d5d5d5; }
 .office-toolbar button.office-active { background: var(--primary); color: #fff; border-color: var(--primary); }
 .office-toolbar .office-sep { width: 1px; height: 22px; background: #bbb; margin: 0 3px; display: inline-block; }
+.office-subtabs { display:flex; gap:2px; padding:4px 8px 0; background:#d0d4d8; border-bottom:1px solid #bbb; flex-wrap:wrap; }
+.office-subtab { background:#dde1e5; color:#444; border:1px solid #bbb; border-bottom:none; border-radius:4px 4px 0 0; padding:5px 14px; font-size:11px; font-weight:600; cursor:pointer; transition:background 0.15s; }
+.office-subtab:hover { background:#e8ecf0; }
+.office-subtab.active { background:#e8ecf0; color:#222; border-bottom:2px solid #2ecc71; }
+.office-toolbar-group { display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
+.office-toolbar-group + .office-toolbar-group { margin-left:8px; padding-left:8px; border-left:1px solid #ccc; }
+.office-label { font-size:9px; color:#888; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-right:4px; }
 .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .calc-btn { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); padding: 15px 0; font-size: 18px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
 .calc-btn:hover { background: rgba(255,255,255,0.2); }
