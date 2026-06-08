@@ -8,10 +8,12 @@ let joined = false;
 let currentRoom = null;
 let screenTrack = null;
 let isHost = false; 
+let globalHostUid = null; // 🚀 NAYA: To track the host for PiP
 let isSharing = false; 
 const remoteUsers = {}; 
 let currentMusicUrl = null;
 
+// DOM Elements
 const joinBtn = document.getElementById("joinBtn");
 const joinSection = document.getElementById("join-section"); 
 const workspace = document.getElementById("workspace"); 
@@ -30,9 +32,11 @@ const localMusicMuteBtn = document.getElementById("localMusicMuteBtn");
 const toggleWbBtn = document.getElementById("toggleWbBtn"); 
 const toggleMapBtn = document.getElementById("toggleMapBtn"); 
 const togglePresBtn = document.getElementById("togglePresBtn"); 
+const toggleOfficeBtn = document.getElementById("toggleOfficeBtn"); 
 const openMathBtn = document.getElementById("openMathBtn"); 
 const toggleCalcBtn = document.getElementById("toggleCalcBtn"); 
 
+// Hamburger Menu Logic
 const controlRowInner = document.getElementById("controlRowInner");
 const hamburgerBtn = document.getElementById("hamburgerBtn");
 const sideMenuContainer = document.getElementById("side-menu-container");
@@ -83,10 +87,65 @@ document.addEventListener("click", (e) => {
 const sendMsgBtn = document.getElementById("sendMsg");
 const chatInput = document.getElementById("chatInput");
 const messages = document.getElementById("messages");
-const uploadBtn = document.getElementById("uploadBtn");
 const fileUpload = document.getElementById("fileUpload");
 const fileList = document.getElementById("fileList");
 
+// ==========================================
+// 🚀 NAYA: CONVERTER TOOL (Draggable & Keyboard friendly)
+// ==========================================
+const toggleConvBtn = document.getElementById("toggleConvBtn");
+const convModal = document.getElementById("converter-modal");
+const convHeader = document.getElementById("converter-header");
+const convType = document.getElementById("convType");
+const convInput = document.getElementById("convInput");
+const convOutput = document.getElementById("convOutput");
+const convFrom = document.getElementById("convFrom");
+const convTo = document.getElementById("convTo");
+
+const convRates = {
+    currency: { USD: 1, INR: 83.5, EUR: 0.92, GBP: 0.79, JPY: 151 },
+    length: { Meter: 1, Centimeter: 100, Kilometer: 0.001, Inch: 39.37, Foot: 3.281, Mile: 0.000621 },
+    weight: { Kilogram: 1, Gram: 1000, Pound: 2.205, Ounce: 35.274 },
+    temp: { Celsius: "C", Fahrenheit: "F", Kelvin: "K" }
+};
+
+function populateConvDropdowns() {
+    const type = convType.value;
+    convFrom.innerHTML = ""; convTo.innerHTML = "";
+    Object.keys(convRates[type]).forEach(k => {
+        convFrom.innerHTML += `<option value="${k}">${k}</option>`;
+        convTo.innerHTML += `<option value="${k}">${k}</option>`;
+    });
+    if(type === 'currency' && convTo.options.length > 1) convTo.selectedIndex = 1;
+    calculateConversion();
+}
+
+function calculateConversion() {
+    const type = convType.value; const val = parseFloat(convInput.value) || 0;
+    const from = convFrom.value; const to = convTo.value;
+    if (type === 'temp') {
+        let c = 0;
+        if(from === 'Celsius') c = val; else if(from === 'Fahrenheit') c = (val - 32) * 5/9; else if(from === 'Kelvin') c = val - 273.15;
+        if(to === 'Celsius') convOutput.value = c.toFixed(2); else if(to === 'Fahrenheit') convOutput.value = ((c * 9/5) + 32).toFixed(2); else if(to === 'Kelvin') convOutput.value = (c + 273.15).toFixed(2);
+    } else {
+        const baseVal = val / convRates[type][from];
+        convOutput.value = (baseVal * convRates[type][to]).toFixed(4);
+    }
+}
+
+toggleConvBtn.addEventListener("click", () => { convModal.style.display = convModal.style.display === "none" || convModal.style.display === "" ? "block" : "none"; populateConvDropdowns(); });
+convType.addEventListener("change", populateConvDropdowns);
+convInput.addEventListener("input", calculateConversion);
+convFrom.addEventListener("change", calculateConversion);
+convTo.addEventListener("change", calculateConversion);
+
+let isConvDragging = false; let convStartX, convStartY, convInitialX, convInitialY;
+convHeader.addEventListener("pointerdown", (e) => { isConvDragging = true; convStartX = e.clientX; convStartY = e.clientY; const rect = convModal.getBoundingClientRect(); convInitialX = rect.left; convInitialY = rect.top; convModal.style.right = "auto"; convModal.style.left = convInitialX + "px"; convModal.style.top = convInitialY + "px"; });
+document.addEventListener("pointermove", (e) => { if(!isConvDragging) return; convModal.style.left = (convInitialX + e.clientX - convStartX) + "px"; convModal.style.top = (convInitialY + e.clientY - convStartY) + "px"; });
+document.addEventListener("pointerup", () => isConvDragging = false);
+// ==========================================
+
+// Calculator
 const calcModal = document.getElementById("calc-modal");
 const calcDisplay = document.getElementById("calc-display");
 const calcHeader = document.getElementById("calc-header");
@@ -112,6 +171,148 @@ calcHeader.addEventListener("pointerdown", (e) => { isCalcDragging = true; calcS
 document.addEventListener("pointermove", (e) => { if(!isCalcDragging) return; calcModal.style.left = (calcInitialX + e.clientX - calcStartX) + "px"; calcModal.style.top = (calcInitialY + e.clientY - calcStartY) + "px"; });
 document.addEventListener("pointerup", () => isCalcDragging = false);
 
+// ==========================================
+// 🚀 NAYA: VYDEX OFFICE LOGIC (Word, Excel, PPT & Sync)
+// ==========================================
+const officeBox = document.getElementById("office-box");
+const officeTabs = document.querySelectorAll(".office-tab");
+const officeTabBtns = document.querySelectorAll(".office-tab-btn");
+const wordEditor = document.getElementById("wordEditor");
+const excelGrid = document.getElementById("excelGrid");
+const pptEditor = document.getElementById("pptEditor");
+const officeSyncToggle = document.getElementById("officeSyncToggle");
+const officeForceFsBtn = document.getElementById("officeForceFsBtn");
+let isOfficeSyncing = false;
+
+// Excel Grid Setup (10x5)
+for(let r=1; r<=10; r++) {
+    let row = `<tr><td style="background:#e0e0e0; font-weight:bold; width:40px; text-align:center;">${r}</td>`;
+    for(let c=0; c<5; c++) row += `<td contenteditable="false"></td>`;
+    row += `</tr>`;
+    excelGrid.innerHTML += row;
+}
+
+officeTabBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+        officeTabBtns.forEach(b => b.classList.remove("active-tool"));
+        btn.classList.add("active-tool");
+        officeTabs.forEach(t => t.style.display = "none");
+        document.getElementById(btn.dataset.target).style.display = "block";
+        if(isHost && isOfficeSyncing) socket.emit("office-sync", { room: currentRoom, action: "tab-switch", target: btn.dataset.target });
+    });
+});
+
+officeSyncToggle.addEventListener("change", (e) => {
+    isOfficeSyncing = e.target.checked;
+    wordEditor.contentEditable = isOfficeSyncing ? "true" : "false";
+    pptEditor.contentEditable = isOfficeSyncing ? "true" : "false";
+    document.querySelectorAll('#excelGrid td[contenteditable]').forEach(td => td.contentEditable = isOfficeSyncing ? "true" : "false");
+    document.getElementById("office-word").firstElementChild.style.display = isOfficeSyncing ? "flex" : "none";
+    if(isOfficeSyncing) emitOfficeData();
+});
+
+function emitOfficeData() {
+    if(!isHost || !isOfficeSyncing) return;
+    socket.emit("office-sync", {
+        room: currentRoom,
+        action: "content-update",
+        wordData: wordEditor.innerHTML,
+        pptData: pptEditor.innerHTML,
+        excelData: Array.from(excelGrid.rows).slice(1).map(r => Array.from(r.cells).slice(1).map(c => c.innerHTML))
+    });
+}
+
+// Attach listeners for real-time text typing
+wordEditor.addEventListener("input", emitOfficeData);
+pptEditor.addEventListener("input", emitOfficeData);
+excelGrid.addEventListener("input", emitOfficeData);
+
+socket.on("office-sync", (data) => {
+    if(data.action === "tab-switch") {
+        officeTabBtns.forEach(b => b.classList.remove("active-tool"));
+        document.querySelector(`[data-target='${data.target}']`).classList.add("active-tool");
+        officeTabs.forEach(t => t.style.display = "none");
+        document.getElementById(data.target).style.display = "block";
+    }
+    if(data.action === "content-update" && !isHost) {
+        wordEditor.innerHTML = data.wordData;
+        pptEditor.innerHTML = data.pptData;
+        const rows = Array.from(excelGrid.rows).slice(1);
+        data.excelData.forEach((rData, rIdx) => {
+            if(rows[rIdx]) {
+                const cells = Array.from(rows[rIdx].cells).slice(1);
+                rData.forEach((cData, cIdx) => { if(cells[cIdx] && cells[cIdx].innerHTML !== cData) cells[cIdx].innerHTML = cData; });
+            }
+        });
+    }
+});
+
+// Download Logic
+document.getElementById("officeDownloadBtn").addEventListener("click", () => {
+    let activeTab = Array.from(officeTabs).find(t => t.style.display === "block").id;
+    let content = "", ext = "", mime = "";
+    if(activeTab === 'office-word') { content = wordEditor.innerText; ext = "txt"; mime = "text/plain"; }
+    if(activeTab === 'office-ppt') { content = pptEditor.innerText; ext = "txt"; mime = "text/plain"; }
+    if(activeTab === 'office-excel') {
+        content = Array.from(excelGrid.rows).map(r => Array.from(r.cells).map(c => c.innerText).join(",")).join("\n");
+        ext = "csv"; mime = "text/csv";
+    }
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `VYDEX_Document.${ext}`; a.click();
+});
+// ==========================================
+
+// ==========================================
+// 🚀 NAYA: FORCED LOCKED FULLSCREEN & PiP ENGINE
+// ==========================================
+function applyForcedFullscreen(targetId, isActive) {
+    const targetEl = document.getElementById(targetId);
+    if (!targetEl) return;
+
+    if (isActive) {
+        document.body.classList.add("no-scroll");
+        targetEl.classList.add("locked-fullscreen");
+        
+        // Host PiP Logic: Find Host Video Wrapper
+        if (!isHost && globalHostUid) {
+            const hostWrapper = document.getElementById(`remote-wrapper-${globalHostUid}`);
+            if (hostWrapper) hostWrapper.classList.add("host-pip");
+        }
+        showNotification("🔒 Host locked screen in Presentation Mode.", "danger");
+    } else {
+        document.body.classList.remove("no-scroll");
+        targetEl.classList.remove("locked-fullscreen");
+        if (!isHost && globalHostUid) {
+            const hostWrapper = document.getElementById(`remote-wrapper-${globalHostUid}`);
+            if (hostWrapper) hostWrapper.classList.remove("host-pip");
+        }
+        showNotification("🔓 Screen Unlocked.", "info");
+    }
+}
+
+document.getElementById("wbForceFsBtn")?.addEventListener("click", (e) => {
+    const isForced = e.target.dataset.forced === "true";
+    socket.emit("force-screen", { room: currentRoom, target: "whiteboard-box", active: !isForced });
+    e.target.dataset.forced = !isForced ? "true" : "false";
+    e.target.textContent = !isForced ? "🔓 Unlock Audience" : "🔒 Force Fullscreen";
+    e.target.style.background = !isForced ? "#2ecc71" : "#e74c3c";
+});
+
+officeForceFsBtn.addEventListener("click", (e) => {
+    const isForced = e.target.dataset.forced === "true";
+    socket.emit("force-screen", { room: currentRoom, target: "office-box", active: !isForced });
+    e.target.dataset.forced = !isForced ? "true" : "false";
+    e.target.textContent = !isForced ? "🔓 Unlock Audience" : "🔒 Force Fullscreen";
+    e.target.style.background = !isForced ? "#2ecc71" : "#e74c3c";
+});
+
+socket.on("force-screen", (data) => {
+    if (!isHost) applyForcedFullscreen(data.target, data.active);
+});
+// ==========================================
+
+// Math Modal
 const mathModal = document.getElementById("math-modal");
 const mathInput = document.getElementById("mathInput");
 const mathExplanationInput = document.getElementById("mathExplanationInput");
@@ -121,6 +322,7 @@ const mathDisplay = document.getElementById("mathDisplay");
 const mathCategory = document.getElementById("mathCategory");
 const formulaLibrary = document.getElementById("formulaLibrary");
 
+// Presentation & Graph
 const presentationBox = document.getElementById("presentation-box");
 const presInputForm = document.getElementById("pres-input-form");
 const generateGraphBtn = document.getElementById("generateGraphBtn");
@@ -139,6 +341,7 @@ const excelTable = document.getElementById("excelTable");
 let businessChart = null;
 let currentChartData = null;
 
+// Map Elements
 const mapBox = document.getElementById("map-box");
 const mapContainer = document.getElementById("map-container");
 const toggleLabelsBtn = document.getElementById("toggleLabelsBtn");
@@ -147,24 +350,17 @@ let geoMap;
 let labelsLayer; 
 let labelsVisible = true; 
 
-// ==========================================
-// 🚀 DUAL LAYER WHITEBOARD SYSTEM SETUP
-// ==========================================
+// Whiteboard Elements
 const whiteboardBox = document.getElementById("whiteboard-box");
-
-// 1. Background Canvas (For PDFs and Stamped Images - NEVER Erased)
-const bgCanvas = document.getElementById('bg-whiteboard');
-const bgCtx = bgCanvas.getContext('2d', { willReadFrequently: true }); 
-
-// 2. Foreground Canvas (For Pen, Shapes, and Eraser)
 const canvas = document.getElementById('whiteboard');
 const ctx = canvas.getContext('2d', { willReadFrequently: true }); 
 const wbStatus = document.getElementById('wb-status');
+const bgCanvas = document.getElementById('bg-whiteboard');
+const bgCtx = bgCanvas.getContext('2d', { willReadFrequently: true }); 
 
-// Setup Colors
 bgCtx.fillStyle = "#ffffff";
 bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
-ctx.clearRect(0, 0, canvas.width, canvas.height); // Foreground must be transparent!
+ctx.clearRect(0, 0, canvas.width, canvas.height);
 
 let canDraw = false; 
 let currentBrushColor = "#000000";
@@ -178,11 +374,10 @@ let stampImage = null;
 let stampScale = 1.0;
 let isStamping = false;
 
-let currentEraserSize = 30; // 0.5cm equivalent
+let currentEraserSize = 30;
 let isRightClickErasing = false;
 let prevToolState = 'pen';
 
-// Multi-Page Dual Arrays!
 let wbPagesBg = []; 
 let wbPagesFg = []; 
 let currentWbPage = 0;
@@ -191,13 +386,11 @@ const wbNextPageBtn = document.getElementById("wbNextPage");
 const wbAddPageBtn = document.getElementById("wbAddPage");
 const wbPageNumText = document.getElementById("wbPageNum");
 
-// Initialize page 0
-wbPagesBg[0] = '';
-wbPagesFg[0] = '';
+wbPagesBg[0] = ''; wbPagesFg[0] = '';
 
 function saveCurrentPage() {
     wbPagesBg[currentWbPage] = bgCanvas.toDataURL("image/jpeg", 0.5); 
-    wbPagesFg[currentWbPage] = canvas.toDataURL("image/png", 0.5); // PNG retains transparency
+    wbPagesFg[currentWbPage] = canvas.toDataURL("image/png", 0.5);
 }
 
 function loadPage(index) {
@@ -206,37 +399,26 @@ function loadPage(index) {
     currentWbPage = index;
     wbPageNumText.textContent = `${currentWbPage + 1} / ${wbPagesBg.length}`;
     
-    // Clear both
     bgCtx.fillStyle = "#ffffff"; bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height); 
     ctx.clearRect(0, 0, canvas.width, canvas.height); 
 
-    // Load Background Layer
     if(wbPagesBg[currentWbPage]) {
-        const imgBg = new Image();
-        imgBg.onload = () => { bgCtx.drawImage(imgBg, 0, 0); };
-        imgBg.src = wbPagesBg[currentWbPage];
+        const imgBg = new Image(); imgBg.onload = () => { bgCtx.drawImage(imgBg, 0, 0); }; imgBg.src = wbPagesBg[currentWbPage];
     }
-    // Load Foreground Layer
     if(wbPagesFg[currentWbPage]) {
-        const imgFg = new Image();
-        imgFg.onload = () => { ctx.drawImage(imgFg, 0, 0); };
-        imgFg.src = wbPagesFg[currentWbPage];
+        const imgFg = new Image(); imgFg.onload = () => { ctx.drawImage(imgFg, 0, 0); }; imgFg.src = wbPagesFg[currentWbPage];
     }
-    
     if(isHost) socket.emit("wb-page-sync", { room: currentRoom, imageBg: wbPagesBg[currentWbPage], imageFg: wbPagesFg[currentWbPage], num: currentWbPage + 1, total: wbPagesBg.length });
 }
 
 if(wbAddPageBtn) {
     wbAddPageBtn.addEventListener("click", () => {
         saveCurrentPage();
-        wbPagesBg.push(''); 
-        wbPagesFg.push(''); 
+        wbPagesBg.push(''); wbPagesFg.push(''); 
         currentWbPage = wbPagesBg.length - 1;
         wbPageNumText.textContent = `${currentWbPage + 1} / ${wbPagesBg.length}`;
-        
         bgCtx.fillStyle = "#ffffff"; bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
         showNotification("Created new whiteboard page!", "info");
         socket.emit("wb-page-sync", { room: currentRoom, imageBg: '', imageFg: '', num: currentWbPage + 1, total: wbPagesBg.length });
     });
@@ -246,20 +428,11 @@ if(wbNextPageBtn) { wbNextPageBtn.addEventListener("click", () => loadPage(curre
 
 socket.on("wb-page-sync", (data) => {
     wbPageNumText.textContent = `${data.num} / ${data.total}`;
-    
     bgCtx.fillStyle = "#ffffff"; bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    if(data.imageBg) {
-        const imgBg = new Image();
-        imgBg.onload = () => { bgCtx.drawImage(imgBg, 0, 0); };
-        imgBg.src = data.imageBg;
-    }
-    if(data.imageFg) {
-        const imgFg = new Image();
-        imgFg.onload = () => { ctx.drawImage(imgFg, 0, 0); };
-        imgFg.src = data.imageFg;
-    }
+    if(data.imageBg) { const imgBg = new Image(); imgBg.onload = () => { bgCtx.drawImage(imgBg, 0, 0); }; imgBg.src = data.imageBg; }
+    if(data.imageFg) { const imgFg = new Image(); imgFg.onload = () => { ctx.drawImage(imgFg, 0, 0); }; imgFg.src = data.imageFg; }
 });
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
@@ -300,6 +473,7 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
 addSizeControls(whiteboardBox, whiteboardBox);
 addSizeControls(mapBox, mapBox); 
 addSizeControls(presentationBox, presentationBox); 
+addSizeControls(officeBox, officeBox); 
 
 document.getElementById("mapFullscreenBtn")?.addEventListener("click", () => {
     const mapCont = document.getElementById("map-container");
@@ -311,14 +485,17 @@ function hideAllBigPanels() {
     whiteboardBox.style.display = "none";
     mapBox.style.display = "none";
     presentationBox.style.display = "none";
+    officeBox.style.display = "none";
     toggleWbBtn.dataset.show = "false"; toggleWbBtn.style.background = "linear-gradient(135deg, #3498db, #2980b9)";
     toggleMapBtn.dataset.show = "false"; toggleMapBtn.style.background = "linear-gradient(135deg, #27ae60, #2ecc71)";
     togglePresBtn.dataset.show = "false"; togglePresBtn.style.background = "linear-gradient(135deg, #f1c40f, #f39c12)";
+    toggleOfficeBtn.dataset.show = "false"; toggleOfficeBtn.style.background = "linear-gradient(135deg, #c0392b, #e74c3c)";
 }
 
 togglePresBtn.addEventListener("click", () => { const isShowing = togglePresBtn.dataset.show === "true"; socket.emit("pres-toggle", { room: currentRoom, show: !isShowing }); });
 toggleWbBtn.addEventListener("click", () => { const isShowing = toggleWbBtn.dataset.show === "true"; socket.emit("wb-toggle", { room: currentRoom, show: !isShowing }); });
 toggleMapBtn.addEventListener("click", () => { const isShowing = toggleMapBtn.dataset.show === "true"; socket.emit("map-toggle", { room: currentRoom, show: !isShowing }); });
+toggleOfficeBtn.addEventListener("click", () => { const isShowing = toggleOfficeBtn.dataset.show === "true"; socket.emit("office-toggle", { room: currentRoom, show: !isShowing }); });
 
 socket.on("pres-toggle", (data) => {
   if(data.show) { hideAllBigPanels(); presentationBox.style.display = "block"; if(isHost){togglePresBtn.dataset.show="true"; togglePresBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
@@ -335,13 +512,18 @@ socket.on("map-toggle", (data) => {
   else { mapBox.style.display = "none"; if(isHost){toggleMapBtn.dataset.show="false"; toggleMapBtn.style.background="linear-gradient(135deg, #27ae60, #2ecc71)";} }
 });
 
+socket.on("office-toggle", (data) => {
+  if (data.show) { hideAllBigPanels(); officeBox.style.display = "block"; if(isHost){toggleOfficeBtn.dataset.show="true"; toggleOfficeBtn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
+  else { officeBox.style.display = "none"; if(isHost){toggleOfficeBtn.dataset.show="false"; toggleOfficeBtn.style.background="linear-gradient(135deg, #c0392b, #e74c3c)";} }
+});
+
 // ---------- MATH FORMULA LIBRARY LOGIC ----------
 const formulas = {
     algebra: [ {name: "Quadratic", eq: "x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}", desc: "Roots of a quadratic eq."}, {name: "Logarithm", eq: "\\log_b(xy) = \\log_b(x) + \\log_b(y)", desc: "Log product rule."}, {name: "Binomial", eq: "(a+b)^n = \\sum_{k=0}^{n} \\binom{n}{k} a^{n-k} b^k", desc: "Binomial theorem expansion."} ],
     calculus: [ {name: "Derivative", eq: "f'(x) = \\lim_{h \\to 0} \\frac{f(x+h)-f(x)}{h}", desc: "First principle of derivatives."}, {name: "Integral", eq: "\\int x^n dx = \\frac{x^{n+1}}{n+1} + C", desc: "Power rule for integration."}, {name: "Limits (e)", eq: "\\lim_{x \\to \\infty} \\left(1 + \\frac{1}{x}\\right)^x = e", desc: "Euler's number limit."} ],
     trigonometry: [ {name: "Pythagorean ID", eq: "\\sin^2\\theta + \\cos^2\\theta = 1", desc: "Fundamental trig identity."}, {name: "Sine Rule", eq: "\\frac{a}{\\sin A} = \\frac{b}{\\sin B} = \\frac{c}{\\sin C}", desc: "Triangle sine rule."} ],
-    physics: [ {name: "Force", eq: "F = ma", desc: "Newton's 2nd Law. F=Force, m=Mass, a=Acceleration."}, {name: "Mass-Energy", eq: "E = mc^2", desc: "Einstein's Equation."}, {name: "Gravity", eq: "F = G \\frac{m_1 m_2}{r^2}", desc: "Newton's Law of Gravitation."} ],
-    financial: [ {name: "Compound Int.", eq: "A = P\\left(1 + \\frac{r}{n}\\right)^{nt}", desc: "A=Final, P=Principal, r=Rate, n=Freq, t=Time."}, {name: "ROI", eq: "ROI = \\frac{\\text{Net Profit}}{\\text{Cost}} \\times 100", desc: "Return on Investment."} ],
+    physics: [ {name: "Force", eq: "F = ma", desc: "Newton's 2nd Law."}, {name: "Mass-Energy", eq: "E = mc^2", desc: "Einstein's Equation."}, {name: "Gravity", eq: "F = G \\frac{m_1 m_2}{r^2}", desc: "Newton's Law."} ],
+    financial: [ {name: "Compound Int.", eq: "A = P\\left(1 + \\frac{r}{n}\\right)^{nt}", desc: "Compound interest."} ],
     statistics: [ {name: "Mean", eq: "\\mu = \\frac{\\sum x_i}{N}", desc: "Population Mean."}, {name: "Std Deviation", eq: "\\sigma = \\sqrt{\\frac{\\sum (x_i - \\mu)^2}{N}}", desc: "Standard Deviation."} ]
 };
 
@@ -468,17 +650,8 @@ const toggleSubjectsBtn = document.getElementById("toggleSubjectsBtn");
 const wbSubjectsMenu = document.getElementById("wb-subjects-menu");
 const wbEraserMenu = document.getElementById("wb-eraser-menu");
 
-toggleShapesBtn.addEventListener("click", () => {
-    wbShapesMenu.style.display = wbShapesMenu.style.display === "none" ? "block" : "none";
-    wbSubjectsMenu.style.display = "none"; 
-    wbEraserMenu.style.display = "none";
-});
-
-toggleSubjectsBtn.addEventListener("click", () => {
-    wbSubjectsMenu.style.display = wbSubjectsMenu.style.display === "none" ? "block" : "none";
-    wbShapesMenu.style.display = "none";
-    wbEraserMenu.style.display = "none";
-});
+toggleShapesBtn.addEventListener("click", () => { wbShapesMenu.style.display = wbShapesMenu.style.display === "none" ? "block" : "none"; wbSubjectsMenu.style.display = "none"; wbEraserMenu.style.display = "none"; });
+toggleSubjectsBtn.addEventListener("click", () => { wbSubjectsMenu.style.display = wbSubjectsMenu.style.display === "none" ? "block" : "none"; wbShapesMenu.style.display = "none"; wbEraserMenu.style.display = "none"; });
 
 const subjectAssets = {
     geography: [
@@ -528,15 +701,11 @@ const subjectAssetsList = document.getElementById("subjectAssetsList");
 function prepareStamp(src) {
     const img = new Image();
     if (!src.startsWith("data:")) { img.crossOrigin = "Anonymous"; }
-    
     img.onload = () => {
         stampImage = img;
         stampScale = Math.min((canvas.width * 0.6) / img.width, (canvas.height * 0.6) / img.height);
-        
-        isStamping = true;
-        currentTool = 'stamp';
+        isStamping = true; currentTool = 'stamp';
         document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active-tool'));
-        
         showNotification("🖱️ Ready! Scroll to resize, Click to paste.", "info");
         canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); 
     };
@@ -550,22 +719,16 @@ async function loadAssetToCanvas(url, name) {
         const lowerUrl = url.toLowerCase();
         
         if (lowerUrl.endsWith('.png') || lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg')) {
-            prepareStamp(url);
-            wbSubjectsMenu.style.display = "none";
+            prepareStamp(url); wbSubjectsMenu.style.display = "none";
         } 
         else if (lowerUrl.endsWith('.pdf')) {
             const pdf = await pdfjsLib.getDocument(url).promise;
             const page = await pdf.getPage(1);
             const viewport = page.getViewport({scale: 2.0}); 
             
-            const tc = document.createElement('canvas');
-            const tCtx = tc.getContext('2d');
-            tc.height = viewport.height; 
-            tc.width = viewport.width;
-            
+            const tc = document.createElement('canvas'); const tCtx = tc.getContext('2d'); tc.height = viewport.height; tc.width = viewport.width;
             await page.render({canvasContext: tCtx, viewport: viewport}).promise; 
-            prepareStamp(tc.toDataURL("image/jpeg", 0.8));
-            wbSubjectsMenu.style.display = "none";
+            prepareStamp(tc.toDataURL("image/jpeg", 0.8)); wbSubjectsMenu.style.display = "none";
         }
     } catch(e) {
         showNotification(`Failed to load ${name}. Make sure the file exists!`, "danger");
@@ -575,38 +738,24 @@ async function loadAssetToCanvas(url, name) {
 function loadSubjectAssets(cat) {
     subjectAssetsList.innerHTML = "";
     subjectAssets[cat].forEach(asset => {
-        const btn = document.createElement("button");
-        btn.textContent = "➕ Insert " + asset.name;
+        const btn = document.createElement("button"); btn.textContent = "➕ Insert " + asset.name;
         btn.style.cssText = "background: rgba(255,255,255,0.1); color: white; border: 1px solid var(--accent); padding: 8px; border-radius: 6px; cursor: pointer; text-align: left; font-size: 13px;";
         btn.onclick = () => { loadAssetToCanvas(asset.url, asset.name); };
         subjectAssetsList.appendChild(btn);
     });
 }
-
 subjectCategory.addEventListener("change", (e) => loadSubjectAssets(e.target.value));
 loadSubjectAssets("geography");
 
 document.querySelectorAll('.tool-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
         let clickedTool = btn.id.replace('tool-', '');
-        
-        if (clickedTool === 'eraser' && currentTool === 'eraser') {
-            wbEraserMenu.style.display = wbEraserMenu.style.display === "none" ? "block" : "none";
-            return;
-        }
-
+        if (clickedTool === 'eraser' && currentTool === 'eraser') { wbEraserMenu.style.display = wbEraserMenu.style.display === "none" ? "block" : "none"; return; }
         document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active-tool'));
         btn.classList.add('active-tool');
         currentTool = clickedTool; 
-        
-        wbShapesMenu.style.display = "none"; 
-        wbSubjectsMenu.style.display = "none";
-        wbEraserMenu.style.display = currentTool === 'eraser' ? "block" : "none";
-        
-        if(isStamping) {
-            isStamping = false;
-            if(canvasSnapshot) ctx.putImageData(canvasSnapshot, 0, 0); 
-        }
+        wbShapesMenu.style.display = "none"; wbSubjectsMenu.style.display = "none"; wbEraserMenu.style.display = currentTool === 'eraser' ? "block" : "none";
+        if(isStamping) { isStamping = false; if(canvasSnapshot) ctx.putImageData(canvasSnapshot, 0, 0); }
     });
 });
 
@@ -623,15 +772,12 @@ document.getElementById('wb-color').addEventListener("input", (e) => { currentBr
 document.getElementById('wb-size').addEventListener("input", (e) => { currentBrushSize = e.target.value; });
 document.getElementById('wb-clear').addEventListener("click", () => {
   if (!canDraw) return; 
-  // 🚀 Sirf Drawings (Foreground) mitengi, Background Image wahi rahegi!
   ctx.clearRect(0, 0, canvas.width, canvas.height); 
   socket.emit("clear-whiteboard", { room: currentRoom });
   wbPagesFg[currentWbPage] = canvas.toDataURL("image/png", 0.5);
   showNotification("Annotations cleared. Background kept intact.", "info");
 });
-socket.on("clear-whiteboard", () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-});
+socket.on("clear-whiteboard", () => { ctx.clearRect(0, 0, canvas.width, canvas.height); });
 
 function getCanvasPoint(e) {
     const rect = canvas.getBoundingClientRect();
@@ -643,16 +789,10 @@ function getCanvasPoint(e) {
 canvas.addEventListener('wheel', (e) => {
     if (isStamping && stampImage) {
         e.preventDefault(); 
-        if (e.deltaY < 0) stampScale *= 1.1; 
-        else stampScale *= 0.9; 
-        
-        const pt = getCanvasPoint(e);
-        ctx.putImageData(canvasSnapshot, 0, 0);
-        let w = stampImage.width * stampScale;
-        let h = stampImage.height * stampScale;
-        ctx.globalAlpha = 0.6;
-        ctx.drawImage(stampImage, pt.x - w/2, pt.y - h/2, w, h);
-        ctx.globalAlpha = 1.0;
+        if (e.deltaY < 0) stampScale *= 1.1; else stampScale *= 0.9; 
+        const pt = getCanvasPoint(e); ctx.putImageData(canvasSnapshot, 0, 0);
+        let w = stampImage.width * stampScale; let h = stampImage.height * stampScale;
+        ctx.globalAlpha = 0.6; ctx.drawImage(stampImage, pt.x - w/2, pt.y - h/2, w, h); ctx.globalAlpha = 1.0;
     }
 }, {passive: false});
 
@@ -693,31 +833,17 @@ socket.on("wb-fill", (data) => floodFill(data.x, data.y, data.color, false));
 
 function drawFreehand(x0, y0, x1, y1, color, size, toolType, emit = false) {
   if(toolType === 'eraser') {
-      // 🚀 ERASER LOGIC: Make pixels transparent to show Background PDF
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.beginPath(); 
-      ctx.moveTo(x0, y0); 
-      ctx.lineTo(x1, y1);
-      ctx.strokeStyle = "rgba(0,0,0,1)"; 
-      ctx.lineWidth = size; 
-      ctx.lineCap = 'round'; 
-      ctx.lineJoin = 'round';
-      ctx.stroke(); 
-      ctx.closePath();
-      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalCompositeOperation = 'destination-out'; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+      ctx.strokeStyle = "rgba(0,0,0,1)"; ctx.lineWidth = size; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke(); ctx.closePath(); ctx.globalCompositeOperation = 'source-over';
   } 
   else if (toolType === 'spray') {
       ctx.fillStyle = color;
       for (let i = 0; i < size * 2; i++) {
-          const offsetX = x1 + (Math.random() * size - size/2); const offsetY = y1 + (Math.random() * size - size/2);
-          ctx.fillRect(offsetX, offsetY, 2, 2);
+          const offsetX = x1 + (Math.random() * size - size/2); const offsetY = y1 + (Math.random() * size - size/2); ctx.fillRect(offsetX, offsetY, 2, 2);
       }
-  }
-  else {
-      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
-      ctx.strokeStyle = color; ctx.lineWidth = size; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-      if(toolType === 'brush') { ctx.shadowBlur = size * 1.5; ctx.shadowColor = color; } 
-      else { ctx.shadowBlur = 0; }
+  } else {
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.strokeStyle = color; ctx.lineWidth = size; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      if(toolType === 'brush') { ctx.shadowBlur = size * 1.5; ctx.shadowColor = color; } else { ctx.shadowBlur = 0; }
       ctx.stroke(); ctx.closePath();
   }
   if (emit) socket.emit('drawing', { type: 'free', x0, y0, x1, y1, color, size, toolType: toolType, room: currentRoom });
@@ -729,10 +855,8 @@ function drawShapeObj(x0, y0, x1, y1, type, color, size, emit = false) {
 
   if(type === 'line') { ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); }
   else if(type === 'arrow') {
-      ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
-      let angle = Math.atan2(y1-y0, x1-x0);
-      ctx.lineTo(x1 - size*3 * Math.cos(angle - Math.PI/6), y1 - size*3 * Math.sin(angle - Math.PI/6));
-      ctx.moveTo(x1, y1); ctx.lineTo(x1 - size*3 * Math.cos(angle + Math.PI/6), y1 - size*3 * Math.sin(angle + Math.PI/6));
+      ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); let angle = Math.atan2(y1-y0, x1-x0);
+      ctx.lineTo(x1 - size*3 * Math.cos(angle - Math.PI/6), y1 - size*3 * Math.sin(angle - Math.PI/6)); ctx.moveTo(x1, y1); ctx.lineTo(x1 - size*3 * Math.cos(angle + Math.PI/6), y1 - size*3 * Math.sin(angle + Math.PI/6));
   }
   else if(type === 'rect') { ctx.rect(x0, y0, w, h); }
   else if(type === 'circle') { let r = Math.sqrt(Math.pow(w, 2) + Math.pow(h, 2)); ctx.arc(x0, y0, r, 0, 2*Math.PI); }
@@ -770,7 +894,6 @@ function drawShapeObj(x0, y0, x1, y1, type, color, size, emit = false) {
   if (emit) socket.emit('drawing', { type: type, x0, y0, x1, y1, color, size, room: currentRoom });
 }
 
-// Right click context menu block
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
 const wbLaser = document.getElementById("wb-laser");
@@ -778,31 +901,19 @@ let wbLaserTimeout;
 
 canvas.addEventListener('pointerdown', (e) => { 
   if (!canDraw) return; 
-
   if (e.button === 2 || e.buttons === 2 || (e.pointerType === 'pen' && e.button === 5)) {
-      isRightClickErasing = true;
-      prevToolState = currentTool;
-      currentTool = 'eraser';
-      e.preventDefault();
-  } else if (e.button !== 0 && e.pointerType !== 'touch') {
-      return; 
-  }
+      isRightClickErasing = true; prevToolState = currentTool; currentTool = 'eraser'; e.preventDefault();
+  } else if (e.button !== 0 && e.pointerType !== 'touch') { return; }
 
   const pt = getCanvasPoint(e);
 
   if (isStamping && stampImage && !isRightClickErasing) {
       ctx.putImageData(canvasSnapshot, 0, 0); 
-      let w = stampImage.width * stampScale;
-      let h = stampImage.height * stampScale;
-      
-      // 🚀 PDF AND STAMPS GO TO BACKGROUND LAYER
+      let w = stampImage.width * stampScale; let h = stampImage.height * stampScale;
       bgCtx.drawImage(stampImage, pt.x - w/2, pt.y - h/2, w, h);
       
-      let tempCanvas = document.createElement("canvas");
-      let syncScale = Math.min(1, 800 / Math.max(w, h)); 
-      tempCanvas.width = w * syncScale; 
-      tempCanvas.height = h * syncScale;
-      let tCtx = tempCanvas.getContext("2d");
+      let tempCanvas = document.createElement("canvas"); let syncScale = Math.min(1, 800 / Math.max(w, h)); 
+      tempCanvas.width = w * syncScale; tempCanvas.height = h * syncScale; let tCtx = tempCanvas.getContext("2d");
       tCtx.fillStyle = "#ffffff"; tCtx.fillRect(0,0, tempCanvas.width, tempCanvas.height);
       tCtx.drawImage(stampImage, 0, 0, tempCanvas.width, tempCanvas.height);
       
@@ -810,22 +921,15 @@ canvas.addEventListener('pointerdown', (e) => {
       socket.emit("wb-stamp", { room: currentRoom, image: sendSrc, x: pt.x - w/2, y: pt.y - h/2, w: w, h: h });
 
       wbPagesBg[currentWbPage] = bgCanvas.toDataURL("image/jpeg", 0.5);
-      
-      isStamping = false;
-      currentTool = 'pen';
-      document.getElementById('tool-pen').classList.add('active-tool');
+      isStamping = false; currentTool = 'pen'; document.getElementById('tool-pen').classList.add('active-tool');
       canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      showNotification("Stamped successfully!", "join");
-      return;
+      showNotification("Stamped successfully!", "join"); return;
   }
 
   if(currentTool === 'pointer') return; 
   if(currentTool === 'fill') { floodFill(pt.x, pt.y, currentBrushColor, true); return; }
   
-  drawing = true; 
-  startX = pt.x; 
-  startY = pt.y; 
-  canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  drawing = true; startX = pt.x; startY = pt.y; canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
 });
 
 canvas.addEventListener('pointermove', (e) => {
@@ -833,18 +937,11 @@ canvas.addEventListener('pointermove', (e) => {
   const pt = getCanvasPoint(e);
 
   if (isStamping && stampImage && !isRightClickErasing) {
-      ctx.putImageData(canvasSnapshot, 0, 0);
-      let w = stampImage.width * stampScale;
-      let h = stampImage.height * stampScale;
-      ctx.globalAlpha = 0.6; 
-      ctx.drawImage(stampImage, pt.x - w/2, pt.y - h/2, w, h);
-      ctx.globalAlpha = 1.0;
-      return;
+      ctx.putImageData(canvasSnapshot, 0, 0); let w = stampImage.width * stampScale; let h = stampImage.height * stampScale;
+      ctx.globalAlpha = 0.6; ctx.drawImage(stampImage, pt.x - w/2, pt.y - h/2, w, h); ctx.globalAlpha = 1.0; return;
   }
 
-  if(currentTool === 'pointer') {
-      socket.emit("wb-pointer", { room: currentRoom, x: pt.x / canvas.width, y: pt.y / canvas.height }); return;
-  }
+  if(currentTool === 'pointer') { socket.emit("wb-pointer", { room: currentRoom, x: pt.x / canvas.width, y: pt.y / canvas.height }); return; }
   if (!drawing || currentTool === 'fill') return;
 
   if(['pen', 'brush', 'spray', 'eraser'].includes(currentTool)) {
@@ -852,54 +949,36 @@ canvas.addEventListener('pointermove', (e) => {
       let pressureMult = e.pointerType === 'pen' ? (pressure * 2.5) : 1; 
       let activeSize = currentTool === 'eraser' ? currentEraserSize : (currentBrushSize * pressureMult);
       if(activeSize < 1) activeSize = 1;
-
       drawFreehand(startX, startY, pt.x, pt.y, currentBrushColor, activeSize, currentTool, true);
       startX = pt.x; startY = pt.y;
   } else {
-      ctx.putImageData(canvasSnapshot, 0, 0);
-      drawShapeObj(startX, startY, pt.x, pt.y, currentTool, currentBrushColor, currentBrushSize, false);
+      ctx.putImageData(canvasSnapshot, 0, 0); drawShapeObj(startX, startY, pt.x, pt.y, currentTool, currentBrushColor, currentBrushSize, false);
   }
 });
 
 canvas.addEventListener('pointerup', (e) => { 
   if (drawing && canDraw && currentTool !== 'pointer' && currentTool !== 'fill') {
-      drawing = false; 
-      const pt = getCanvasPoint(e);
-      if(!['pen', 'brush', 'spray', 'eraser'].includes(currentTool)) { 
-          drawShapeObj(startX, startY, pt.x, pt.y, currentTool, currentBrushColor, currentBrushSize, true); 
-      }
-      ctx.shadowBlur = 0; 
-      wbPagesFg[currentWbPage] = canvas.toDataURL("image/png", 0.5);
+      drawing = false; const pt = getCanvasPoint(e);
+      if(!['pen', 'brush', 'spray', 'eraser'].includes(currentTool)) { drawShapeObj(startX, startY, pt.x, pt.y, currentTool, currentBrushColor, currentBrushSize, true); }
+      ctx.shadowBlur = 0; wbPagesFg[currentWbPage] = canvas.toDataURL("image/png", 0.5);
   }
-
-  if (isRightClickErasing) {
-      currentTool = prevToolState;
-      isRightClickErasing = false;
-  }
+  if (isRightClickErasing) { currentTool = prevToolState; isRightClickErasing = false; }
 });
 
 canvas.addEventListener('pointerout', (e) => { 
   drawing = false; 
-  if (isRightClickErasing) {
-      currentTool = prevToolState;
-      isRightClickErasing = false;
-  }
+  if (isRightClickErasing) { currentTool = prevToolState; isRightClickErasing = false; }
   if(currentTool === 'pointer' && canDraw) socket.emit("wb-pointer", { room: currentRoom, hide: true }); 
 });
 
 socket.on('drawing', (data) => {
   if(data.type === 'free') drawFreehand(data.x0, data.y0, data.x1, data.y1, data.color, data.size, data.toolType, false);
   else drawShapeObj(data.x0, data.y0, data.x1, data.y1, data.type, data.color, data.size, false);
-  
   if(isHost) wbPagesFg[currentWbPage] = canvas.toDataURL("image/png", 0.5);
 });
 
 socket.on("wb-stamp", (data) => {
-    const img = new Image();
-    img.onload = () => { 
-        bgCtx.drawImage(img, data.x, data.y, data.w, data.h); 
-        if(isHost) wbPagesBg[currentWbPage] = bgCanvas.toDataURL("image/jpeg", 0.5);
-    };
+    const img = new Image(); img.onload = () => { bgCtx.drawImage(img, data.x, data.y, data.w, data.h); if(isHost) wbPagesBg[currentWbPage] = bgCanvas.toDataURL("image/jpeg", 0.5); };
     img.src = data.image;
 });
 
@@ -909,65 +988,42 @@ socket.on("wb-pointer", (data) => {
     clearTimeout(wbLaserTimeout); wbLaserTimeout = setTimeout(() => { wbLaser.style.display = "none"; }, 2000);
 });
 
-// PDF Rendering -> Multi-Board Auto Pages Setup
 document.getElementById('tool-pdf').addEventListener("click", () => document.getElementById('wbPdfUpload').click());
 document.getElementById('wbPdfUpload').addEventListener('change', async (e) => {
   const file = e.target.files[0]; if(!file) return; 
   
   if (file.type.startsWith('image/')) {
       showNotification("Loading Image...", "info");
-      const reader = new FileReader();
-      reader.onload = (event) => { prepareStamp(event.target.result); };
-      reader.readAsDataURL(file);
+      const reader = new FileReader(); reader.onload = (event) => { prepareStamp(event.target.result); }; reader.readAsDataURL(file);
   } 
   else if (file.type === 'application/pdf') {
       const fileReader = new FileReader();
       fileReader.onload = async function() {
-          const typedarray = new Uint8Array(this.result); 
-          const pdf = await pdfjsLib.getDocument(typedarray).promise; 
-          
+          const typedarray = new Uint8Array(this.result); const pdf = await pdfjsLib.getDocument(typedarray).promise; 
           if (pdf.numPages === 1) {
               showNotification("Loading PDF...", "info");
-              const page = await pdf.getPage(1); 
-              const viewport = page.getViewport({scale: 2.0}); 
+              const page = await pdf.getPage(1); const viewport = page.getViewport({scale: 2.0}); 
               const tc = document.createElement('canvas'); const tCtx = tc.getContext('2d'); tc.height = viewport.height; tc.width = viewport.width;
-              await page.render({canvasContext: tCtx, viewport: viewport}).promise; 
-              prepareStamp(tc.toDataURL("image/jpeg", 0.8));
+              await page.render({canvasContext: tCtx, viewport: viewport}).promise; prepareStamp(tc.toDataURL("image/jpeg", 0.8));
           } else {
               showNotification(`Processing ${pdf.numPages} Pages into Slides...`, "info");
               saveCurrentPage();
-              let startNewPageIndex = wbPagesBg.length;
-              if (wbPagesBg.length === 1 && (wbPagesBg[0] === '' || !wbPagesBg[0])) { startNewPageIndex = 0; }
-
+              let startNewPageIndex = wbPagesBg.length; if (wbPagesBg.length === 1 && (wbPagesBg[0] === '' || !wbPagesBg[0])) { startNewPageIndex = 0; }
               for (let i = 1; i <= pdf.numPages; i++) {
-                  const page = await pdf.getPage(i);
-                  const viewport = page.getViewport({scale: 2.0}); 
+                  const page = await pdf.getPage(i); const viewport = page.getViewport({scale: 2.0}); 
                   const tc = document.createElement('canvas'); tc.width = canvas.width; tc.height = canvas.height;
-                  const tCtx = tc.getContext('2d');
-                  tCtx.fillStyle = "#ffffff"; tCtx.fillRect(0, 0, tc.width, tc.height); 
-                  
-                  const tempCanvas = document.createElement('canvas');
-                  tempCanvas.width = viewport.width; tempCanvas.height = viewport.height;
+                  const tCtx = tc.getContext('2d'); tCtx.fillStyle = "#ffffff"; tCtx.fillRect(0, 0, tc.width, tc.height); 
+                  const tempCanvas = document.createElement('canvas'); tempCanvas.width = viewport.width; tempCanvas.height = viewport.height;
                   await page.render({canvasContext: tempCanvas.getContext('2d'), viewport: viewport}).promise; 
-                  
                   const scaleToFit = Math.min(tc.width / viewport.width, tc.height / viewport.height) * 0.95;
                   const fw = viewport.width * scaleToFit; const fh = viewport.height * scaleToFit;
                   const dx = (tc.width - fw) / 2; const dy = (tc.height - fh) / 2;
-                  
                   tCtx.drawImage(tempCanvas, dx, dy, fw, fh);
-                  const pageDataBg = tc.toDataURL("image/jpeg", 0.7);
-                  const pageDataFg = ""; // Empty drawing layer
-                  
-                  if (startNewPageIndex === 0 && i === 1) { 
-                      wbPagesBg[0] = pageDataBg; 
-                      wbPagesFg[0] = pageDataFg; 
-                  } else { 
-                      wbPagesBg.push(pageDataBg); 
-                      wbPagesFg.push(pageDataFg); 
-                  }
+                  const pageDataBg = tc.toDataURL("image/jpeg", 0.7); const pageDataFg = ""; 
+                  if (startNewPageIndex === 0 && i === 1) { wbPagesBg[0] = pageDataBg; wbPagesFg[0] = pageDataFg; } 
+                  else { wbPagesBg.push(pageDataBg); wbPagesFg.push(pageDataFg); }
               }
-              loadPage(startNewPageIndex); 
-              showNotification(`✅ Uploaded ${pdf.numPages} Pages as separate boards!`, "join");
+              loadPage(startNewPageIndex); showNotification(`✅ Uploaded ${pdf.numPages} Pages as separate boards!`, "join");
               document.getElementById('wbPdfUpload').value = ""; 
           }
       };
@@ -1034,12 +1090,14 @@ joinBtn.addEventListener("click", async () => {
 });
 
 socket.on("room-history", (data) => {
+  if(data.hostUid) globalHostUid = data.hostUid; // Save host UID globally
   if (data.chats) data.chats.forEach(chat => { if(chat.name === "System" && chat.text.includes("left")) return; appendMessage(`${chat.name}: ${chat.text}`); });
   if (data.files) [...data.files].reverse().forEach(file => addFileLink(file.filename, file.url));
   
   if (data.wbVisible) { hideAllBigPanels(); whiteboardBox.style.display = "block"; if(isHost) toggleWbBtn.dataset.show = "true"; }
   if (data.mapVisible) { hideAllBigPanels(); mapBox.style.display = "block"; setTimeout(() => geoMap.invalidateSize(), 100); if(isHost) toggleMapBtn.dataset.show = "true"; }
   if (data.presVisible) { hideAllBigPanels(); presentationBox.style.display = "block"; if(isHost) togglePresBtn.dataset.show = "true"; }
+  if (data.officeVisible) { hideAllBigPanels(); officeBox.style.display = "block"; if(isHost) toggleOfficeBtn.dataset.show = "true"; }
   
   if (data.chartData) { 
       currentChartData = data.chartData; presTitle.textContent = `${data.chartData.industry} Growth Projection`; excelTable.innerHTML = data.chartData.tableHTML;
@@ -1051,14 +1109,17 @@ socket.on("room-history", (data) => {
 
 socket.on("host-assignment", (data) => {
   isHost = data.isHost;
+  if(data.hostUid) globalHostUid = data.hostUid;
+
   if (isHost) {
     hostAudioContainer.style.display = "block"; canDraw = true; document.getElementById('wb-toolbar').style.display = "flex"; canvas.style.cursor = "crosshair"; wbStatus.textContent = "(Host Mode)";
-    presInputForm.style.display = "flex"; toggleWbBtn.style.display = "inline-block"; toggleMapBtn.style.display = "inline-block"; togglePresBtn.style.display = "inline-block"; 
-    document.querySelectorAll('.host-only-btn').forEach(btn => btn.style.display = "inline-block");
+    presInputForm.style.display = "flex"; toggleWbBtn.style.display = "inline-block"; toggleMapBtn.style.display = "inline-block"; togglePresBtn.style.display = "inline-block"; toggleOfficeBtn.style.display = "inline-block";
+    document.querySelectorAll('.host-only-btn').forEach(btn => btn.style.display = "flex");
   } else {
     hostAudioContainer.style.display = "none"; canDraw = false; document.getElementById('wb-toolbar').style.display = "none"; canvas.style.cursor = "not-allowed"; wbStatus.textContent = "(View Only)";
-    presInputForm.style.display = "none"; toggleWbBtn.style.display = "none"; toggleMapBtn.style.display = "none"; togglePresBtn.style.display = "none";
+    presInputForm.style.display = "none"; toggleWbBtn.style.display = "none"; toggleMapBtn.style.display = "none"; togglePresBtn.style.display = "none"; toggleOfficeBtn.style.display = "none";
     viewGraphBtn.parentElement.style.display = "none";
+    document.querySelectorAll('.host-only-btn').forEach(btn => btn.style.display = "none");
   }
 });
 
@@ -1152,9 +1213,7 @@ socket.on("control", async (data) => {
               remoteMusicPlayer.play().then(() => {
                   listenBtn.style.display = "none";
                   localMusicMuteBtn.style.display = "inline-block";
-              }).catch(e => {
-                  alert("Tap anywhere on the screen first to allow audio.");
-              });
+              }).catch(e => { alert("Tap anywhere on the screen first to allow audio."); });
           };
       } else {
           listenBtn.style.display = "block";

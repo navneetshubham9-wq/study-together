@@ -13,7 +13,6 @@
 <body>
   
   <div id="notification-container"></div>
-  
   <div id="top-anchor" style="position: absolute; top: 0; left: 0; width: 100%; height: 50px; z-index: -1; visibility: hidden;"></div>
 
   <div id="side-menu-container" style="display: none; position: fixed; top: 75px; left: 20px; z-index: 2147483647; background: rgba(20,30,48,0.98); padding: 15px; border-radius: 12px; border: 2px solid var(--primary); box-shadow: 0 10px 30px rgba(0,0,0,0.8); max-height: 80vh; overflow-y: auto; flex-direction: column; gap: 8px;"></div>
@@ -39,28 +38,35 @@
       
       <audio id="remoteMusicPlayer" style="display: none;" crossorigin="anonymous" allow="autoplay"></audio>
 
+      <!-- 🚀 NAYA: CONVERTER MODAL -->
+      <div id="converter-modal" class="card" style="display: none; position: fixed; top: 15%; right: 280px; z-index: 99999; width: 260px; background: rgba(20,30,48,0.98); border: 2px solid #8e44ad; box-shadow: 0 20px 50px rgba(0,0,0,0.8); padding: 15px;">
+        <h4 id="converter-header" style="margin: 0 0 10px 0; color: #9b59b6; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; cursor: move; user-select: none;">🔄 Unit Converter</h4>
+        <select id="convType" style="width:100%; padding:8px; margin-bottom:10px; background:#000; color:#fff; border:1px solid #8e44ad; border-radius:6px;">
+            <option value="currency">Currency (Est)</option>
+            <option value="length">Length</option>
+            <option value="weight">Weight</option>
+            <option value="temp">Temperature</option>
+        </select>
+        <div style="display:flex; gap:10px; margin-bottom:10px;">
+            <input type="number" id="convInput" value="1" style="width:50%; padding:8px; background:#000; color:#fff; border:1px solid #8e44ad; border-radius:6px;">
+            <select id="convFrom" style="width:50%; padding:8px; background:#000; color:#fff; border:1px solid #8e44ad; border-radius:6px;"></select>
+        </div>
+        <div style="text-align:center; color:#fff; margin-bottom:10px;">=</div>
+        <div style="display:flex; gap:10px;">
+            <input type="text" id="convOutput" readonly style="width:50%; padding:8px; background:#2c3e50; color:#1abc9c; border:1px solid #8e44ad; border-radius:6px; font-weight:bold;">
+            <select id="convTo" style="width:50%; padding:8px; background:#000; color:#fff; border:1px solid #8e44ad; border-radius:6px;"></select>
+        </div>
+      </div>
+
       <!-- DRAGGABLE CALCULATOR -->
       <div id="calc-modal" class="card" style="display: none; position: fixed; top: 15%; right: 5%; z-index: 99999; width: 250px; background: rgba(20,30,48,0.98); border: 2px solid #16a085; box-shadow: 0 20px 50px rgba(0,0,0,0.8); padding: 15px;">
         <h4 id="calc-header" style="margin: 0 0 10px 0; color: #1abc9c; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; cursor: move; user-select: none;">🧮 Calculator (Drag)</h4>
-        
         <input type="text" id="calc-display" disabled style="width: 100%; padding: 15px; font-size: 20px; text-align: right; background: #000; color: #fff; border: 1px solid #16a085; border-radius: 8px; margin-bottom: 10px; box-sizing: border-box;">
         <div class="calc-grid">
-          <button class="calc-btn" onclick="calcAppend('7')">7</button>
-          <button class="calc-btn" onclick="calcAppend('8')">8</button>
-          <button class="calc-btn" onclick="calcAppend('9')">9</button>
-          <button class="calc-btn action" onclick="calcAppend('/')">÷</button>
-          <button class="calc-btn" onclick="calcAppend('4')">4</button>
-          <button class="calc-btn" onclick="calcAppend('5')">5</button>
-          <button class="calc-btn" onclick="calcAppend('6')">6</button>
-          <button class="calc-btn action" onclick="calcAppend('*')">×</button>
-          <button class="calc-btn" onclick="calcAppend('1')">1</button>
-          <button class="calc-btn" onclick="calcAppend('2')">2</button>
-          <button class="calc-btn" onclick="calcAppend('3')">3</button>
-          <button class="calc-btn action" onclick="calcAppend('-')">-</button>
-          <button class="calc-btn clear" onclick="calcClear()">C</button>
-          <button class="calc-btn" onclick="calcAppend('0')">0</button>
-          <button class="calc-btn" onclick="calcAppend('.')">.</button>
-          <button class="calc-btn action" onclick="calcAppend('+')">+</button>
+          <button class="calc-btn" onclick="calcAppend('7')">7</button><button class="calc-btn" onclick="calcAppend('8')">8</button><button class="calc-btn" onclick="calcAppend('9')">9</button><button class="calc-btn action" onclick="calcAppend('/')">÷</button>
+          <button class="calc-btn" onclick="calcAppend('4')">4</button><button class="calc-btn" onclick="calcAppend('5')">5</button><button class="calc-btn" onclick="calcAppend('6')">6</button><button class="calc-btn action" onclick="calcAppend('*')">×</button>
+          <button class="calc-btn" onclick="calcAppend('1')">1</button><button class="calc-btn" onclick="calcAppend('2')">2</button><button class="calc-btn" onclick="calcAppend('3')">3</button><button class="calc-btn action" onclick="calcAppend('-')">-</button>
+          <button class="calc-btn clear" onclick="calcClear()">C</button><button class="calc-btn" onclick="calcAppend('0')">0</button><button class="calc-btn" onclick="calcAppend('.')">.</button><button class="calc-btn action" onclick="calcAppend('+')">+</button>
           <button class="calc-btn equal" style="grid-column: span 4;" onclick="calcCalculate()">=</button>
         </div>
       </div>
@@ -70,12 +76,9 @@
         <h3 style="margin-top: 0; color: var(--accent); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;">∑ Advanced Math Library</h3>
         <div style="margin-bottom: 10px;">
             <select id="mathCategory" style="width: 100%; padding: 8px; border-radius: 6px; background: rgba(0,0,0,0.5); color: white; border: 1px solid var(--primary);">
-                <option value="algebra">Algebra & Equations</option>
-                <option value="calculus">Calculus & Limits</option>
-                <option value="trigonometry">Trigonometry</option>
-                <option value="physics">Physics & Mechanics</option>
-                <option value="financial">Financial & Business</option>
-                <option value="statistics">Statistics & Probability</option>
+                <option value="algebra">Algebra & Equations</option><option value="calculus">Calculus & Limits</option>
+                <option value="trigonometry">Trigonometry</option><option value="physics">Physics & Mechanics</option>
+                <option value="financial">Financial & Business</option><option value="statistics">Statistics & Probability</option>
             </select>
         </div>
         <div id="formulaLibrary" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px; max-height: 120px; overflow-y: auto;"></div>
@@ -92,8 +95,10 @@
           <button id="cameraBtn" title="Toggle Camera">📹 Camera</button>
           <button id="muteBtn" title="Toggle Microphone">🎙️ Mic</button>
           <button id="shareBtn" title="Share Screen">🖥️ Share Screen</button>
+          
           <button id="openMathBtn" title="Open Math Board" style="background: linear-gradient(135deg, #8e44ad, #9b59b6); color: white;">∑ Math</button>
-          <button id="toggleCalcBtn" title="Open Calculator" style="background: linear-gradient(135deg, #16a085, #2ecc71); color: white;">🧮 Calculator</button>
+          <button id="toggleCalcBtn" title="Open Calculator" style="background: linear-gradient(135deg, #16a085, #2ecc71); color: white;">🧮 Calc</button>
+          <button id="toggleConvBtn" title="Open Converter" style="background: linear-gradient(135deg, #8e44ad, #9b59b6); color: white;">🔄 Converter</button>
           
           <button id="localMusicMuteBtn" title="Mute Host Music Locally" style="display: none; background: #9b59b6;">🎵🔇 Mute Music</button>
           <button id="leaveBtn" title="Leave Room" style="background: linear-gradient(135deg, #e74c3c, #c0392b); color: white;">🚪 Exit Room</button>
@@ -104,7 +109,8 @@
           
           <button id="toggleMapBtn" class="host-only-btn panel-toggle-btn" title="Show/Hide Map" style="background: linear-gradient(135deg, #27ae60, #2ecc71); color: white; display: none;" data-show="false">🌍 Map View</button>
           <button id="toggleWbBtn" class="host-only-btn panel-toggle-btn" title="Show/Hide Whiteboard" style="background: linear-gradient(135deg, #3498db, #2980b9); color: white; display: none;" data-show="false">🎨 Whiteboard</button>
-          <button id="togglePresBtn" class="host-only-btn panel-toggle-btn" title="Show/Hide Presentation" style="background: linear-gradient(135deg, #f1c40f, #f39c12); color: white; display: none;" data-show="false">📊 Presentation</button>
+          <button id="togglePresBtn" class="host-only-btn panel-toggle-btn" title="Show/Hide Presentation" style="background: linear-gradient(135deg, #f1c40f, #f39c12); color: white; display: none;" data-show="false">📊 Graphs</button>
+          <button id="toggleOfficeBtn" class="host-only-btn panel-toggle-btn" title="Show/Hide Office" style="background: linear-gradient(135deg, #c0392b, #e74c3c); color: white; display: none;" data-show="false">📝 VYDEX Office</button>
         </div>
 
         <div id="hostAudioContainer" style="display: none; width: 100%; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
@@ -116,20 +122,14 @@
         </div>
       </section>
 
-      <!-- Video Area -->
       <section id="video-area" class="card video-grid entry-animation delay-video"></section>
 
-      <!-- Chat Box -->
       <section id="chat-box" class="card entry-animation delay-chat">
         <h3>💬 Live Chat</h3>
         <div id="messages" class="messages"></div>
-        <div class="chat-input">
-          <input id="chatInput" placeholder="Type a message..." />
-          <button id="sendMsg">➤</button>
-        </div>
+        <div class="chat-input"><input id="chatInput" placeholder="Type a message..." /><button id="sendMsg">➤</button></div>
       </section>
 
-      <!-- Shared Files Box -->
       <section id="file-box" class="card entry-animation delay-files">
         <h3>📂 Shared Files</h3>
         <div id="fileList" class="file-box-list"></div>
@@ -140,63 +140,68 @@
         </div>
       </section>
 
-      <!-- BUSINESS PRESENTATION WINDOW -->
-      <section id="presentation-box" class="card big-panel" style="grid-column: 1 / -1; height: auto; min-height: 550px; display: none; position: relative;">
-        <h3>📊 VYDEX Business & Growth Presentation</h3>
-        <div id="pres-input-form" class="host-only-btn" style="display: none; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 12px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center;">
-          <select id="presCurrency" style="padding: 8px; border-radius: 6px; border: none; min-width: 80px; background: #f1f2f6;">
-            <option value="₹">INR (₹)</option>
-            <option value="$">USD ($)</option>
-            <option value="€">EUR (€)</option>
-            <option value="£">GBP (£)</option>
-            <option value="¥">JPY (¥)</option>
-          </select>
-          <select id="presMode" style="padding: 8px; border-radius: 6px; border: none; min-width: 150px; background: #f1f2f6;">
-            <option value="company">🏢 Overall Company</option>
-            <option value="product">📦 Product Analysis</option>
-          </select>
-          <input id="presIndustry" placeholder="Industry/Product Name" style="padding: 8px; border-radius: 6px; border: none; flex: 1; min-width: 120px;">
-          <div id="companyInputs" style="display: flex; gap: 10px; flex-wrap: wrap;">
-            <input id="presBaseValue" type="number" placeholder="Base Revenue" style="padding: 8px; border-radius: 6px; border: none; width: 130px;">
-          </div>
-          <div id="productInputs" style="display: none; gap: 10px; flex-wrap: wrap;">
-            <input id="presUnitPrice" type="number" placeholder="Unit Price" style="padding: 8px; border-radius: 6px; border: none; width: 100px;">
-            <input id="presUnitsSold" type="number" placeholder="Units Sold" style="padding: 8px; border-radius: 6px; border: none; width: 100px;">
-          </div>
-          <input id="presGrowth" type="number" placeholder="Growth %" style="padding: 8px; border-radius: 6px; border: none; width: 90px;">
-          <input id="presBaseYear" type="number" min="2001" max="2500" value="2024" placeholder="Start Year" style="padding: 8px; border-radius: 6px; border: none; width: 90px;">
-          <input id="presEndYear" type="number" min="2001" max="2500" value="2029" placeholder="End Year" style="padding: 8px; border-radius: 6px; border: none; width: 90px;">
-          <button id="generateGraphBtn" style="background: var(--accent); color: #000; font-weight: bold; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer;">Generate</button>
-        </div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <h4 id="pres-title" style="color: var(--accent); margin: 0;">Awaiting Data...</h4>
-            <div class="host-only-btn" style="display: none; gap: 5px;">
-                <button id="viewGraphBtn" style="background: var(--primary); color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">📈 Graph</button>
-                <button id="viewExcelBtn" style="background: #27ae60; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">📗 Excel</button>
+      <!-- 🚀 NAYA: VYDEX OFFICE PANEL -->
+      <section id="office-box" class="card big-panel" style="grid-column: 1 / -1; height: 600px; display: none; position: relative;">
+        <h3 style="margin-top:0; display:flex; justify-content:space-between; align-items:center;">
+            <span>📝 VYDEX Office <span id="office-status" style="font-size:12px; color:var(--accent); font-weight:400;">(View Only)</span></span>
+            
+            <div class="host-only-btn" style="display:none; gap:10px;">
+                <label style="font-size:12px; display:flex; align-items:center; gap:5px; background:rgba(0,0,0,0.5); padding:5px 10px; border-radius:20px; border:1px solid var(--accent); cursor:pointer;">
+                    <input type="checkbox" id="officeSyncToggle"> 📡 Broadcast Realtime
+                </label>
+                <button id="officeForceFsBtn" style="background: #e74c3c; color: white; border: none; padding: 5px 15px; border-radius: 20px; font-weight: bold; cursor: pointer;">🔒 Force Fullscreen</button>
             </div>
+        </h3>
+        
+        <div style="display: flex; gap: 10px; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 10px;">
+            <button class="icon-btn office-tab-btn active-tool" data-target="office-word">📘 Word</button>
+            <button class="icon-btn office-tab-btn" data-target="office-excel">📗 Excel</button>
+            <button class="icon-btn office-tab-btn" data-target="office-ppt">📙 Presentation</button>
+            <button id="officeDownloadBtn" class="icon-btn" style="margin-left:auto; background:#2ecc71;">⬇️ Download</button>
         </div>
-        <div id="presentation-container" style="position: relative; width: 100%; height: 400px; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: inset 0 5px 15px rgba(0,0,0,0.1); cursor: crosshair;">
-          <canvas id="presentationCanvas"></canvas>
-          <div id="excel-container" style="display: none; width: 100%; height: 100%; overflow-y: auto; background: #fdfdfd; padding: 15px; box-sizing: border-box;">
-             <table class="excel-table" id="excelTable"></table>
-          </div>
-          <div id="laser-pointer" style="position: absolute; width: 18px; height: 18px; background: red; border-radius: 50%; box-shadow: 0 0 10px red, 0 0 20px red; pointer-events: none; display: none; transform: translate(-50%, -50%); z-index: 100;"></div>
+
+        <!-- Word Tab -->
+        <div id="office-word" class="office-tab" style="display:block; height: 460px; background: #fff; border-radius: 8px; color: #000; overflow:hidden;">
+            <div class="host-only-btn" style="background: #f1f2f6; padding: 8px; border-bottom: 1px solid #ccc; display:none; gap:5px;">
+                <button onclick="document.execCommand('bold',false,null)" class="icon-btn" style="background:#ddd; color:#000; font-weight:bold;">B</button>
+                <button onclick="document.execCommand('italic',false,null)" class="icon-btn" style="background:#ddd; color:#000; font-style:italic;">I</button>
+                <button onclick="document.execCommand('underline',false,null)" class="icon-btn" style="background:#ddd; color:#000; text-decoration:underline;">U</button>
+                <button onclick="document.execCommand('insertOrderedList',false,null)" class="icon-btn" style="background:#ddd; color:#000;">1.</button>
+                <button onclick="document.execCommand('insertUnorderedList',false,null)" class="icon-btn" style="background:#ddd; color:#000;">•</button>
+            </div>
+            <div id="wordEditor" contenteditable="false" style="padding: 20px; height: 400px; outline: none; overflow-y: auto;">Start typing your document here...</div>
+        </div>
+
+        <!-- Excel Tab -->
+        <div id="office-excel" class="office-tab" style="display:none; height: 460px; background: #fff; border-radius: 8px; color: #000; overflow:auto;">
+            <table class="excel-table" id="excelGrid" style="margin: 0; width: 100%;">
+                <tr style="background:#e0e0e0;"><th style="width:40px;"></th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th></tr>
+                <!-- Rows injected via JS -->
+            </table>
+        </div>
+
+        <!-- PPT Tab -->
+        <div id="office-ppt" class="office-tab" style="display:none; height: 460px; background: #34495e; border-radius: 8px; color: #fff; position: relative;">
+            <div id="pptEditor" contenteditable="false" style="width: 80%; height: 70%; margin: 5% auto; background: #fff; color: #000; padding: 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-size: 24px; text-align: center; border-radius: 4px; overflow-y:auto;">
+                <h2>Slide 1</h2><p>Click to add text</p>
+            </div>
         </div>
       </section>
 
       <!-- ADVANCED PRO WHITEBOARD WITH DUAL LAYERS -->
       <section id="whiteboard-box" class="card big-panel" style="grid-column: 1 / -1; height: 600px; display: none; position: relative;">
-        <h3>🎨 VYDEX Education Board <span id="wb-status" style="font-size:12px; color:var(--accent); font-weight:400; margin-left: 10px;">(View Only)</span></h3>
+        <h3>🎨 VYDEX Education Board 
+            <span id="wb-status" style="font-size:12px; color:var(--accent); font-weight:400; margin-left: 10px;">(View Only)</span>
+            <button id="wbForceFsBtn" class="host-only-btn" style="display:none; float:right; background: #e74c3c; color: white; border: none; padding: 5px 15px; border-radius: 20px; font-weight: bold; cursor: pointer;">🔒 Force Fullscreen</button>
+        </h3>
         
         <div id="whiteboard-container" style="position: relative; width: 100%; height: 500px; background: #fdfdfd; border-radius: 12px; overflow: hidden; box-shadow: inset 0 5px 15px rgba(0,0,0,0.1);">
           
-          <!-- 🚀 DUAL LAYER SYSTEM: Background Canvas for PDFs, Foreground Canvas for Drawing & Erasing -->
           <canvas id="bg-whiteboard" width="1920" height="1080" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; touch-action: none; object-fit: fill; z-index: 1;"></canvas>
           <canvas id="whiteboard" width="1920" height="1080" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: crosshair; display: block; touch-action: none; object-fit: fill; z-index: 2; background: transparent;"></canvas>
           
           <div id="wb-laser" style="position: absolute; width: 15px; height: 15px; background: red; border-radius: 50%; box-shadow: 0 0 10px red, 0 0 20px red; pointer-events: none; display: none; transform: translate(-50%, -50%); z-index: 10;"></div>
           
-          <!-- ERASER SIZE MENU -->
           <div id="wb-eraser-menu" style="display: none; position: absolute; bottom: 75px; left: 55%; transform: translateX(-50%); background: rgba(20,30,48,0.95); padding: 10px 15px; border-radius: 12px; border: 1px solid var(--primary); z-index: 25; width: auto;">
             <div style="color: var(--accent); font-size: 12px; margin-bottom: 8px; font-weight: bold; text-align:center;">Eraser Size</div>
             <div style="display: flex; gap: 15px; justify-content: center; align-items: center;">
@@ -209,84 +214,85 @@
           <div id="wb-shapes-menu" style="display: none; position: absolute; bottom: 75px; left: 20%; background: rgba(20,30,48,0.95); padding: 15px; border-radius: 12px; border: 1px solid var(--primary); z-index: 25; width: 300px;">
             <div style="color: var(--accent); font-size: 12px; margin-bottom: 8px; font-weight: bold;">2D Shapes</div>
             <div style="display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px;">
-                <button class="icon-btn tool-btn" id="tool-line" title="Line">📏</button>
-                <button class="icon-btn tool-btn" id="tool-arrow" title="Arrow">➡️</button>
-                <button class="icon-btn tool-btn" id="tool-triangle" title="Triangle">🔺</button>
-                <button class="icon-btn tool-btn" id="tool-rect" title="Rectangle">⬜</button>
-                <button class="icon-btn tool-btn" id="tool-circle" title="Circle">⭕</button>
-                <button class="icon-btn tool-btn" id="tool-pentagon" title="Pentagon">⬠</button>
-                <button class="icon-btn tool-btn" id="tool-hexagon" title="Hexagon">⬡</button>
-                <button class="icon-btn tool-btn" id="tool-star" title="Star">⭐</button>
+                <button class="icon-btn tool-btn" id="tool-line">📏</button><button class="icon-btn tool-btn" id="tool-arrow">➡️</button>
+                <button class="icon-btn tool-btn" id="tool-triangle">🔺</button><button class="icon-btn tool-btn" id="tool-rect">⬜</button>
+                <button class="icon-btn tool-btn" id="tool-circle">⭕</button><button class="icon-btn tool-btn" id="tool-pentagon">⬠</button>
+                <button class="icon-btn tool-btn" id="tool-hexagon">⬡</button><button class="icon-btn tool-btn" id="tool-star">⭐</button>
             </div>
             <div style="color: var(--accent); font-size: 12px; margin-bottom: 8px; font-weight: bold;">3D Shapes</div>
             <div style="display: flex; gap: 5px; flex-wrap: wrap;">
-                <button class="icon-btn tool-btn" id="tool-cube" title="Cube" style="font-size:11px; padding: 4px 8px;">Cube</button>
-                <button class="icon-btn tool-btn" id="tool-cylinder" title="Cylinder" style="font-size:11px; padding: 4px 8px;">Cyl.</button>
-                <button class="icon-btn tool-btn" id="tool-cone" title="Cone" style="font-size:11px; padding: 4px 8px;">Cone</button>
-                <button class="icon-btn tool-btn" id="tool-sphere" title="Sphere" style="font-size:11px; padding: 4px 8px;">Sphere</button>
+                <button class="icon-btn tool-btn" id="tool-cube" style="font-size:11px; padding: 4px 8px;">Cube</button>
+                <button class="icon-btn tool-btn" id="tool-cylinder" style="font-size:11px; padding: 4px 8px;">Cyl.</button>
+                <button class="icon-btn tool-btn" id="tool-cone" style="font-size:11px; padding: 4px 8px;">Cone</button>
+                <button class="icon-btn tool-btn" id="tool-sphere" style="font-size:11px; padding: 4px 8px;">Sphere</button>
             </div>
           </div>
 
           <div id="wb-subjects-menu" style="display: none; position: absolute; bottom: 75px; left: 30%; background: rgba(20,30,48,0.95); padding: 15px; border-radius: 12px; border: 1px solid var(--primary); z-index: 25; width: 380px; max-height: 350px; overflow-y: auto;">
             <h4 style="color: var(--accent); margin: 0 0 10px 0; text-align: center;">🎒 Subject Assets Library</h4>
             <select id="subjectCategory" style="width: 100%; padding: 8px; background: rgba(0,0,0,0.5); color: white; border: 1px solid var(--primary); border-radius: 6px; margin-bottom: 10px;">
-                <option value="geography">🌍 Geography (Maps)</option>
-                <option value="biology">🧬 Biology (Anatomy & Cells)</option>
-                <option value="chemistry">🧪 Chemistry</option>
-                <option value="physics">🧲 Physics</option>
-                <option value="maths">📐 Mathematics</option>
-                <option value="commerce">📈 Commerce</option>
+                <option value="geography">🌍 Geography (Maps)</option><option value="biology">🧬 Biology</option>
+                <option value="chemistry">🧪 Chemistry</option><option value="physics">🧲 Physics</option>
+                <option value="maths">📐 Mathematics</option><option value="commerce">📈 Commerce</option>
             </select>
             <div id="subjectAssetsList" style="display: flex; flex-direction: column; gap: 8px;"></div>
           </div>
 
           <div id="wb-toolbar" style="display: none; position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); background: rgba(20, 20, 20, 0.95); padding: 10px 20px; border-radius: 30px; gap: 12px; align-items: center; z-index: 20; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 10px 20px rgba(0,0,0,0.5); width: max-content;">
-            
             <div class="host-only-btn" style="display:flex; align-items:center; gap:5px; background:rgba(0,0,0,0.5); padding:5px; border-radius:20px; border:1px solid var(--accent);">
                 <button id="wbPrevPage" class="icon-btn" style="padding: 2px 8px; background: var(--primary);">◀</button>
                 <span id="wbPageNum" style="color:white; font-size: 12px; font-weight: bold; width: 40px; text-align: center;">1 / 1</span>
                 <button id="wbNextPage" class="icon-btn" style="padding: 2px 8px; background: var(--primary);">▶</button>
-                <button id="wbAddPage" class="icon-btn" style="background: #27ae60; font-weight:bold; font-size:12px;">➕ New Board</button>
+                <button id="wbAddPage" class="icon-btn" style="background: #27ae60; font-weight:bold; font-size:12px;">➕ New</button>
             </div>
-            
             <span style="border-left: 1px solid rgba(255,255,255,0.3); height: 20px; margin: 0 5px;"></span>
-
-            <button id="toggleShapesBtn" class="icon-btn" title="2D/3D Shapes">▱ Shapes</button>
-            <button id="toggleSubjectsBtn" class="icon-btn" title="Subject Diagrams & Maps">🎒 Subjects</button>
+            <button id="toggleShapesBtn" class="icon-btn">▱ Shapes</button>
+            <button id="toggleSubjectsBtn" class="icon-btn">🎒 Subjects</button>
             <span style="border-left: 1px solid rgba(255,255,255,0.3); height: 20px; margin: 0 5px;"></span>
-            
-            <button id="tool-pen" class="icon-btn tool-btn active-tool" title="Normal Pen" style="background: var(--primary);">✏️</button>
-            <button id="tool-brush" class="icon-btn tool-btn" title="Paint Brush">🖌️</button>
-            <button id="tool-spray" class="icon-btn tool-btn" title="Spray Can">💨</button>
-            <button id="tool-pointer" class="icon-btn tool-btn" title="Laser Pointer">🔴</button>
-            <button id="tool-fill" class="icon-btn tool-btn" title="Color Bucket Fill">🪣</button>
-            
-            <input type="color" id="wb-color" value="#000000" style="cursor: pointer; width: 30px; height: 30px; border: 2px solid white; border-radius: 50%; padding:0; background:transparent;" title="Color">
-            <input type="range" id="wb-size" min="1" max="40" value="5" style="width: 80px; cursor: pointer;" title="Thickness">
+            <button id="tool-pen" class="icon-btn tool-btn active-tool">✏️</button>
+            <button id="tool-brush" class="icon-btn tool-btn">🖌️</button>
+            <button id="tool-spray" class="icon-btn tool-btn">💨</button>
+            <button id="tool-pointer" class="icon-btn tool-btn">🔴</button>
+            <button id="tool-fill" class="icon-btn tool-btn">🪣</button>
+            <input type="color" id="wb-color" value="#000000" style="cursor: pointer; width: 30px; height: 30px; border: 2px solid white; border-radius: 50%; padding:0; background:transparent;">
+            <input type="range" id="wb-size" min="1" max="40" value="5" style="width: 80px; cursor: pointer;">
             <span style="border-left: 1px solid rgba(255,255,255,0.3); height: 20px; margin: 0 5px;"></span>
-            
             <input type="file" id="wbPdfUpload" accept="application/pdf, image/png, image/jpeg, image/jpg" style="display: none;">
-            <button id="tool-pdf" class="icon-btn" title="Upload PDF or Image to Board">📄 / 🖼️ File</button>
-            
-            <button id="tool-eraser" class="icon-btn tool-btn" title="Eraser (Hold Right-Click also works)">🧽</button>
-            <button id="wb-clear" class="icon-btn" style="background: var(--danger);" title="Clear Annotations">🗑️</button>
+            <button id="tool-pdf" class="icon-btn">📄 File</button>
+            <button id="tool-eraser" class="icon-btn tool-btn">🧽</button>
+            <button id="wb-clear" class="icon-btn" style="background: var(--danger);">🗑️</button>
           </div>
+        </div>
+      </section>
+
+      <!-- PRESENTATION -->
+      <section id="presentation-box" class="card big-panel" style="grid-column: 1 / -1; height: auto; min-height: 550px; display: none; position: relative;">
+        <h3>📊 VYDEX Business & Growth Presentation</h3>
+        <div id="pres-input-form" class="host-only-btn" style="display: none; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 12px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center;">
+          <!-- Reduced details to save space, logic works in script -->
+          <input id="presIndustry" placeholder="Industry/Product" style="padding: 8px; border-radius: 6px; border: none;">
+          <input id="presBaseValue" type="number" placeholder="Base Revenue" style="padding: 8px; border-radius: 6px; border: none;">
+          <input id="presGrowth" type="number" placeholder="Growth %" style="padding: 8px; border-radius: 6px; border: none; width: 90px;">
+          <button id="generateGraphBtn" style="background: var(--accent); color: #000; font-weight: bold; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer;">Generate</button>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h4 id="pres-title" style="color: var(--accent); margin: 0;">Awaiting Data...</h4>
+        </div>
+        <div id="presentation-container" style="position: relative; width: 100%; height: 400px; background: #fff; border-radius: 12px; overflow: hidden; cursor: crosshair;">
+          <canvas id="presentationCanvas"></canvas>
+          <div id="laser-pointer" style="position: absolute; width: 18px; height: 18px; background: red; border-radius: 50%; display: none; transform: translate(-50%, -50%); z-index: 100;"></div>
         </div>
       </section>
 
       <!-- INTERACTIVE MAP -->
       <section id="map-box" class="card big-panel" style="grid-column: 1 / -1; display: none; position: relative; padding: 15px;">
         <h3 style="margin-top:0;">🌍 VYDEX Geography Explorer</h3>
-        
         <div id="map-container" style="position:relative; width: 100%; height: 450px; border-radius: 12px; overflow: hidden; box-shadow: inset 0 5px 15px rgba(0,0,0,0.1); z-index: 1;">
-            
-            <button id="mapFullscreenBtn" title="Maximize Map" style="position: absolute; top: 10px; right: 10px; z-index: 10000; background: rgba(0,0,0,0.7); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; padding: 6px 12px; font-size: 16px; cursor: pointer; backdrop-filter: blur(5px); box-shadow: 0 2px 10px rgba(0,0,0,0.5); transition: background 0.2s;">🖥️ Fullscreen</button>
-
-            <div id="map-controls-container" style="position: absolute; top: 80px; left: 15px; z-index: 10000; display: flex; flex-direction: column; gap: 15px; align-items: flex-start;">
-                <button id="toggleLabelsBtn" title="Toggle Place Names" style="background: var(--primary); color: white; border: 2px solid white; border-radius: 50%; width: 45px; height: 45px; cursor: pointer; font-size: 18px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);">🏷️</button>
-                <button id="screenshotMapBtn" title="Take Map Screenshot" style="background: var(--accent-dark); color: white; border: 2px solid white; border-radius: 50%; width: 45px; height: 45px; cursor: pointer; font-size: 18px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);">📸</button>
+            <button id="mapFullscreenBtn" title="Maximize Map" style="position: absolute; top: 10px; right: 10px; z-index: 10000; background: rgba(0,0,0,0.7); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; padding: 6px 12px; font-size: 16px; cursor: pointer;">🖥️ Fullscreen</button>
+            <div id="map-controls-container" style="position: absolute; top: 80px; left: 15px; z-index: 10000; display: flex; flex-direction: column; gap: 15px;">
+                <button id="toggleLabelsBtn" style="background: var(--primary); color: white; border: 2px solid white; border-radius: 50%; width: 45px; height: 45px; cursor: pointer; font-size: 18px;">🏷️</button>
+                <button id="screenshotMapBtn" style="background: var(--accent-dark); color: white; border: 2px solid white; border-radius: 50%; width: 45px; height: 45px; cursor: pointer; font-size: 18px;">📸</button>
             </div>
-            
         </div>
       </section>
 
@@ -295,19 +301,15 @@
 
   <footer>
     <p>Powered by VYDEX Collaboration Engine</p>
-    <p style="margin-top: 5px; font-weight: 600; color: var(--accent);">
-      📧 navneetshubham9@gmail.com | 📞 +918839339013
-    </p>
+    <p style="margin-top: 5px; font-weight: 600; color: var(--accent);">📧 navneetshubham9@gmail.com | 📞 +918839339013</p>
   </footer>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
-  
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-
   <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.0.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <script src="script.js"></script>
