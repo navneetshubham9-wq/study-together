@@ -342,9 +342,13 @@ socket.on("wb-toggle", (data) => {
         hideAllBigPanels(); 
         if(whiteboardBox) whiteboardBox.style.display = "block"; 
         if(isHost){ const btn = document.getElementById("toggleWbBtn"); if(btn){btn.dataset.show="true"; btn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
+        applyForcedFullscreen("whiteboard-box", true);
+        if(!isHost) socket.emit("force-screen", { room: currentRoom, target: "whiteboard-box", active: true });
     } else { 
         if(whiteboardBox) whiteboardBox.style.display = "none"; 
         if(isHost){ const btn = document.getElementById("toggleWbBtn"); if(btn){btn.dataset.show="false"; btn.style.background="linear-gradient(135deg, #3498db, #2980b9)";} } 
+        applyForcedFullscreen("whiteboard-box", false);
+        if(!isHost) socket.emit("force-screen", { room: currentRoom, target: "whiteboard-box", active: false });
     }
 });
 
@@ -365,9 +369,13 @@ socket.on("office-toggle", (data) => {
         hideAllBigPanels(); 
         if(officeBox) officeBox.style.display = "block"; 
         if(isHost){ const btn = document.getElementById("toggleOfficeBtn"); if(btn){btn.dataset.show="true"; btn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
+        applyForcedFullscreen("office-box", true);
+        if(!isHost) socket.emit("force-screen", { room: currentRoom, target: "office-box", active: true });
     } else { 
         if(officeBox) officeBox.style.display = "none"; 
         if(isHost){ const btn = document.getElementById("toggleOfficeBtn"); if(btn){btn.dataset.show="false"; btn.style.background="linear-gradient(135deg, #c0392b, #e74c3c)";} } 
+        applyForcedFullscreen("office-box", false);
+        if(!isHost) socket.emit("force-screen", { room: currentRoom, target: "office-box", active: false });
     }
 });
 
@@ -633,10 +641,6 @@ officeTabBtns.forEach(btn => {
 
 officeSyncToggle?.addEventListener("change", (e) => {
     isOfficeSyncing = e.target.checked;
-    if(wordEditor) wordEditor.contentEditable = isOfficeSyncing ? "true" : "false";
-    if(pptEditor) pptEditor.contentEditable = isOfficeSyncing ? "true" : "false";
-    document.querySelectorAll('#excelGrid td[contenteditable]').forEach(td => td.contentEditable = isOfficeSyncing ? "true" : "false");
-    
     const wordToolbar = document.getElementById("office-word")?.firstElementChild;
     if(wordToolbar) wordToolbar.style.display = isOfficeSyncing ? "flex" : "none";
     if(isOfficeSyncing) emitOfficeData();
@@ -1010,6 +1014,21 @@ document.getElementById('wb-clear')?.addEventListener("click", () => {
     showNotification("Annotations cleared. Background intact.", "info");
 });
 
+function drawFreehand(x0, y0, x1, y1, color, size, toolType, emit) {
+    if(!ctx) return;
+    ctx.globalCompositeOperation = toolType === 'eraser' ? 'destination-out' : 'source-over';
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.strokeStyle = toolType === 'eraser' ? "rgba(0,0,0,1)" : color;
+    ctx.lineWidth = size;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    ctx.closePath();
+    ctx.globalCompositeOperation = 'source-over';
+}
+
 function getCanvasPoint(e) { 
     const rect = canvas.getBoundingClientRect(); 
     return { x: (e.clientX - rect.left) * (canvas.width / rect.width), y: (e.clientY - rect.top) * (canvas.height / rect.height) }; 
@@ -1216,6 +1235,9 @@ socket.on("host-assignment", (data) => {
         if(togglePresBtn) togglePresBtn.style.display = "inline-block"; 
         if(toggleOfficeBtn) toggleOfficeBtn.style.display = "inline-block";
         document.querySelectorAll('.host-only-btn').forEach(btn => btn.style.setProperty("display", "flex", "important"));
+        if(wordEditor) wordEditor.contentEditable = "true";
+        if(pptEditor) pptEditor.contentEditable = "true";
+        document.querySelectorAll('#excelGrid td').forEach(td => td.contentEditable = "true");
     } else {
         if(hostAudioCont) hostAudioCont.style.display = "none"; 
         canDraw = false; 
@@ -1288,6 +1310,89 @@ socket.on("wb-control", (data) => {
       if (data.action === "grant") { canDraw = true; const wbt = document.getElementById('wb-toolbar'); if(wbt) wbt.style.display = "flex"; if(canvas) canvas.style.cursor = "crosshair"; if(wbStatus) wbStatus.textContent = "(You have access)"; showNotification("Host gave you Whiteboard access! 🎨", "join"); } 
       else if (data.action === "revoke") { canDraw = false; const wbt = document.getElementById('wb-toolbar'); if(wbt) wbt.style.display = "none"; if(canvas) canvas.style.cursor = "not-allowed"; if(wbStatus) wbStatus.textContent = "(View Only - Access Revoked)"; showNotification("Your whiteboard access was revoked.", "danger"); }
     }
+});
+
+socket.on("force-screen", (data) => {
+    if(isHost) return;
+    applyForcedFullscreen(data.target, data.active);
+});
+
+socket.on("office-sync", (data) => {
+    if(data.action === "tab-switch") {
+        document.querySelectorAll(".office-tab-btn").forEach(b => b.classList.remove("active-tool"));
+        document.querySelectorAll(".office-tab").forEach(t => t.style.display = "none");
+        const target = document.getElementById(data.target);
+        if(target) { target.style.display = "block"; }
+    }
+    if(data.action === "content-update") {
+        if(wordEditor && data.wordData !== undefined) wordEditor.innerHTML = data.wordData;
+        if(pptEditor && data.pptData !== undefined) pptEditor.innerHTML = data.pptData;
+        if(data.excelData && excelGrid) {
+            for(let r=1; r<excelGrid.rows.length && r-1<data.excelData.length; r++) {
+                for(let c=0; c<data.excelData[r-1].length && c<excelGrid.rows[r].cells.length-1; c++) {
+                    excelGrid.rows[r].cells[c+1].innerHTML = data.excelData[r-1][c];
+                }
+            }
+        }
+    }
+});
+
+socket.on("wb-page-sync", (data) => {
+    if(isHost) return;
+    const txt = document.getElementById("wbPageNum");
+    if(txt) txt.textContent = `${data.num} / ${data.total}`;
+    if(bgCtx) { bgCtx.fillStyle = "#ffffff"; bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height); }
+    if(ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if(data.imageBg) { const img = new Image(); img.onload = () => { bgCtx.drawImage(img, 0, 0); }; img.src = data.imageBg; }
+    if(data.imageFg) { const img = new Image(); img.onload = () => { ctx.drawImage(img, 0, 0); }; img.src = data.imageFg; }
+});
+
+socket.on("clear-whiteboard", () => {
+    if(ctx && canvas) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if(isHost && canvas) wbPagesFg[currentWbPage] = canvas.toDataURL("image/png", 0.5);
+});
+
+socket.on("laser-pointer", (data) => {
+    const laser = document.getElementById("laser-pointer");
+    if(!laser) return;
+    if(data.hide) { laser.style.display = "none"; return; }
+    laser.style.display = "block";
+    laser.style.left = (data.x * 100) + "%";
+    laser.style.top = (data.y * 100) + "%";
+    clearTimeout(laserTimeout);
+    laserTimeout = setTimeout(() => laser.style.display = "none", 3000);
+});
+
+socket.on("presentation-data", (data) => {
+    const presTitle = document.getElementById("pres-title");
+    if(presTitle) presTitle.textContent = data.industry || "Presentation";
+    if(businessChart) { businessChart.destroy(); businessChart = null; }
+    const canvasEl = document.getElementById("presentationCanvas");
+    if(canvasEl) {
+        businessChart = new Chart(canvasEl.getContext("2d"), data.chartConfig);
+    }
+});
+
+socket.on("pres-view-switch", (data) => {
+    const presContainer = document.getElementById("presentation-container");
+    if(presContainer) {
+        presContainer.style.display = data.view === 'chart' ? "block" : "none";
+    }
+});
+
+socket.on("math-equation", (data) => {
+    const md = document.getElementById("mathDisplay");
+    if(!md) return;
+    try {
+        if(typeof katex !== 'undefined') {
+            md.innerHTML = katex.renderToString(data.equation, { displayMode: true, throwOnError: false });
+        } else {
+            md.innerHTML = `<code>${data.equation}</code>`;
+        }
+    } catch(e) {
+        md.innerHTML = `<code>${data.equation}</code>`;
+    }
+    showNotification(`${data.sender || "User"} broadcast an equation`, "info");
 });
 
 // ==========================================
