@@ -96,15 +96,15 @@ io.on("connection", socket => {
     socketUsers.set(socket.id, { uid, name, room });
     uidToSocket.set(uid.toString(), socket.id);
 
-    if (!roomHosts.has(room) || roomHosts.get(room) === null) {
+    const joiningIsHost = !roomHosts.has(room) || roomHosts.get(room) === null;
+    if (joiningIsHost) {
       roomHosts.set(room, socket.id);
-      roomHostUid.set(room, uid); 
-      socket.emit("host-assignment", { isHost: true, hostUid: uid });
-    } else {
-      socket.emit("host-assignment", { isHost: false, hostUid: roomHostUid.get(room) });
+      roomHostUid.set(room, uid);
     }
+    socket.emit("host-assignment", { isHost: joiningIsHost, hostUid: joiningIsHost ? uid : roomHostUid.get(room) });
     
-    socket.emit("room-history", { 
+    socket.emit("room-history", {
+      isHost: joiningIsHost,
       chats: roomChats.get(room) || [], 
       files: roomFiles.get(room) || [],
       wbVisible: roomWbState.get(room) || false,

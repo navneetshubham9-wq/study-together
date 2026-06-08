@@ -1691,6 +1691,7 @@ initWorldMap();
 // 13. SOCKET LISTENER BINDINGS
 // ==========================================
 socket.on("room-history", (data) => {
+    if(data.isHost !== undefined) isHost = data.isHost;
     if(data.hostUid) globalHostUid = data.hostUid;
     if (data.chats) data.chats.forEach(chat => { if(chat.name === "System" && chat.text.includes("left")) return; appendMessage(`${chat.name}: ${chat.text}`); });
     if (data.files && fileList) [...data.files].reverse().forEach(file => addFileLink(file.filename, file.url));
