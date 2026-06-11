@@ -106,21 +106,36 @@ footer { text-align: center; padding: 30px 20px; color: var(--text-main); font-s
     transition: none !important;
 }
 
-/* Video and label inside fullscreen card */
-:fullscreen .video-card video, .video-card:fullscreen video, .fs-active .video-card video, .video-card.fs-active video,
-:fullscreen .video-card > div, .video-card:fullscreen > div, .fs-active .video-card > div, .video-card.fs-active > div {
+/* Video inside fullscreen card - fill entire space */
+:fullscreen .video-card video, .video-card:fullscreen video, .fs-active .video-card video, .video-card.fs-active video {
     width: 100% !important;
     height: 100% !important;
     object-fit: cover !important;
 }
 
-/* Remove all backdrop-filter and shadows in fullscreen */
+/* Hide user name labels in fullscreen - they shadow the video */
+:fullscreen .video-card > [style*="z-index:"], .video-card:fullscreen > [style*="z-index:"],
+.fs-active .video-card > [style*="z-index:"], .video-card.fs-active > [style*="z-index:"] {
+    display: none !important;
+}
+
+/* Hide mute/cam/WB controls (siblings of .video-card inside wrapper) in fullscreen */
+:fullscreen .video-card ~ div, .video-card:fullscreen ~ div, .fs-active .video-card ~ div, .video-card.fs-active ~ div {
+    display: none !important;
+}
+
+/* Remove all backdrop-filter, shadows, backgrounds in fullscreen - transparent buttons */
 :fullscreen .icon-btn, .video-card:fullscreen .icon-btn, .fs-active .icon-btn, .video-card.fs-active .icon-btn {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     box-shadow: none !important;
-    background: rgba(0,0,0,0.3) !important;
-    border: 1px solid rgba(255,255,255,0.1) !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 4px !important;
+    font-size: 14px !important;
+    line-height: 1 !important;
+    min-width: auto !important;
+    min-height: auto !important;
 }
 
 body.no-scroll { overflow: hidden !important; }
