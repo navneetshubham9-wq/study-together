@@ -23,6 +23,8 @@ main { max-width: 1450px; margin: 0 auto; padding: 0 20px 40px; }
 .about-modal-box { transform: translate(-50%, -50%) !important; }
 .about-modal-box:hover { transform: translate(-50%, -50%) !important; }
 .hide-vertical { display: none !important; }
+#agenda-input:focus { border-color: var(--accent) !important; }
+#agendaBtn { background: linear-gradient(135deg, #00d2d3, #01a3a4) !important; color: white !important; font-weight: 700 !important; font-size: 16px !important; padding: 12px 18px !important; }
 
 #controls { grid-column: 1 / span 2; grid-row: 1; transition: all 0.3s ease; }
 #video-area { grid-column: 1; grid-row: 2 / span 2; }

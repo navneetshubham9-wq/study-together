@@ -2944,3 +2944,190 @@ localMusicMuteBtn?.addEventListener("click", function() {
         this.style.background = "#2ecc71";
     }
 });
+
+// ==========================================
+// AGENDA PANEL
+// ==========================================
+const agendaPanel = document.getElementById("agenda-panel");
+const agendaOverlay = document.getElementById("agenda-overlay");
+const agendaBtn = document.getElementById("agendaBtn");
+const closeAgendaBtn = document.getElementById("closeAgendaBtn");
+const agendaInput = document.getElementById("agenda-input");
+const saveAgendaBtn = document.getElementById("saveAgendaBtn");
+const agendaHostEdit = document.getElementById("agenda-host-edit");
+const agendaView = document.getElementById("agenda-view");
+const agendaEmpty = document.getElementById("agenda-empty");
+
+function showAgenda() {
+    if (!agendaPanel || !agendaOverlay) return;
+    agendaPanel.style.display = "block";
+    agendaOverlay.style.display = "block";
+    if (isHost) {
+        if (agendaHostEdit) agendaHostEdit.style.display = "block";
+        if (agendaView) agendaView.style.display = "none";
+        if (agendaEmpty) agendaEmpty.style.display = "none";
+    } else {
+        if (agendaHostEdit) agendaHostEdit.style.display = "none";
+        const saved = localStorage.getItem("agenda_" + currentRoom);
+        if (saved) {
+            if (agendaView) { agendaView.textContent = saved; agendaView.style.display = "block"; }
+            if (agendaEmpty) agendaEmpty.style.display = "none";
+        } else {
+            if (agendaEmpty) agendaEmpty.style.display = "block";
+        }
+    }
+}
+
+function hideAgenda() {
+    if (agendaPanel) agendaPanel.style.display = "none";
+    if (agendaOverlay) agendaOverlay.style.display = "none";
+}
+
+agendaBtn?.addEventListener("click", () => {
+    if (agendaPanel?.style.display === "block") {
+        hideAgenda();
+        return;
+    }
+    if (currentRoom) {
+        socket.emit("get-room-summary", { room: currentRoom });
+    }
+});
+
+closeAgendaBtn?.addEventListener("click", hideAgenda);
+agendaOverlay?.addEventListener("click", hideAgenda);
+
+saveAgendaBtn?.addEventListener("click", () => {
+    if (!agendaInput || !currentRoom) return;
+    const text = agendaInput.value;
+    socket.emit("agenda-sync", { room: currentRoom, agenda: text });
+    localStorage.setItem("agenda_" + currentRoom, text);
+    if (agendaView) { agendaView.textContent = text; agendaView.style.display = "block"; }
+    if (agendaHostEdit) agendaHostEdit.style.display = "none";
+    if (agendaEmpty) agendaEmpty.style.display = "none";
+    showNotification("Agenda saved!", "success");
+});
+
+socket.on("agenda-sync", (data) => {
+    if (!data || data.room !== currentRoom) return;
+    localStorage.setItem("agenda_" + data.room, data.agenda);
+    if (agendaView && agendaPanel?.style.display === "block") {
+        if (data.agenda) {
+            agendaView.textContent = data.agenda;
+            agendaView.style.display = "block";
+            if (agendaEmpty) agendaEmpty.style.display = "none";
+        } else {
+            agendaView.style.display = "none";
+            if (agendaEmpty) agendaEmpty.style.display = "block";
+        }
+    }
+});
+
+// ==========================================
+// PDF MEETING SUMMARY
+// ==========================================
+const downloadSummaryBtn = document.getElementById("downloadSummaryBtn");
+
+downloadSummaryBtn?.addEventListener("click", () => {
+    if (!currentRoom) return;
+    socket.emit("get-room-summary", { room: currentRoom });
+});
+
+socket.on("room-summary", (data) => {
+    if (!data || data.roomCode !== currentRoom) return;
+
+    // If agenda panel is open, show data
+    if (agendaPanel?.style.display === "block") {
+        if (agendaInput) agendaInput.value = data.agenda || "";
+        if (isHost) {
+            if (agendaHostEdit) agendaHostEdit.style.display = "block";
+            if (agendaView) agendaView.style.display = "none";
+            if (agendaEmpty) agendaEmpty.style.display = "none";
+        }
+        return;
+    }
+
+    // Generate PDF
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF("p", "mm", "a4");
+        const pageW = 190;
+        let y = 15;
+
+        function addLine(text, size, style) {
+            if (y > 275) { doc.addPage(); y = 15; }
+            doc.setFontSize(size || 11);
+            if (style) doc.setFont(undefined, style);
+            const lines = doc.splitTextToSize(text, pageW);
+            lines.forEach(line => {
+                if (y > 275) { doc.addPage(); y = 15; }
+                doc.text(line, 10, y);
+                y += (size || 11) * 0.4;
+            });
+            if (style) doc.setFont(undefined, "normal");
+        }
+
+        // Title
+        doc.setFontSize(18);
+        doc.setFont(undefined, "bold");
+        doc.text("Meeting Summary", 10, y);
+        y += 8;
+        doc.setFontSize(11);
+        doc.setFont(undefined, "normal");
+        doc.text("Room: " + data.roomCode, 10, y); y += 6;
+        if (data.db && data.db.room) {
+            doc.text("Created: " + data.db.room.created_at, 10, y); y += 6;
+            doc.text("Host IP: " + data.db.room.host_ip, 10, y); y += 6;
+        }
+        y += 4;
+
+        // Agenda
+        if (data.agenda) {
+            addLine("Agenda:", 13, "bold");
+            addLine(data.agenda, 11);
+            y += 4;
+        }
+
+        // Participants
+        addLine("Participants:", 13, "bold");
+        if (data.db && data.db.joins && data.db.joins.length) {
+            data.db.joins.forEach(j => {
+                const left = j.left_at || "Still in room";
+                addLine(`  ${j.name || j.uid} (IP: ${j.ip || "N/A"}) — Joined: ${j.joined_at}, Left: ${left}`, 10);
+            });
+        } else {
+            addLine("  No participant data recorded.", 10);
+        }
+        y += 4;
+
+        // Chat Messages
+        addLine("Chat Messages:", 13, "bold");
+        if (data.chats && data.chats.length) {
+            data.chats.forEach(c => {
+                const time = c.time ? new Date(c.time).toLocaleTimeString() : "";
+                addLine(`  [${time}] ${c.name}: ${c.text}`, 10);
+            });
+        } else {
+            addLine("  No messages sent.", 10);
+        }
+        y += 4;
+
+        // Shared Files
+        addLine("Shared Files:", 13, "bold");
+        if (data.files && data.files.length) {
+            data.files.forEach(f => {
+                const parts = f.filename.split(".");
+                const ext = parts.length > 1 ? parts.pop() : "";
+                const name = parts.join(".");
+                addLine(`  ${name}.${ext} (shared by ${f.uploader})`, 10);
+            });
+        } else {
+            addLine("  No files shared.", 10);
+        }
+
+        doc.save("Meeting_Summary_" + data.roomCode + ".pdf");
+    } catch (e) {
+        console.error("PDF generation error:", e);
+        showNotification("Failed to generate PDF: " + e.message, "error");
+    }
+});
+

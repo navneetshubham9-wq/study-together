@@ -105,6 +105,7 @@
       <!-- MAIN CONTROLS SECTION -->
       <section id="controls" class="card entry-animation delay-controls">
         <div class="control-row" id="controlRowInner">
+          <button id="agendaBtn" title="Meeting Agenda">ℹ️</button>
           <button id="cameraBtn" title="Toggle Camera">📹 Camera</button>
           <button id="muteBtn" title="Toggle Microphone">🎙️ Mic</button>
           <button id="shareBtn" title="Share Screen">🖥️ Share Screen</button>
@@ -122,6 +123,7 @@
           <button id="toggleWbBtn" class="host-only-btn panel-toggle-btn" title="Show/Hide Whiteboard" style="background: linear-gradient(135deg, #3498db, #2980b9); color: white; display: none;" data-show="false">🎨 Whiteboard</button>
           <button id="togglePresBtn" class="host-only-btn panel-toggle-btn" title="Show/Hide Presentation" style="background: linear-gradient(135deg, #f1c40f, #f39c12); color: white; display: none;" data-show="false">📊 Graphs</button>
           <button id="toggleOfficeBtn" class="host-only-btn panel-toggle-btn" title="Show/Hide Office" style="background: linear-gradient(135deg, #c0392b, #e74c3c); color: white; display: none;" data-show="false">📝 VYDEX Office</button>
+          <button id="downloadSummaryBtn" class="host-only-btn" title="Download Meeting Summary (PDF)" style="background: linear-gradient(135deg, #8e44ad, #9b59b6); color: white; display: none;">📄 Summary</button>
         </div>
 
         <div id="hostAudioContainer" style="display: none; width: 100%; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
@@ -550,6 +552,21 @@
     <p style="margin-top: 5px; font-weight: 600; color: var(--accent);">📧 navneetshubham9@gmail.com | 📞 +918839339013</p>
   </footer>
 
+  <!-- AGENDA PANEL -->
+  <div id="agenda-panel" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 999999; width: 480px; max-width: 90vw; max-height: 80vh; overflow-y: auto; background: rgba(20,30,48,0.98); border: 2px solid var(--accent); border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.9); padding: 0;">
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-bottom: 1px solid rgba(255,255,255,0.1); position: sticky; top: 0; background: rgba(20,30,48,0.98); z-index: 1; border-radius: 14px 14px 0 0;">
+      <h3 style="margin: 0; color: var(--accent); font-size: 1rem;">📋 Meeting Agenda</h3>
+      <span id="closeAgendaBtn" style="cursor:pointer; color:var(--danger); font-size:20px; padding:0 5px; line-height:1; flex-shrink:0;" title="Close">✖</span>
+    </div>
+    <div id="agenda-host-edit" style="padding: 15px; display: none;">
+      <textarea id="agenda-input" placeholder="Write the meeting agenda here..." style="width:100%; min-height:200px; padding:12px; border-radius:8px; border:1px solid rgba(255,255,255,0.2); background:rgba(0,0,0,0.5); color:white; font-size:14px; line-height:1.6; resize:vertical; box-sizing:border-box; outline:none;"></textarea>
+      <button id="saveAgendaBtn" style="margin-top:10px; background:var(--primary); color:white; border:none; padding:8px 20px; border-radius:8px; cursor:pointer; font-weight:bold; width:100%;">Save Agenda</button>
+    </div>
+    <div id="agenda-view" style="padding: 18px; font-size: 14px; line-height: 1.7; color: #e0e0e0; white-space: pre-wrap; word-wrap: break-word; display: none;"></div>
+    <p id="agenda-empty" style="padding: 30px; text-align: center; color: rgba(255,255,255,0.4); font-style: italic; margin: 0;">No agenda set for this meeting.</p>
+  </div>
+  <div id="agenda-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 999998;"></div>
+
   <!-- ABOUT MODAL (placed before scripts so JS can find it) -->
   <div id="about-modal" class="about-modal-box" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 999999; width: 520px; max-width: 90vw; max-height: 85vh; overflow-y: auto; background: rgba(20,30,48,0.98); border: 2px solid var(--primary); border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.9); padding: 0;">
     <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); position: sticky; top: 0; background: rgba(20,30,48,0.98); z-index: 1; border-radius: 14px 14px 0 0;">
@@ -591,6 +608,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
   <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.0.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="script.js"></script>
 
   <!-- Service Worker Registration for PWA -->

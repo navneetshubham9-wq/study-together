@@ -115,6 +115,7 @@ const roomMapState = new Map();
 const roomPresState = new Map(); 
 const roomOfficeState = new Map(); 
 const roomChartData = new Map(); 
+const roomAgenda = new Map(); 
 
 app.get("/proxy-image", (req, res) => {
   const imgUrl = req.query.url;
@@ -230,8 +231,9 @@ io.on("connection", socket => {
   socket.on("math-equation", data => io.to(data.room).emit("math-equation", data));
 
   socket.on("chat-message", data => {
+    const timestamp = new Date().toISOString();
     if (!roomChats.has(data.room)) roomChats.set(data.room, []);
-    roomChats.get(data.room).push({ name: data.name, text: data.text });
+    roomChats.get(data.room).push({ name: data.name, text: data.text, time: timestamp });
     socket.to(data.room).emit("chat-message", data);
 
     // Encrypt and log chat to database
@@ -240,6 +242,23 @@ io.on("connection", socket => {
       db.prepare("INSERT INTO chat_logs (room_code, sender_name, encrypted_iv, encrypted_data) VALUES (?, ?, ?, ?)")
         .run(data.room, data.name, enc.iv, enc.data);
     } catch (e) { console.error("DB chat log error:", e); }
+  });
+
+  socket.on("agenda-sync", data => {
+    roomAgenda.set(data.room, data.agenda);
+    socket.to(data.room).emit("agenda-sync", data);
+  });
+
+  socket.on("get-room-summary", data => {
+    const room = data.room;
+    const chats = roomChats.get(room) || [];
+    const files = roomFiles.get(room) || [];
+    let dbData = { room: null, joins: [] };
+    try {
+      dbData.room = db.prepare("SELECT code, created_at, host_name, host_ip FROM rooms WHERE code = ?").get(room);
+      dbData.joins = db.prepare("SELECT uid, name, ip, joined_at, left_at FROM room_joins WHERE room_code = ? ORDER BY joined_at").all(room);
+    } catch (e) { console.error("DB summary error:", e); }
+    socket.emit("room-summary", { roomCode: room, db: dbData, chats, files, agenda: roomAgenda.get(room) || "" });
   });
 
   socket.on("drawing", data => socket.to(data.room).emit("drawing", data));
@@ -260,7 +279,7 @@ io.on("connection", socket => {
       } catch (e) { console.error("DB leave log error:", e); }
 
       io.to(user.room).emit("user-left", { uid: user.uid, name: user.name });
-      const leaveMsg = { name: "System", text: `${user.name} left the room` };
+      const leaveMsg = { name: "System", text: `${user.name} left the room`, time: new Date().toISOString() };
       if (!roomChats.has(user.room)) roomChats.set(user.room, []);
       roomChats.get(user.room).push(leaveMsg);
       io.to(user.room).emit("chat-message", leaveMsg);
