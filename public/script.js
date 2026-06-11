@@ -274,9 +274,14 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
         const maxBtn = document.createElement("button"); 
         maxBtn.className = "icon-btn"; maxBtn.innerHTML = "🖥️";
         maxBtn.onclick = () => { 
-            const fsTarget = elementToFullscreen || targetWrapper;
-            if (!document.fullscreenElement) { fsTarget.requestFullscreen().catch(e => console.warn(e)); } 
-            else { document.exitFullscreen(); } 
+            const isVideo = targetWrapper.classList.contains("video-card") || targetWrapper.querySelector(".video-card");
+            if (isVideo) {
+                targetWrapper.classList.remove("video-wrapper-small");
+                targetWrapper.classList.toggle("video-wrapper-large");
+            } else {
+                if (!document.fullscreenElement) { targetWrapper.requestFullscreen().catch(e => console.warn(e)); }
+                else { document.exitFullscreen(); }
+            }
         };
         controlsDiv.appendChild(maxBtn);
     }
