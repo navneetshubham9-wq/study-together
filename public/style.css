@@ -79,7 +79,10 @@ footer { text-align: center; padding: 30px 20px; color: var(--text-main); font-s
 :fullscreen #whiteboard-container, :fullscreen #map-container, :fullscreen #presentation-container, :fullscreen .office-tab { width: 100vw !important; height: 100vh !important; border-radius: 0 !important; box-shadow: none !important; border: none !important; }
 :fullscreen .local-controls { top: 20px !important; right: 20px !important; background: rgba(0,0,0,0.5) !important; padding: 8px !important; border-radius: 10px !important; z-index: 999999 !important; }
 :fullscreen #wb-toolbar { bottom: 30px !important; z-index: 999999 !important; transform: translateX(-50%) scale(1.1); }
-:fullscreen .video-card > div, :fullscreen .video-card video { width: 100vw !important; height: 100vh !important; object-fit: contain !important; }
+:fullscreen .video-card > div, :fullscreen .video-card video,
+.video-card:fullscreen > div, .video-card:fullscreen video { width: 100vw !important; height: 100vh !important; object-fit: contain !important; }
+
+.video-card:fullscreen { width: 100vw !important; height: 100vh !important; }
 
 body.no-scroll { overflow: hidden !important; }
 .locked-fullscreen { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 2147483640 !important; background: #141e30 !important; margin: 0 !important; padding: 0 !important; border-radius: 0 !important; }

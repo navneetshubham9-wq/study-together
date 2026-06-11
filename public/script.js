@@ -291,7 +291,8 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
         const maxBtn = document.createElement("button"); 
         maxBtn.className = "icon-btn"; maxBtn.innerHTML = "🖥️";
         maxBtn.onclick = () => { 
-            if (!document.fullscreenElement) { targetWrapper.requestFullscreen().catch(e => console.warn(e)); } 
+            const fsTarget = elementToFullscreen || targetWrapper;
+            if (!document.fullscreenElement) { fsTarget.requestFullscreen().catch(e => console.warn(e)); } 
             else { document.exitFullscreen(); } 
         };
         controlsDiv.appendChild(maxBtn);
