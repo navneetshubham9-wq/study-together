@@ -8,10 +8,30 @@ function hasWebRTC() {
         (navigator.mediaDevices?.getUserMedia !== undefined ||
          navigator.getUserMedia !== undefined);
 }
+function timeoutPromise(ms, msg) {
+    return new Promise((_, reject) => setTimeout(() => reject(new Error(msg || `Timed out after ${ms}ms`)), ms));
+}
+
 const socket = io("https://study-together-1-aj7e.onrender.com", {
   transports: ["polling", "websocket"],
   upgrade: true,
   rememberUpgrade: true
+});
+
+socket.on("connect", () => {
+    console.log("Socket connected:", socket.id);
+    const el = document.getElementById("conn-status");
+    if (el) { el.textContent = "✓ Connected"; el.style.color = "#2ecc71"; }
+});
+socket.on("disconnect", (reason) => {
+    console.warn("Socket disconnected:", reason);
+    const el = document.getElementById("conn-status");
+    if (el) { el.textContent = "✗ Disconnected"; el.style.color = "#e74c3c"; }
+});
+socket.on("connect_error", (err) => {
+    console.error("Socket connect error:", err.message);
+    const el = document.getElementById("conn-status");
+    if (el) { el.textContent = "✗ Connection failed — retrying..."; el.style.color = "#e74c3c"; }
 });
 
 // State variables
@@ -79,7 +99,10 @@ if (joinBtn) {
         // Try Agora (video/audio) join, but don't block if it fails
         try {
             if (client) {
-                const uid = await client.join(APP_ID, roomId, null, userName);
+                const uid = await Promise.race([
+                    client.join(APP_ID, roomId, null, userName),
+                    timeoutPromise(10000, "Agora join timed out")
+                ]);
                 localUid = uid.toString();
                 try { 
                     const [microphoneTrack, cameraTrack] = await AgoraRTC.createMicrophoneAndCameraTracks(); 
