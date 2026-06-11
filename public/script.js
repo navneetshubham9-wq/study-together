@@ -2615,6 +2615,7 @@ socket.on("host-assignment", (data) => {
     const presInputForm = document.getElementById('pres-input-form');
     
     if (isHost) {
+        showNotification("You are the host of this room", "success");
         if(hostAudioCont) hostAudioCont.style.display = "block"; 
         canDraw = true; 
         if(wbToolbar) wbToolbar.style.display = "flex"; 
