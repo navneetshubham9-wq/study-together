@@ -1940,7 +1940,12 @@ document.getElementById("closeMathBtn")?.addEventListener("click", () => { if(ma
 // About modal
 const aboutModal = document.getElementById("about-modal");
 const aboutOverlay = document.getElementById("about-overlay");
-document.getElementById("aboutBtn")?.addEventListener("click", () => { if(aboutModal) aboutModal.style.display = "block"; if(aboutOverlay) aboutOverlay.style.display = "block"; });
+document.getElementById("aboutBtn")?.addEventListener("click", () => {
+  if (!aboutModal || !aboutOverlay) return;
+  const isOpen = aboutModal.style.display === "block";
+  aboutModal.style.display = isOpen ? "none" : "block";
+  aboutOverlay.style.display = isOpen ? "none" : "block";
+});
 document.getElementById("closeAboutBtn")?.addEventListener("click", () => { if(aboutModal) aboutModal.style.display = "none"; if(aboutOverlay) aboutOverlay.style.display = "none"; });
 aboutOverlay?.addEventListener("click", () => { if(aboutModal) aboutModal.style.display = "none"; if(aboutOverlay) aboutOverlay.style.display = "none"; });
 
