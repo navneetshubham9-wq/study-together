@@ -8,7 +8,12 @@ const fs = require("fs");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { maxHttpBufferSize: 2e7 }); 
+const io = new Server(server, {
+  maxHttpBufferSize: 2e7,
+  cors: { origin: "*", methods: ["GET", "POST"] },
+  transports: ["polling", "websocket"],
+  allowEIO3: true
+});
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, "uploads");
 const PORT = process.env.PORT || 3000;

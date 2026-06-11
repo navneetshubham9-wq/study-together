@@ -1,6 +1,10 @@
 const APP_ID = "3fd771b87f804bc59f50e485662afaa7";
 const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
-const socket = io("https://study-together-1-aj7e.onrender.com");
+const socket = io("https://study-together-1-aj7e.onrender.com", {
+  transports: ["polling", "websocket"],
+  upgrade: true,
+  rememberUpgrade: true
+});
 
 // State variables
 let localTracks = { audioTrack: null, videoTrack: null };
