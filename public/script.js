@@ -285,8 +285,7 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
         const maxBtn = document.createElement("button"); 
         maxBtn.className = "icon-btn"; maxBtn.innerHTML = "🖥️";
         maxBtn.onclick = () => { 
-            const fsTarget = elementToFullscreen || targetWrapper;
-            if (!document.fullscreenElement) { fsTarget.requestFullscreen().catch(e => console.warn(e)); }
+            if (!document.fullscreenElement) { targetWrapper.requestFullscreen().catch(e => console.warn(e)); }
             else { document.exitFullscreen(); }
         };
         controlsDiv.appendChild(maxBtn);
@@ -2857,7 +2856,7 @@ shareBtn?.addEventListener("click", async () => {
 sendMsgBtn?.addEventListener("click", () => { const text = chatInput?.value.trim(); if (!text) return; socket.emit("chat-message", { room: currentRoom, name: usernameInput?.value || "Me", text }); appendMessage(`Me: ${text}`); if(chatInput) chatInput.value = ""; });
 chatInput?.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); sendMsgBtn?.click(); } });
 socket.on("chat-message", data => { if(data.name === "System" && data.text.includes("left")) return; appendMessage(`${data.name}: ${data.text}`); });
-document.getElementById("uploadBtn")?.addEventListener("click", async () => { const f = fileUpload?.files[0]; if (!f) return; const fd = new FormData(); fd.append("file", f); fd.append("room", currentRoom); fd.append("uploader", usernameInput?.value || "User"); try { addFileLink((await (await fetch("/upload", { method: "POST", body: fd })).json()).filename, (await (await fetch("/upload", { method: "POST", body: fd })).json()).url); } catch (err) { } });
+document.getElementById("uploadBtn")?.addEventListener("click", async () => { const f = fileUpload?.files[0]; if (!f) return; const fd = new FormData(); fd.append("file", f); fd.append("room", currentRoom); fd.append("uploader", usernameInput?.value || "User"); try { await fetch("/upload", { method: "POST", body: fd }); } catch (err) { } });
 function addFileLink(name, url) { const a = document.createElement("a"); a.href = url; a.textContent = name; a.download = name; a.target = "_blank"; if(fileList) fileList.prepend(a); }
 socket.on("file-uploaded", data => { addFileLink(data.filename, data.url); showNotification(`${data.uploader} uploaded a file`, "info"); });
 socket.on("user-joined", info => showNotification(`${info.name || "User"} joined the room!`, "join"));

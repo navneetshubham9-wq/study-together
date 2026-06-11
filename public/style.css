@@ -76,13 +76,50 @@ footer { text-align: center; padding: 30px 20px; color: var(--text-main); font-s
 :fullscreen { overflow: hidden !important; }
 :fullscreen h3 { display: none !important; } 
 :fullscreen .card { padding: 0 !important; margin: 0 !important; border: none !important; border-radius: 0 !important; max-width: 100% !important; width: 100vw !important; height: 100vh !important; background: #141e30 !important; }
-:fullscreen #whiteboard-container, :fullscreen #map-container, :fullscreen #presentation-container, :fullscreen .office-tab { width: 100vw !important; height: 100vh !important; border-radius: 0 !important; box-shadow: none !important; border: none !important; }
 .card:fullscreen { background: #141e30 !important; }
-:fullscreen .local-controls { opacity: 1 !important; display: flex !important; top: 20px !important; right: 20px !important; background: rgba(0,0,0,0.5) !important; padding: 8px !important; border-radius: 10px !important; z-index: 999999 !important; }
+:fullscreen #whiteboard-container, :fullscreen #map-container, :fullscreen #presentation-container, :fullscreen .office-tab { width: 100vw !important; height: 100vh !important; border-radius: 0 !important; box-shadow: none !important; border: none !important; }
+:fullscreen .local-controls { opacity: 1 !important; display: flex !important; top: 20px !important; right: 20px !important; z-index: 999999 !important; background: none !important; padding: 0 !important; border-radius: 0 !important; }
 :fullscreen #wb-toolbar { bottom: 30px !important; z-index: 999999 !important; transform: translateX(-50%) scale(1.1); }
-.video-card:fullscreen, :fullscreen .video-card { position: relative !important; min-width: 100% !important; min-height: 100% !important; width: 100% !important; height: 100% !important; border: none !important; border-radius: 0 !important; box-shadow: none !important; background: transparent !important; }
-.video-card:fullscreen video, :fullscreen .video-card video,
-.video-card:fullscreen > div, :fullscreen .video-card > div { min-width: 100% !important; min-height: 100% !important; width: 100% !important; height: 100% !important; object-fit: cover !important; }
+
+/* Video card inside a fullscreen wrapper (remote videos) */
+:fullscreen .video-card {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    transition: none !important;
+}
+
+/* Video card itself is fullscreen (local player, boxes) */
+.video-card:fullscreen {
+    width: 100% !important;
+    height: 100% !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    transition: none !important;
+}
+
+/* Video and label inside fullscreen card */
+:fullscreen .video-card video, .video-card:fullscreen video,
+:fullscreen .video-card > div, .video-card:fullscreen > div {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+}
+
+/* Remove all backdrop-filter and shadows in fullscreen */
+:fullscreen .icon-btn, .video-card:fullscreen .icon-btn {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+}
 
 body.no-scroll { overflow: hidden !important; }
 .locked-fullscreen { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 2147483640 !important; background: #141e30 !important; margin: 0 !important; padding: 0 !important; border-radius: 0 !important; }

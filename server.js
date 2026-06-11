@@ -146,7 +146,7 @@ io.on("connection", socket => {
   socket.on("chat-message", data => {
     if (!roomChats.has(data.room)) roomChats.set(data.room, []);
     roomChats.get(data.room).push({ name: data.name, text: data.text });
-    io.to(data.room).emit("chat-message", data);
+    socket.to(data.room).emit("chat-message", data);
   });
 
   socket.on("drawing", data => socket.to(data.room).emit("drawing", data));
