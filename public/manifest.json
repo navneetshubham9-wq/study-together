@@ -1,0 +1,21 @@
+{
+  "name": "VYDEX Workspace",
+  "short_name": "VYDEX",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#141e30",
+  "theme_color": "#3498db",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "assets/Copilot_20260527_213114.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/Copilot_20260527_213114.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
