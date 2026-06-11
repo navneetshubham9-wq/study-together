@@ -271,23 +271,6 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
     controlsDiv.className = "local-controls";
     
     if(targetWrapper.id !== 'map-box') {
-        const enlargeBtn = document.createElement("button"); 
-        enlargeBtn.className = "icon-btn"; enlargeBtn.innerHTML = "➕";
-        enlargeBtn.onclick = () => { 
-            targetWrapper.classList.remove("video-wrapper-small"); 
-            targetWrapper.classList.toggle("video-wrapper-large"); 
-        };
-        const shrinkBtn = document.createElement("button"); 
-        shrinkBtn.className = "icon-btn"; shrinkBtn.innerHTML = "➖";
-        shrinkBtn.onclick = () => { 
-            targetWrapper.classList.remove("video-wrapper-large"); 
-            targetWrapper.classList.toggle("video-wrapper-small"); 
-        };
-        controlsDiv.appendChild(enlargeBtn); 
-        controlsDiv.appendChild(shrinkBtn);
-    }
-    
-    if(targetWrapper.id !== 'map-box') {
         const maxBtn = document.createElement("button"); 
         maxBtn.className = "icon-btn"; maxBtn.innerHTML = "🖥️";
         maxBtn.onclick = () => { 
@@ -317,7 +300,6 @@ const toggleOfficeBtn = document.getElementById("toggleOfficeBtn");
 const wbStatus = document.getElementById("wb-status");
 const fileList = document.getElementById("fileList");
 const muteAllBtn = document.getElementById("muteAllBtn");
-const unmuteAllBtn = document.getElementById("unmuteAllBtn");
 const cameraBtn = document.getElementById("cameraBtn");
 const muteBtn = document.getElementById("muteBtn");
 const shareBtn = document.getElementById("shareBtn");
@@ -2636,11 +2618,9 @@ socket.on("host-assignment", (data) => {
 
 socket.on("room-update", (data) => {
     if (isHost && data.size > 1) { 
-        if(muteAllBtn) muteAllBtn.style.display = "inline-block"; 
-        if(unmuteAllBtn) unmuteAllBtn.style.display = "inline-block"; 
+        if(muteAllBtn) { muteAllBtn.style.display = "inline-block"; muteAllBtn.dataset.muted = "false"; muteAllBtn.textContent = "🤫 Mute All"; muteAllBtn.style.background = "linear-gradient(135deg, #e67e22, #d35400)"; }
     } else if (isHost) { 
         if(muteAllBtn) muteAllBtn.style.display = "none"; 
-        if(unmuteAllBtn) unmuteAllBtn.style.display = "none"; 
     }
 });
 
@@ -2819,8 +2799,14 @@ socket.on("user-left", info => { if (info && info.uid) { document.getElementById
 
 // Main Buttons
 leaveBtn?.addEventListener("click", async () => { socket.emit("leave-room"); if (client) await client.leave(); window.location.reload(); });
-muteAllBtn?.addEventListener("click", () => { if (joined && isHost) socket.emit("control", { room: currentRoom, action: "mute-all" }); });
-unmuteAllBtn?.addEventListener("click", () => { if (joined && isHost) socket.emit("control", { room: currentRoom, action: "unmute-all" }); });
+muteAllBtn?.addEventListener("click", () => {
+    if (!joined || !isHost) return;
+    const isMuted = muteAllBtn.dataset.muted === "true";
+    socket.emit("control", { room: currentRoom, action: isMuted ? "unmute-all" : "mute-all" });
+    muteAllBtn.dataset.muted = isMuted ? "false" : "true";
+    muteAllBtn.textContent = isMuted ? "🤫 Mute All" : "🔊 Unmute All";
+    muteAllBtn.style.background = isMuted ? "linear-gradient(135deg, #e67e22, #d35400)" : "linear-gradient(135deg, #2ecc71, #27ae60)";
+});
 
 cameraBtn?.addEventListener("click", async () => {
     if (!joined || !localTracks.videoTrack) return;
