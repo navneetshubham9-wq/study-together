@@ -297,7 +297,7 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
         };
         controlsDiv.appendChild(maxBtn);
     }
-    targetWrapper.appendChild(controlsDiv);
+    (elementToFullscreen || targetWrapper).appendChild(controlsDiv);
 }
 
 const whiteboardBox = document.getElementById("whiteboard-box");
