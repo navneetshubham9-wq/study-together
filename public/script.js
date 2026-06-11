@@ -2620,6 +2620,7 @@ socket.on("host-assignment", (data) => {
         if(canvas) canvas.style.cursor = "crosshair"; 
         if(wbStatus) wbStatus.textContent = "(Host Mode)";
         if(presInputForm) presInputForm.style.display = "flex"; 
+        if(agendaBtn) agendaBtn.textContent = "📋 Agenda";
         
         if(toggleWbBtn) toggleWbBtn.style.display = "inline-block"; 
         if(toggleMapBtn) toggleMapBtn.style.display = "inline-block"; 
@@ -2635,6 +2636,7 @@ socket.on("host-assignment", (data) => {
         if(canvas) canvas.style.cursor = "not-allowed"; 
         if(wbStatus) wbStatus.textContent = "(View Only)";
         if(presInputForm) presInputForm.style.display = "none"; 
+        if(agendaBtn) agendaBtn.textContent = "ℹ️";
         
         if(toggleWbBtn) toggleWbBtn.style.display = "none"; 
         if(toggleMapBtn) toggleMapBtn.style.display = "none"; 
@@ -2988,6 +2990,7 @@ agendaBtn?.addEventListener("click", () => {
         hideAgenda();
         return;
     }
+    showAgenda();
     if (currentRoom) {
         socket.emit("get-room-summary", { room: currentRoom });
     }
