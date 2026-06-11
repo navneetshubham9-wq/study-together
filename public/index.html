@@ -605,6 +605,9 @@
             console.log('ServiceWorker registration failed: ', err);
           });
       });
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload();
+      });
     }
   </script>
 </body>

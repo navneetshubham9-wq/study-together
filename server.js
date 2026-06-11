@@ -5,6 +5,8 @@ const path = require("path");
 const multer = require("multer");
 const { Server } = require("socket.io");
 const fs = require("fs");
+const Database = require("better-sqlite3");
+const crypto = require("crypto");
 
 const app = express();
 const server = http.createServer(app);
@@ -20,6 +22,74 @@ const PORT = process.env.PORT || 3000;
 
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+}
+
+// ---- Database & Encryption Setup ----
+const DB_DIR = path.join(__dirname, "db");
+if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true });
+
+const db = new Database(path.join(DB_DIR, "logs.db"));
+db.pragma("journal_mode = WAL");
+
+const KEY_FILE = path.join(DB_DIR, "encryption.key");
+let ENCRYPTION_KEY;
+if (fs.existsSync(KEY_FILE)) {
+  ENCRYPTION_KEY = fs.readFileSync(KEY_FILE);
+} else {
+  ENCRYPTION_KEY = crypto.randomBytes(32);
+  fs.writeFileSync(KEY_FILE, ENCRYPTION_KEY);
+}
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS rooms (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code TEXT UNIQUE NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    host_name TEXT,
+    host_ip TEXT
+  );
+  CREATE TABLE IF NOT EXISTS room_joins (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    room_code TEXT NOT NULL,
+    uid TEXT NOT NULL,
+    name TEXT,
+    ip TEXT,
+    joined_at TEXT NOT NULL DEFAULT (datetime('now')),
+    left_at TEXT,
+    FOREIGN KEY (room_code) REFERENCES rooms(code)
+  );
+  CREATE TABLE IF NOT EXISTS chat_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    room_code TEXT NOT NULL,
+    sender_name TEXT,
+    encrypted_iv TEXT NOT NULL,
+    encrypted_data TEXT NOT NULL,
+    timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (room_code) REFERENCES rooms(code)
+  );
+  CREATE TABLE IF NOT EXISTS file_shares (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    room_code TEXT NOT NULL,
+    filename TEXT NOT NULL,
+    uploader TEXT,
+    url TEXT,
+    uploaded_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (room_code) REFERENCES rooms(code)
+  );
+`);
+
+function encryptText(text) {
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv("aes-256-cbc", ENCRYPTION_KEY, iv);
+  let encrypted = cipher.update(text, "utf8", "hex");
+  encrypted += cipher.final("hex");
+  return { iv: iv.toString("hex"), data: encrypted };
+}
+
+function getClientIP(socket) {
+  const forwarded = socket.handshake.headers["x-forwarded-for"];
+  if (forwarded) return forwarded.split(",")[0].trim();
+  return socket.handshake.address;
 }
 
 const storage = multer.diskStorage({
@@ -88,6 +158,12 @@ app.post("/upload", upload.single("file"), (req, res) => {
     if (!roomFiles.has(room)) roomFiles.set(room, []);
     roomFiles.get(room).push({ filename, url, uploader });
     io.to(room).emit("file-uploaded", { filename, url, uploader });
+
+    // Log file share to database
+    try {
+      const stmt = db.prepare("INSERT INTO file_shares (room_code, filename, uploader, url) VALUES (?, ?, ?, ?)");
+      stmt.run(room, filename, uploader, url);
+    } catch (e) { console.error("DB file log error:", e); }
   }
   res.json({ filename, url });
 });
@@ -97,6 +173,16 @@ io.on("connection", socket => {
   socket.on("join-room", info => {
     const { room, uid, name } = info;
     socket.join(room);
+    
+    // Log room creation and join to database
+    try {
+      const existing = db.prepare("SELECT id FROM rooms WHERE code = ?").get(room);
+      if (!existing) {
+        const ip = getClientIP(socket);
+        db.prepare("INSERT INTO rooms (code, host_name, host_ip) VALUES (?, ?, ?)").run(room, name, ip);
+      }
+      db.prepare("INSERT INTO room_joins (room_code, uid, name, ip) VALUES (?, ?, ?, ?)").run(room, uid, name, getClientIP(socket));
+    } catch (e) { console.error("DB room log error:", e); }
     
     socketUsers.set(socket.id, { uid, name, room });
     uidToSocket.set(uid.toString(), socket.id);
@@ -147,6 +233,13 @@ io.on("connection", socket => {
     if (!roomChats.has(data.room)) roomChats.set(data.room, []);
     roomChats.get(data.room).push({ name: data.name, text: data.text });
     socket.to(data.room).emit("chat-message", data);
+
+    // Encrypt and log chat to database
+    try {
+      const enc = encryptText(data.text);
+      db.prepare("INSERT INTO chat_logs (room_code, sender_name, encrypted_iv, encrypted_data) VALUES (?, ?, ?, ?)")
+        .run(data.room, data.name, enc.iv, enc.data);
+    } catch (e) { console.error("DB chat log error:", e); }
   });
 
   socket.on("drawing", data => socket.to(data.room).emit("drawing", data));
@@ -160,6 +253,12 @@ io.on("connection", socket => {
   function handleUserLeave(socketId) {
     const user = socketUsers.get(socketId);
     if (user) {
+      // Log leave time in database
+      try {
+        db.prepare("UPDATE room_joins SET left_at = datetime('now') WHERE room_code = ? AND uid = ? AND left_at IS NULL ORDER BY joined_at DESC LIMIT 1")
+          .run(user.room, user.uid);
+      } catch (e) { console.error("DB leave log error:", e); }
+
       io.to(user.room).emit("user-left", { uid: user.uid, name: user.name });
       const leaveMsg = { name: "System", text: `${user.name} left the room` };
       if (!roomChats.has(user.room)) roomChats.set(user.room, []);

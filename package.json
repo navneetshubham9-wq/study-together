@@ -12,6 +12,7 @@
     "@capacitor/android": "^8.4.0",
     "@capacitor/cli": "^8.4.0",
     "@capacitor/core": "^8.4.0",
+    "better-sqlite3": "^12.10.0",
     "express": "^4.22.2",
     "multer": "^1.4.4",
     "socket.io": "^4.8.3"
