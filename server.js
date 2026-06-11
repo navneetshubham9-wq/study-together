@@ -204,7 +204,8 @@ io.on("connection", socket => {
       presVisible: roomPresState.get(room) || false,
       officeVisible: roomOfficeState.get(room) || false,
       chartData: roomChartData.get(room) || null,
-      hostUid: roomHostUid.get(room)
+      hostUid: roomHostUid.get(room),
+      agenda: roomAgenda.get(room) || ""
     });
 
     socket.to(room).emit("user-joined", { uid, name });

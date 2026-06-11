@@ -2605,6 +2605,7 @@ socket.on("room-history", (data) => {
     if (data.mapVisible && mapBox) { hideAllBigPanels(); mapBox.style.display = "block"; setTimeout(() => {if(typeof geoMap !== 'undefined') geoMap.invalidateSize();}, 100); if(isHost && toggleMapBtn) toggleMapBtn.dataset.show = "true"; }
     if (data.presVisible && presentationBox) { hideAllBigPanels(); presentationBox.style.display = "block"; if(isHost && togglePresBtn) togglePresBtn.dataset.show = "true"; }
     if (data.officeVisible && officeBox) { hideAllBigPanels(); officeBox.style.display = "block"; if(isHost && toggleOfficeBtn) toggleOfficeBtn.dataset.show = "true"; }
+    if (data.agenda !== undefined && currentRoom) localStorage.setItem("agenda_" + currentRoom, data.agenda);
 });
 
 socket.on("host-assignment", (data) => {
