@@ -34,6 +34,17 @@ socket.on("connect_error", (err) => {
     if (el) { el.textContent = "✗ Connection failed — retrying..."; el.style.color = "#e74c3c"; }
 });
 
+// Force video elements to fill on fullscreen change
+document.addEventListener("fullscreenchange", () => {
+    if (document.fullscreenElement) {
+        document.fullscreenElement.querySelectorAll("video").forEach(v => {
+            v.style.setProperty("width", "100%", "important");
+            v.style.setProperty("height", "100%", "important");
+            v.style.setProperty("object-fit", "cover", "important");
+        });
+    }
+});
+
 // State variables
 let localTracks = { audioTrack: null, videoTrack: null };
 let localUid = null;
@@ -2617,10 +2628,10 @@ socket.on("host-assignment", (data) => {
 });
 
 socket.on("room-update", (data) => {
-    if (isHost && data.size > 1) { 
-        if(muteAllBtn) { muteAllBtn.style.display = "inline-block"; muteAllBtn.dataset.muted = "false"; muteAllBtn.textContent = "🤫 Mute All"; muteAllBtn.style.background = "linear-gradient(135deg, #e67e22, #d35400)"; }
-    } else if (isHost) { 
-        if(muteAllBtn) muteAllBtn.style.display = "none"; 
+    if (isHost && data.size > 1) {
+        if(muteAllBtn) muteAllBtn.style.display = "inline-block";
+    } else if (isHost) {
+        if(muteAllBtn) muteAllBtn.style.display = "none";
     }
 });
 
