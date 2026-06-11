@@ -250,6 +250,29 @@ io.on("connection", socket => {
     socket.to(data.room).emit("agenda-sync", data);
   });
 
+  socket.on("end-meeting", data => {
+    const room = data.room;
+    const roomSockets = io.sockets.adapter.rooms.get(room);
+    if (roomSockets) {
+      io.to(room).emit("meeting-ended", { room });
+      for (const socketId of roomSockets) {
+        const sock = io.sockets.sockets.get(socketId);
+        if (sock) sock.disconnect(true);
+      }
+    }
+    roomChats.delete(room);
+    roomFiles.delete(room);
+    roomWbState.delete(room);
+    roomMapState.delete(room);
+    roomPresState.delete(room);
+    roomOfficeState.delete(room);
+    roomChartData.delete(room);
+    roomAgenda.delete(room);
+    roomHosts.delete(room);
+    roomHostUid.delete(room);
+    console.log(`Meeting ended for room ${room}`);
+  });
+
   socket.on("get-room-summary", data => {
     const room = data.room;
     const chats = roomChats.get(room) || [];

@@ -101,17 +101,47 @@ function appendMessage(text) {
 // ==========================================
 // 2. CORE LOGIN & ROOM JOIN LOGIC
 // ==========================================
+
+// Auto-fill username from localStorage when room ID changes
+roomInput?.addEventListener("input", () => {
+    const rid = roomInput.value.trim();
+    if (!rid) return;
+    const saved = localStorage.getItem("room_name_" + rid);
+    if (saved && usernameInput) {
+        usernameInput.value = saved;
+        usernameInput.disabled = true;
+        usernameInput.style.opacity = "0.6";
+        usernameInput.title = "Name locked for this room. End the meeting to change.";
+    } else if (usernameInput) {
+        usernameInput.disabled = false;
+        usernameInput.style.opacity = "1";
+        usernameInput.title = "";
+    }
+});
+
 if (joinBtn) {
     joinBtn.addEventListener("click", async () => {
         if (joined) return;
         
-        const userName = usernameInput ? usernameInput.value.trim() : "";
         const roomId = roomInput ? roomInput.value.trim() : "";
-        
-        if (!userName || !roomId) { 
-            alert("Please enter both Name and Room ID!"); 
-            return; 
+        if (!roomId) { alert("Please enter a Room ID!"); return; }
+
+        // Enforce same name if rejoining the same room
+        const savedName = localStorage.getItem("room_name_" + roomId);
+        let userName = usernameInput ? usernameInput.value.trim() : "";
+        if (savedName) {
+            if (userName && userName !== savedName) {
+                alert("You already joined this room as \"" + savedName + "\". Please use the same name.");
+                if (usernameInput) usernameInput.value = savedName;
+                return;
+            }
+            userName = savedName;
+            if (usernameInput) usernameInput.value = savedName;
         }
+        if (!userName) { alert("Please enter your Name!"); return; }
+
+        // Save name for this room
+        localStorage.setItem("room_name_" + roomId, userName);
 
         joinBtn.textContent = "Joining...";
         joinBtn.disabled = true;
@@ -3025,6 +3055,23 @@ socket.on("agenda-sync", (data) => {
             if (agendaEmpty) agendaEmpty.style.display = "block";
         }
     }
+});
+
+// ==========================================
+// END MEETING (HOST ONLY)
+// ==========================================
+const endMeetingBtn = document.getElementById("endMeetingBtn");
+
+endMeetingBtn?.addEventListener("click", () => {
+    if (!currentRoom) return;
+    const confirmed = confirm("End meeting for all participants?\n\nThis will disconnect everyone and clear all room data. This action cannot be undone.");
+    if (!confirmed) return;
+    socket.emit("end-meeting", { room: currentRoom });
+});
+
+socket.on("meeting-ended", () => {
+    alert("The host has ended the meeting.");
+    window.location.reload();
 });
 
 // ==========================================
