@@ -1,5 +1,13 @@
 const APP_ID = "3fd771b87f804bc59f50e485662afaa7";
-const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+let client = null;
+try { if (typeof AgoraRTC !== 'undefined') client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" }); } catch(e) { console.warn("Agora not available:", e); }
+
+// Check if WebRTC is available
+function hasWebRTC() {
+    return typeof navigator !== 'undefined' &&
+        (navigator.mediaDevices?.getUserMedia !== undefined ||
+         navigator.getUserMedia !== undefined);
+}
 const socket = io("https://study-together-1-aj7e.onrender.com", {
   transports: ["polling", "websocket"],
   upgrade: true,
@@ -68,52 +76,55 @@ if (joinBtn) {
         joinBtn.textContent = "Joining...";
         joinBtn.disabled = true;
 
+        // Try Agora (video/audio) join, but don't block if it fails
         try {
-            // Agora Connection
-            const uid = await client.join(APP_ID, roomId, null, userName);
-            localUid = uid.toString();
-            
-            try { 
-                const [microphoneTrack, cameraTrack] = await AgoraRTC.createMicrophoneAndCameraTracks(); 
-                localTracks.audioTrack = microphoneTrack; 
-                localTracks.videoTrack = cameraTrack; 
-                await client.publish([microphoneTrack, cameraTrack]); 
-            } catch (mediaErr) { 
-                showNotification("Camera/Mic blocked or busy. Joined as viewer.", "danger"); 
-            }
-            
-            joined = true; 
-            currentRoom = roomId; 
-            
-            // UI Transition
-            if(joinSection) joinSection.classList.add("form-out");
-            
-            setTimeout(() => {
-                if(joinSection) joinSection.style.display = "none"; 
-                if(workspace) { 
-                    workspace.classList.remove("hidden"); 
-                    workspace.classList.add("workspace-active"); 
+            if (client) {
+                const uid = await client.join(APP_ID, roomId, null, userName);
+                localUid = uid.toString();
+                try { 
+                    const [microphoneTrack, cameraTrack] = await AgoraRTC.createMicrophoneAndCameraTracks(); 
+                    localTracks.audioTrack = microphoneTrack; 
+                    localTracks.videoTrack = cameraTrack; 
+                    await client.publish([microphoneTrack, cameraTrack]); 
+                } catch (mediaErr) { 
+                    showNotification("Camera/Mic blocked or busy. Joined as viewer.", "danger"); 
                 }
-                
-                setTimeout(() => { 
-                    if(typeof geoMap !== 'undefined' && geoMap) geoMap.invalidateSize(); 
-                    const localId = createLocalCard(userName); 
-                    if (localTracks.videoTrack && localId) {
-                        localTracks.videoTrack.play(localId, { fit: "cover" }); 
-                    }
-                }, 300);
-            }, 500); 
-            
-            socket.emit("join-room", { room: roomId, uid: localUid, name: userName });
-            showNotification(`You joined room ${roomId}`, "join"); 
-            appendMessage(`System: You joined room ${roomId}`);
-            
-        } catch (err) { 
-            alert("Login Failed: " + err.message);
-            console.error("Agora Join Error:", err);
-            joinBtn.textContent = "🚀 Join Room";
-            joinBtn.disabled = false;
+            } else {
+                showNotification("Video not available in this app. Using text-only mode.", "warning");
+            }
+        } catch (agoraErr) {
+            console.warn("Agora join failed:", agoraErr);
+            showNotification("Video chat unavailable. You can still use chat, whiteboard & office.", "warning");
         }
+
+        // Ensure we have a uid even without Agora
+        if (!localUid) localUid = "anon-" + Date.now();
+
+        joined = true; 
+        currentRoom = roomId; 
+
+        // UI Transition
+        if(joinSection) joinSection.classList.add("form-out");
+
+        setTimeout(() => {
+            if(joinSection) joinSection.style.display = "none"; 
+            if(workspace) { 
+                workspace.classList.remove("hidden"); 
+                workspace.classList.add("workspace-active"); 
+            }
+
+            setTimeout(() => { 
+                if(typeof geoMap !== 'undefined' && geoMap) geoMap.invalidateSize(); 
+                const localId = createLocalCard(userName); 
+                if (localTracks.videoTrack && localId) {
+                    localTracks.videoTrack.play(localId, { fit: "cover" }); 
+                }
+            }, 300);
+        }, 500); 
+
+        socket.emit("join-room", { room: roomId, uid: localUid, name: userName });
+        showNotification(`You joined room ${roomId}`, "join"); 
+        appendMessage(`System: You joined room ${roomId}`);
     });
 }
 
@@ -2752,6 +2763,7 @@ socket.on("math-equation", (data) => {
 // ==========================================
 // 14. AGORA EVENT LISTENERS
 // ==========================================
+if (client) {
 client.on("user-published", async (user, mediaType) => {
     try {
       await client.subscribe(user, mediaType); 
@@ -2777,10 +2789,12 @@ client.on("user-published", async (user, mediaType) => {
   
 client.on("user-unpublished", (user, mediaType) => { if (mediaType === "video") document.getElementById(`screen-card-${user.uid}`)?.remove(); });
 client.on("user-left", (user) => { document.getElementById(`remote-wrapper-${user.uid}`)?.remove(); document.getElementById(`screen-card-${user.uid}`)?.remove(); delete remoteUsers[user.uid.toString()]; });
+}
+
 socket.on("user-left", info => { if (info && info.uid) { document.getElementById(`remote-wrapper-${info.uid}`)?.remove(); document.getElementById(`screen-card-${info.uid}`)?.remove(); delete remoteUsers[info.uid.toString()]; } });
 
 // Main Buttons
-leaveBtn?.addEventListener("click", async () => { socket.emit("leave-room"); await client.leave(); window.location.reload(); });
+leaveBtn?.addEventListener("click", async () => { socket.emit("leave-room"); if (client) await client.leave(); window.location.reload(); });
 muteAllBtn?.addEventListener("click", () => { if (joined && isHost) socket.emit("control", { room: currentRoom, action: "mute-all" }); });
 unmuteAllBtn?.addEventListener("click", () => { if (joined && isHost) socket.emit("control", { room: currentRoom, action: "unmute-all" }); });
 
@@ -2799,7 +2813,7 @@ muteBtn?.addEventListener("click", async () => {
 });
 
 shareBtn?.addEventListener("click", async () => {
-    if (!joined) return;
+    if (!joined || !client) return;
     if (isSharing) {
       isSharing = false; if (screenTrack) { await client.unpublish(screenTrack); screenTrack.close(); screenTrack = null; }
       socket.emit("control", { room: currentRoom, action: "share-stop", uid: localUid });
