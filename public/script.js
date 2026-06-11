@@ -34,7 +34,13 @@ socket.on("connect_error", (err) => {
     if (el) { el.textContent = "✗ Connection failed — retrying..."; el.style.color = "#e74c3c"; }
 });
 
-// Force video elements to fill on fullscreen change
+const SERVER_URL = "https://study-together-1-aj7e.onrender.com";
+function absoluteUrl(url) {
+    if (url && typeof url === 'string' && url.startsWith('/')) return SERVER_URL + url;
+    return url;
+}
+
+// Force video elements to fill on fullscreen change + toggle fs-active class for mobile
 document.addEventListener("fullscreenchange", () => {
     if (document.fullscreenElement) {
         document.fullscreenElement.querySelectorAll("video").forEach(v => {
@@ -42,6 +48,9 @@ document.addEventListener("fullscreenchange", () => {
             v.style.setProperty("height", "100%", "important");
             v.style.setProperty("object-fit", "cover", "important");
         });
+        document.body.classList.add("fs-active");
+    } else {
+        document.body.classList.remove("fs-active");
     }
 });
 
@@ -2853,11 +2862,13 @@ shareBtn?.addEventListener("click", async () => {
 });
 
 // Chat & Files
-sendMsgBtn?.addEventListener("click", () => { const text = chatInput?.value.trim(); if (!text) return; socket.emit("chat-message", { room: currentRoom, name: usernameInput?.value || "Me", text }); appendMessage(`Me: ${text}`); if(chatInput) chatInput.value = ""; });
-chatInput?.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); sendMsgBtn?.click(); } });
+function sendChatMessage() { const text = chatInput?.value.trim(); if (!text || !currentRoom) return; socket.emit("chat-message", { room: currentRoom, name: usernameInput?.value || "Me", text }); appendMessage(`Me: ${text}`); if(chatInput) chatInput.value = ""; }
+sendMsgBtn?.addEventListener("click", sendChatMessage);
+sendMsgBtn?.addEventListener("touchstart", (e) => { e.preventDefault(); sendChatMessage(); });
+chatInput?.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); sendChatMessage(); } });
 socket.on("chat-message", data => { if(data.name === "System" && data.text.includes("left")) return; appendMessage(`${data.name}: ${data.text}`); });
-document.getElementById("uploadBtn")?.addEventListener("click", async () => { const f = fileUpload?.files[0]; if (!f) return; const fd = new FormData(); fd.append("file", f); fd.append("room", currentRoom); fd.append("uploader", usernameInput?.value || "User"); try { await fetch("/upload", { method: "POST", body: fd }); } catch (err) { } });
-function addFileLink(name, url) { const a = document.createElement("a"); a.href = url; a.textContent = name; a.download = name; a.target = "_blank"; if(fileList) fileList.prepend(a); }
+document.getElementById("uploadBtn")?.addEventListener("click", async () => { const f = fileUpload?.files[0]; if (!f) return; const fd = new FormData(); fd.append("file", f); fd.append("room", currentRoom); fd.append("uploader", usernameInput?.value || "User"); try { await fetch(SERVER_URL + "/upload", { method: "POST", body: fd }); } catch (err) { } });
+function addFileLink(name, url) { const a = document.createElement("a"); a.href = absoluteUrl(url); a.textContent = name; a.target = "_blank"; a.rel = "noopener"; a.style.cursor = "pointer"; if(fileList) fileList.prepend(a); }
 socket.on("file-uploaded", data => { addFileLink(data.filename, data.url); showNotification(`${data.uploader} uploaded a file`, "info"); });
 socket.on("user-joined", info => showNotification(`${info.name || "User"} joined the room!`, "join"));
 
@@ -2878,9 +2889,9 @@ hostAudioFile?.addEventListener("change", async function() {
     fd.append("room", currentRoom || "");
     fd.append("uploader", "Host-Music");
     try {
-        const res = await fetch("/upload", { method: "POST", body: fd });
+        const res = await fetch(SERVER_URL + "/upload", { method: "POST", body: fd });
         const data = await res.json();
-        hostAudioPlayer.src = data.url;
+        hostAudioPlayer.src = absoluteUrl(data.url);
         hostAudioPlayer.load();
         showNotification("Music uploaded! Press play to broadcast.", "info");
     } catch(e) { showNotification("Upload failed", "danger"); }

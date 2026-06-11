@@ -73,15 +73,16 @@ footer { text-align: center; padding: 30px 20px; color: var(--text-main); font-s
 @keyframes toastIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(100px); } }
 
-:fullscreen { overflow: hidden !important; }
-:fullscreen h3 { display: none !important; } 
-:fullscreen .card, .card:fullscreen { padding: 0 !important; margin: 0 !important; border: none !important; border-radius: 0 !important; box-shadow: none !important; max-width: 100% !important; width: 100vw !important; height: 100vh !important; background: #141e30 !important; }
-:fullscreen #whiteboard-container, :fullscreen #map-container, :fullscreen #presentation-container, :fullscreen .office-tab { width: 100vw !important; height: 100vh !important; padding: 0 !important; margin: 0 !important; border-radius: 0 !important; box-shadow: none !important; border: none !important; }
-:fullscreen .local-controls { opacity: 1 !important; display: flex !important; top: 20px !important; right: 20px !important; z-index: 999999 !important; background: none !important; padding: 0 !important; border-radius: 0 !important; }
-:fullscreen #wb-toolbar { bottom: 30px !important; z-index: 999999 !important; transform: translateX(-50%) scale(1.1); }
+:fullscreen, .fs-active { overflow: hidden !important; }
+:fullscreen h3, .fs-active h3 { display: none !important; } 
+:fullscreen .card, .card:fullscreen, .fs-active .card, .card.fs-active { padding: 0 !important; margin: 0 !important; border: none !important; border-radius: 0 !important; box-shadow: none !important; max-width: 100% !important; width: 100vw !important; height: 100vh !important; background: #141e30 !important; }
+:fullscreen #whiteboard-container, :fullscreen #map-container, :fullscreen #presentation-container, :fullscreen .office-tab,
+.fs-active #whiteboard-container, .fs-active #map-container, .fs-active #presentation-container, .fs-active .office-tab { width: 100vw !important; height: 100vh !important; padding: 0 !important; margin: 0 !important; border-radius: 0 !important; box-shadow: none !important; border: none !important; }
+:fullscreen .local-controls, .fs-active .local-controls { opacity: 1 !important; display: flex !important; top: 20px !important; right: 20px !important; z-index: 999999 !important; background: none !important; padding: 0 !important; border-radius: 0 !important; border: none !important; }
+:fullscreen #wb-toolbar, .fs-active #wb-toolbar { bottom: 30px !important; z-index: 999999 !important; transform: translateX(-50%) scale(1.1); }
 
 /* Video card inside a fullscreen wrapper (remote videos) */
-:fullscreen .video-card {
+:fullscreen .video-card, .fs-active .video-card {
     position: absolute !important;
     top: 0 !important;
     left: 0 !important;
@@ -95,7 +96,7 @@ footer { text-align: center; padding: 30px 20px; color: var(--text-main); font-s
 }
 
 /* Video card itself is fullscreen (local player, boxes) */
-.video-card:fullscreen {
+.video-card:fullscreen, .video-card.fs-active {
     width: 100% !important;
     height: 100% !important;
     border: none !important;
@@ -106,18 +107,20 @@ footer { text-align: center; padding: 30px 20px; color: var(--text-main); font-s
 }
 
 /* Video and label inside fullscreen card */
-:fullscreen .video-card video, .video-card:fullscreen video,
-:fullscreen .video-card > div, .video-card:fullscreen > div {
+:fullscreen .video-card video, .video-card:fullscreen video, .fs-active .video-card video, .video-card.fs-active video,
+:fullscreen .video-card > div, .video-card:fullscreen > div, .fs-active .video-card > div, .video-card.fs-active > div {
     width: 100% !important;
     height: 100% !important;
     object-fit: cover !important;
 }
 
 /* Remove all backdrop-filter and shadows in fullscreen */
-:fullscreen .icon-btn, .video-card:fullscreen .icon-btn {
+:fullscreen .icon-btn, .video-card:fullscreen .icon-btn, .fs-active .icon-btn, .video-card.fs-active .icon-btn {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     box-shadow: none !important;
+    background: rgba(0,0,0,0.3) !important;
+    border: 1px solid rgba(255,255,255,0.1) !important;
 }
 
 body.no-scroll { overflow: hidden !important; }
