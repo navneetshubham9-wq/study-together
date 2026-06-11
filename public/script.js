@@ -1937,6 +1937,13 @@ loadFormulas("algebra");
 document.getElementById("openMathBtn")?.addEventListener("click", () => { if(mathModal) mathModal.style.display = "block"; });
 document.getElementById("closeMathBtn")?.addEventListener("click", () => { if(mathModal) mathModal.style.display = "none"; });
 
+// About modal
+const aboutModal = document.getElementById("about-modal");
+const aboutOverlay = document.getElementById("about-overlay");
+document.getElementById("aboutBtn")?.addEventListener("click", () => { if(aboutModal) aboutModal.style.display = "block"; if(aboutOverlay) aboutOverlay.style.display = "block"; });
+document.getElementById("closeAboutBtn")?.addEventListener("click", () => { if(aboutModal) aboutModal.style.display = "none"; if(aboutOverlay) aboutOverlay.style.display = "none"; });
+aboutOverlay?.addEventListener("click", () => { if(aboutModal) aboutModal.style.display = "none"; if(aboutOverlay) aboutOverlay.style.display = "none"; });
+
 document.getElementById("broadcastMathBtn")?.addEventListener("click", () => {
     const eq = mathInput?.value.trim(); 
     if(!eq) return;
