@@ -245,7 +245,7 @@ io.on("connection", socket => {
 
     // Track all users (including past joiners) for participant history
     if (!roomAllUsers.has(room)) roomAllUsers.set(room, new Map());
-    roomAllUsers.get(room).set(uid.toString(), { name, active: true });
+    roomAllUsers.get(room).set(uid.toString(), { name, active: true, ip: getClientIP(socket) });
 
     const joiningIsHost = !roomHosts.has(room) || roomHosts.get(room) === null;
     if (joiningIsHost) {
@@ -417,7 +417,7 @@ io.on("connection", socket => {
       dbData.joins = db.prepare("SELECT uid, name, ip, joined_at, left_at FROM room_joins WHERE room_code = ? ORDER BY joined_at").all(room);
     } catch (e) { console.error("DB summary error:", e); }
     const allUsers = roomAllUsers.get(room);
-    const allUsersArr = allUsers ? Array.from(allUsers.entries()).map(([uid, u]) => ({ uid, name: u.name, active: u.active })) : [];
+    const allUsersArr = allUsers ? Array.from(allUsers.entries()).map(([uid, u]) => ({ uid, name: u.name, active: u.active, ip: u.ip })) : [];
     socket.emit("room-summary", { roomCode: room, db: dbData, chats, files, agenda: roomAgenda.get(room) || "", allUsers: allUsersArr });
   });
 

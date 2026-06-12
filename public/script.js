@@ -3470,7 +3470,8 @@ socket.on("room-summary", (data) => {
         if (data.allUsers && data.allUsers.length) {
             data.allUsers.forEach(u => {
                 const status = u.active ? "Active" : "Left";
-                addLine(`  ${u.name || u.uid} — ${status}`, 10);
+                const ip = u.ip || "N/A";
+                addLine(`  ${u.name || u.uid} (IP: ${ip}) — ${status}`, 10);
             });
         } else if (data.db && data.db.joins && data.db.joins.length) {
             data.db.joins.forEach(j => {
