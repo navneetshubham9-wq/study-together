@@ -116,7 +116,9 @@ const roomPresState = new Map();
 const roomOfficeState = new Map(); 
 const roomChartData = new Map(); 
 const roomAgenda = new Map(); 
-const roomLocked = new Map(); 
+const roomLocked = new Map();
+const pendingJoins = new Map();
+const pendingApprovals = new Set(); 
 
 app.get("/proxy-image", (req, res) => {
   const imgUrl = req.query.url;
@@ -178,9 +180,13 @@ io.on("connection", socket => {
     
     // Room lock check — reject new joiners if locked and a host exists
     if (roomLocked.get(room) && roomHosts.get(room) !== null && roomHosts.get(room) !== undefined) {
-      socket.emit("room-locked", { room, message: "This room is locked by the host. Please try again later." });
-      socket.leave(room);
-      return;
+      if (pendingApprovals.has(socket.id)) {
+        pendingApprovals.delete(socket.id);
+      } else {
+        socket.emit("room-locked", { room, message: "This room is locked by the host. Please try again later." });
+        socket.leave(room);
+        return;
+      }
     }
 
     // Log room creation and join to database
@@ -266,9 +272,42 @@ io.on("connection", socket => {
     socket.to(data.room).emit("agenda-sync", data);
   });
 
-  socket.on("check-room-access", (data, callback) => {
-    const locked = roomLocked.get(data.room) && roomHosts.get(data.room) !== null && roomHosts.get(data.room) !== undefined;
-    if (callback) callback({ locked: !!locked });
+  socket.on("request-join", (data) => {
+    const { room, uid, name } = data;
+    if (!roomLocked.get(room)) {
+      socket.emit("join-response", { allowed: true });
+      return;
+    }
+    const hostSocketId = roomHosts.get(room);
+    const hostSocket = hostSocketId ? io.sockets.sockets.get(hostSocketId) : null;
+    if (!hostSocket) {
+      socket.emit("join-response", { allowed: false, reason: "No host is currently available in this room." });
+      return;
+    }
+    const timeout = setTimeout(() => {
+      pendingJoins.delete(socket.id);
+      socket.emit("join-response", { allowed: false, reason: "The host did not respond to your join request." });
+      hostSocket.emit("join-request-expired", { requesterSocketId: socket.id });
+    }, 4000);
+    pendingJoins.set(socket.id, { room, uid, name, timeout });
+    hostSocket.emit("join-request", { socketId: socket.id, uid, name, room });
+  });
+
+  socket.on("respond-join", (data) => {
+    const { requesterSocketId, allowed } = data;
+    const pending = pendingJoins.get(requesterSocketId);
+    if (!pending) return;
+    clearTimeout(pending.timeout);
+    pendingJoins.delete(requesterSocketId);
+    const requesterSocket = io.sockets.sockets.get(requesterSocketId);
+    if (requesterSocket) {
+      if (allowed) {
+        pendingApprovals.add(requesterSocketId);
+        requesterSocket.emit("join-response", { allowed: true });
+      } else {
+        requesterSocket.emit("join-response", { allowed: false, reason: "The host blocked your join request." });
+      }
+    }
   });
 
   socket.on("remove-user", data => {
@@ -324,7 +363,11 @@ io.on("connection", socket => {
   socket.on("clear-whiteboard", data => socket.to(data.room).emit("clear-whiteboard"));
 
   socket.on("leave-room", () => handleUserLeave(socket.id));
-  socket.on("disconnecting", () => handleUserLeave(socket.id));
+  socket.on("disconnecting", () => {
+    const pending = pendingJoins.get(socket.id);
+    if (pending) { clearTimeout(pending.timeout); pendingJoins.delete(socket.id); }
+    handleUserLeave(socket.id);
+  });
 
   function handleUserLeave(socketId) {
     const user = socketUsers.get(socketId);

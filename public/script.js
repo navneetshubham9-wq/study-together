@@ -146,17 +146,22 @@ if (joinBtn) {
         joinBtn.textContent = "Joining...";
         joinBtn.disabled = true;
 
-        // Check if room is locked before attempting any join
-        const accessCheck = await new Promise(resolve => {
-            socket.emit("check-room-access", { room: roomId }, (resp) => resolve(resp));
-            setTimeout(() => resolve({ locked: false }), 5000);
+        // Request join — handles locked room flow with host approval
+        const joinResponse = await new Promise(resolve => {
+            socket.emit("request-join", { room: roomId, uid: Date.now().toString(), name: userName });
+            joinBtn.textContent = "Waiting for host...";
+            socket.once("join-response", (resp) => resolve(resp));
+            setTimeout(() => resolve({ allowed: false, reason: "Join request timed out. Please try again." }), 10000);
         });
-        if (accessCheck && accessCheck.locked) {
-            alert("This room is locked by the host. You cannot join at this time.");
+
+        if (!joinResponse.allowed) {
+            alert(joinResponse.reason || "Could not join the room.");
             joinBtn.textContent = "🚀 Join Room";
             joinBtn.disabled = false;
             return;
         }
+
+        joinBtn.textContent = "Joining...";
 
         // Try Agora (video/audio) join, but don't block if it fails
         try {
@@ -2667,6 +2672,51 @@ socket.on("room-history", (data) => {
             ? "linear-gradient(135deg, #e74c3c, #c0392b)"
             : "linear-gradient(135deg, #2ecc71, #27ae60)";
     }
+});
+
+// Host join-request popup
+socket.on("join-request", (data) => {
+    const popup = document.createElement("div");
+    popup.id = "join-req-" + data.socketId;
+    Object.assign(popup.style, {
+        position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)",
+        zIndex: "2147483647", background: "rgba(20,30,48,0.98)",
+        border: "2px solid #f39c12", borderRadius: "12px", padding: "20px 25px",
+        minWidth: "260px", textAlign: "center",
+        boxShadow: "0 10px 40px rgba(0,0,0,0.9)",
+        fontFamily: "'Segoe UI',Arial,sans-serif"
+    });
+    popup.innerHTML = `
+        <div style="margin-bottom:12px; font-size:15px; color:#ecf0f1;">
+            <strong style="color:#f39c12;">${data.name}</strong>
+            <div style="margin-top:4px; font-size:13px; color:#95a5a6;">wants to join room <strong>${data.room}</strong></div>
+        </div>
+        <div style="display:flex; gap:10px; justify-content:center;">
+            <button id="join-allow-${data.socketId}" style="flex:1; padding:9px 16px; background:#2ecc71; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-size:14px;">Allow</button>
+            <button id="join-block-${data.socketId}" style="flex:1; padding:9px 16px; background:#e74c3c; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-size:14px;">Block</button>
+        </div>
+    `;
+    document.body.appendChild(popup);
+
+    const dismissTimeout = setTimeout(() => {
+        if (popup.parentNode) popup.remove();
+    }, 4000);
+
+    document.getElementById("join-allow-" + data.socketId).onclick = () => {
+        clearTimeout(dismissTimeout);
+        socket.emit("respond-join", { requesterSocketId: data.socketId, allowed: true });
+        if (popup.parentNode) popup.remove();
+    };
+    document.getElementById("join-block-" + data.socketId).onclick = () => {
+        clearTimeout(dismissTimeout);
+        socket.emit("respond-join", { requesterSocketId: data.socketId, allowed: false });
+        if (popup.parentNode) popup.remove();
+    };
+});
+
+socket.on("join-request-expired", (data) => {
+    const popup = document.getElementById("join-req-" + data.requesterSocketId);
+    if (popup) popup.remove();
 });
 
 socket.on("host-assignment", (data) => {
