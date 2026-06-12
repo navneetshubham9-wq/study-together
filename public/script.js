@@ -3651,11 +3651,9 @@ socket.on("room-summary", (data) => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ filename: "Meeting_Summary_" + data.roomCode + ".pdf", data: pdfB64, room: currentRoom })
         }).then(function(r) { return r.json(); }).then(function(resp) {
-            // Add tappable link to Files panel
             if (resp && resp.url) {
-                addFileLink("Meeting_Summary_" + data.roomCode + ".pdf", resp.url);
                 if (vydexPanel && vydexPanel.style.display === "block") loadVydexDownloads();
-                showNotification("📄 Meeting Summary ready! Open the Files panel and tap the link to save.", "success");
+                showNotification("📄 Meeting Summary ready! Open 📁 VYDEX panel to download.", "success");
             }
             // Desktop: auto-download via programmatic click
             if (resp && resp.url && !/android|iphone|ipad|ipod/i.test(navigator.userAgent)) {

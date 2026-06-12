@@ -453,11 +453,18 @@ io.on("connection", socket => {
     const room = data.room;
     const roomSockets = io.sockets.adapter.rooms.get(room);
     if (roomSockets) {
+      // Emit meeting-ended to everyone FIRST (so host receives it before any disconnect)
       io.to(room).emit("meeting-ended", { room });
+      // Disconnect everyone EXCEPT the host who called end-meeting
+      // (host receives meeting-ended → reloads → naturally disconnects)
       for (const socketId of roomSockets) {
-        const sock = io.sockets.sockets.get(socketId);
-        if (sock) sock.disconnect(true);
+        if (socketId !== socket.id) {
+          const sock = io.sockets.sockets.get(socketId);
+          if (sock) sock.disconnect(true);
+        }
       }
+      // Remove host from room manually so they can't interact further
+      socket.leave(room);
     }
     roomChats.delete(room);
     roomFiles.delete(room);
