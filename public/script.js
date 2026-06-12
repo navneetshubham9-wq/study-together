@@ -3104,7 +3104,10 @@ client.on("user-left", (user) => { document.getElementById(`remote-wrapper-${use
 socket.on("user-left", info => { if (info && info.uid) { document.getElementById(`remote-wrapper-${info.uid}`)?.remove(); document.getElementById(`screen-card-${info.uid}`)?.remove(); delete remoteUsers[info.uid.toString()]; } });
 
 // Main Buttons
-leaveBtn?.addEventListener("click", async () => { socket.emit("leave-room"); if (client) await client.leave(); window.location.reload(); });
+leaveBtn?.addEventListener("click", async () => {
+    if (!confirm("Are you sure you want to leave the room?")) return;
+    socket.emit("leave-room"); if (client) await client.leave(); window.location.reload();
+});
 muteAllBtn?.addEventListener("click", () => {
     if (!joined || !isHost) return;
     const isMuted = muteAllBtn.dataset.muted === "true";
@@ -3483,15 +3486,39 @@ socket.on("room-summary", (data) => {
         }
         y += 4;
 
-        // Chat Messages
+        // Chat Messages (filter out system join/leave events)
         addLine("Chat Messages:", 13, "bold");
-        if (data.chats && data.chats.length) {
-            data.chats.forEach(c => {
+        const userChats = (data.chats || []).filter(c => c.name !== "System");
+        if (userChats.length) {
+            userChats.forEach(c => {
                 const time = c.time ? new Date(c.time).toLocaleTimeString() : "";
                 addLine(`  [${time}] ${c.name}: ${c.text}`, 10);
             });
         } else {
             addLine("  No messages sent.", 10);
+        }
+        y += 4;
+
+        // Participant Activity (join / leave events)
+        addLine("Participant Activity:", 13, "bold");
+        const sysEvents = (data.chats || []).filter(c => c.name === "System");
+        const dbJoins = (data.db && data.db.joins) || [];
+        const joinEvents = dbJoins.map(j => ({
+            time: j.joined_at,
+            text: `${j.name || j.uid} joined the room`
+        }));
+        const leaveEvents = sysEvents.map(c => ({
+            time: c.time,
+            text: c.text
+        }));
+        const allEvents = [...joinEvents, ...leaveEvents].sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+        if (allEvents.length) {
+            allEvents.forEach(e => {
+                const t = e.time ? new Date(e.time).toLocaleString() : "";
+                addLine(`  [${t}] ${e.text}`, 10);
+            });
+        } else {
+            addLine("  No activity recorded.", 10);
         }
         y += 4;
 
