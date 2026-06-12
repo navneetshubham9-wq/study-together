@@ -118,7 +118,29 @@ const roomChartData = new Map();
 const roomAgenda = new Map(); 
 const roomLocked = new Map();
 const pendingJoins = new Map();
-const pendingApprovals = new Set(); 
+const pendingApprovals = new Set();
+const roomCleanupTimers = new Map();
+
+function isRoomEmpty(room) {
+  for (const [, u] of socketUsers) { if (u.room === room) return false; }
+  return true;
+}
+
+function clearRoomData(room) {
+  roomChats.delete(room);
+  roomFiles.delete(room);
+  roomWbState.delete(room);
+  roomMapState.delete(room);
+  roomPresState.delete(room);
+  roomOfficeState.delete(room);
+  roomChartData.delete(room);
+  roomAgenda.delete(room);
+  roomLocked.delete(room);
+  roomHosts.delete(room);
+  roomHostUid.delete(room);
+  roomCleanupTimers.delete(room);
+  console.log(`Room ${room} data cleared after 24h of inactivity`);
+}
 
 app.get("/proxy-image", (req, res) => {
   const imgUrl = req.query.url;
@@ -176,6 +198,13 @@ io.on("connection", socket => {
   
   socket.on("join-room", info => {
     const { room, uid, name } = info;
+
+    // Cancel pending cleanup — room is being reused
+    if (roomCleanupTimers.has(room)) {
+      clearTimeout(roomCleanupTimers.get(room));
+      roomCleanupTimers.delete(room);
+    }
+
     socket.join(room);
     
     // Room lock check — reject new joiners if locked and a host exists
@@ -342,6 +371,7 @@ io.on("connection", socket => {
     roomLocked.delete(room);
     roomHosts.delete(room);
     roomHostUid.delete(room);
+    if (roomCleanupTimers.has(room)) { clearTimeout(roomCleanupTimers.get(room)); roomCleanupTimers.delete(room); }
     console.log(`Meeting ended for room ${room}`);
   });
 
@@ -387,6 +417,14 @@ io.on("connection", socket => {
       if (roomHosts.get(user.room) === socketId) {
           roomHosts.set(user.room, null);
           roomHostUid.set(user.room, null);
+      }
+
+      // If room has no host and no users left, schedule cleanup in 24h
+      if (roomHosts.get(user.room) === null && isRoomEmpty(user.room)) {
+        if (roomCleanupTimers.has(user.room)) clearTimeout(roomCleanupTimers.get(user.room));
+        const timer = setTimeout(() => clearRoomData(user.room), 24 * 60 * 60 * 1000);
+        roomCleanupTimers.set(user.room, timer);
+        console.log(`Room ${user.room} empty, cleanup scheduled in 24h`);
       }
 
       socketUsers.delete(socketId);
