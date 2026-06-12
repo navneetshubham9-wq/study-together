@@ -2870,6 +2870,10 @@ socket.on("room-update", (data) => {
     } else if (isHost) {
         if(muteAllBtn) muteAllBtn.style.display = "none";
     }
+    // Refresh participants list if panel is open
+    if (participantsPanel && participantsPanel.style.display !== "none" && currentRoom) {
+        socket.emit("get-room-users", { room: currentRoom }, (users) => renderParticipantsList(users));
+    }
 });
 
 socket.on('drawing', (data) => {
@@ -3100,6 +3104,54 @@ document.getElementById("uploadBtn")?.addEventListener("click", async () => { co
 function addFileLink(name, url) { const a = document.createElement("a"); a.href = absoluteUrl(url); a.textContent = name; a.target = "_blank"; a.rel = "noopener"; a.style.cursor = "pointer"; if(fileList) fileList.prepend(a); }
 socket.on("file-uploaded", data => { addFileLink(data.filename, data.url); showNotification(`${data.uploader} uploaded a file`, "info"); });
 socket.on("user-joined", info => showNotification(`${info.name || "User"} joined the room!`, "join"));
+
+// Show popup notification when a user leaves
+socket.on("user-left", info => {
+    if (info && info.name) {
+        showNotification(`${info.name} left the room!`, "warning");
+    }
+});
+
+// Participants panel
+const participantsBtn = document.getElementById("participantsBtn");
+const participantsPanel = document.getElementById("participants-panel");
+const participantsList = document.getElementById("participants-list");
+const closeParticipantsBtn = document.getElementById("closeParticipantsBtn");
+const participantsOverlay = document.getElementById("participants-overlay");
+
+function renderParticipantsList(users) {
+    if (!participantsList) return;
+    if (!users || users.length === 0) {
+        participantsList.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.4);">No participants</div>';
+    } else {
+        participantsList.innerHTML = users.map(u => `
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid rgba(255,255,255,0.06);">
+                <span style="flex-shrink:0;width:10px;height:10px;border-radius:50%;background:${u.active ? '#2ecc71' : '#e74c3c'};display:inline-block;"></span>
+                <span style="font-size:20px;">${u.isHost ? '👑' : '👤'}</span>
+                <div>
+                    <div style="color:#fff;font-size:14px;font-weight:500;">${u.name}</div>
+                    <div style="color:rgba(255,255,255,0.4);font-size:12px;">${u.isHost ? 'Host' : 'Participant'} · ${u.active ? 'Active' : 'Left'}</div>
+                </div>
+            </div>
+        `).join("");
+    }
+}
+
+function openParticipantsPanel() {
+    if (!participantsPanel || !currentRoom) return;
+    socket.emit("get-room-users", { room: currentRoom }, (users) => renderParticipantsList(users));
+    participantsPanel.style.display = "block";
+    if (participantsOverlay) participantsOverlay.style.display = "block";
+}
+
+function closeParticipantsPanel() {
+    if (participantsPanel) participantsPanel.style.display = "none";
+    if (participantsOverlay) participantsOverlay.style.display = "none";
+}
+
+if (participantsBtn) participantsBtn.addEventListener("click", openParticipantsPanel);
+if (closeParticipantsBtn) closeParticipantsBtn.addEventListener("click", closeParticipantsPanel);
+if (participantsOverlay) participantsOverlay.addEventListener("click", closeParticipantsPanel);
 
 // ==========================================
 // 12. MUSIC STUDIO (Host Upload, Sync, Per-User Mute)

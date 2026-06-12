@@ -120,6 +120,7 @@ const roomLocked = new Map();
 const pendingJoins = new Map();
 const pendingApprovals = new Set();
 const roomCleanupTimers = new Map();
+const roomAllUsers = new Map(); // room -> Map<uid, { name, active }>
 
 function isRoomEmpty(room) {
   for (const [, u] of socketUsers) { if (u.room === room) return false; }
@@ -138,6 +139,7 @@ function clearRoomData(room) {
   roomLocked.delete(room);
   roomHosts.delete(room);
   roomHostUid.delete(room);
+  roomAllUsers.delete(room);
   roomCleanupTimers.delete(room);
   console.log(`Room ${room} data cleared after 24h of inactivity`);
 }
@@ -231,6 +233,10 @@ io.on("connection", socket => {
     socketUsers.set(socket.id, { uid, name, room });
     uidToSocket.set(uid.toString(), socket.id);
 
+    // Track all users (including past joiners) for participant history
+    if (!roomAllUsers.has(room)) roomAllUsers.set(room, new Map());
+    roomAllUsers.get(room).set(uid.toString(), { name, active: true });
+
     const joiningIsHost = !roomHosts.has(room) || roomHosts.get(room) === null;
     if (joiningIsHost) {
       roomHosts.set(room, socket.id);
@@ -254,6 +260,22 @@ io.on("connection", socket => {
 
     socket.to(room).emit("user-joined", { uid, name });
     io.to(room).emit("room-update", { size: io.sockets.adapter.rooms.get(room)?.size || 1 });
+  });
+
+  socket.on("get-room-users", (data, callback) => {
+    const room = data.room;
+    const allUsers = roomAllUsers.get(room);
+    const users = [];
+    if (allUsers) {
+      const hostSocketId = roomHosts.get(room);
+      for (const [uid, info] of allUsers) {
+        // Determine isHost: find a currently connected socket for this uid
+        const sid = uidToSocket.get(uid);
+        const isHost = sid !== undefined && hostSocketId === sid;
+        users.push({ uid, name: info.name, active: info.active, isHost });
+      }
+    }
+    if (callback) callback(users);
   });
 
   socket.on("control", data => io.to(data.room).emit("control", data));
@@ -413,6 +435,13 @@ io.on("connection", socket => {
       if (!roomChats.has(user.room)) roomChats.set(user.room, []);
       roomChats.get(user.room).push(leaveMsg);
       io.to(user.room).emit("chat-message", leaveMsg);
+
+      // Mark user as inactive in the all-users history
+      const roomUsers = roomAllUsers.get(user.room);
+      if (roomUsers) {
+        const entry = roomUsers.get(user.uid.toString());
+        if (entry) entry.active = false;
+      }
 
       if (roomHosts.get(user.room) === socketId) {
           roomHosts.set(user.room, null);

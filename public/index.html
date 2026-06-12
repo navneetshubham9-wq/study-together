@@ -127,6 +127,7 @@
           <button id="togglePresBtn" class="host-only-btn panel-toggle-btn" title="Show/Hide Presentation" style="background: linear-gradient(135deg, #f1c40f, #f39c12); color: white; display: none;" data-show="false">📊 Graphs</button>
           <button id="toggleOfficeBtn" class="host-only-btn panel-toggle-btn" title="Show/Hide Office" style="background: linear-gradient(135deg, #c0392b, #e74c3c); color: white; display: none;" data-show="false">📝 VYDEX Office</button>
           <button id="downloadSummaryBtn" class="host-only-btn" title="Download Meeting Summary (PDF)" style="background: linear-gradient(135deg, #8e44ad, #9b59b6); color: white; display: none;">📄 Summary</button>
+          <button id="participantsBtn" title="View Participants" style="background: linear-gradient(135deg, #3498db, #2980b9); color: white;">👥 Participants</button>
         </div>
 
         <div id="hostAudioContainer" style="display: none; width: 100%; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
@@ -570,29 +571,40 @@
   </div>
   <div id="agenda-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 999998;"></div>
 
+  <!-- PARTICIPANTS PANEL -->
+  <div id="participants-panel" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 999999; width: 380px; max-width: 90vw; max-height: 70vh; overflow-y: auto; background: rgba(20,30,48,0.98); border: 2px solid #3498db; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.9); padding: 0;">
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-bottom: 1px solid rgba(255,255,255,0.1); position: sticky; top: 0; background: rgba(20,30,48,0.98); z-index: 1; border-radius: 14px 14px 0 0;">
+      <h3 style="margin: 0; color: #3498db; font-size: 1rem;">👥 Participants</h3>
+      <span id="closeParticipantsBtn" style="cursor:pointer; color:var(--danger); font-size:20px; padding:0 5px; line-height:1; flex-shrink:0;" title="Close">✖</span>
+    </div>
+    <div id="participants-list" style="padding: 10px 0;"></div>
+  </div>
+  <div id="participants-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 999998;"></div>
+
   <!-- ABOUT MODAL (placed before scripts so JS can find it) -->
   <div id="about-modal" class="about-modal-box" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 999999; width: 520px; max-width: 90vw; max-height: 85vh; overflow-y: auto; background: rgba(20,30,48,0.98); border: 2px solid var(--primary); border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.9); padding: 0;">
     <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); position: sticky; top: 0; background: rgba(20,30,48,0.98); z-index: 1; border-radius: 14px 14px 0 0;">
-      <h3 style="margin: 0; color: var(--accent); font-size: 1.1rem;">🚀 VYDEX - Your Ultimate Learning &amp; Professional Meeting Companion!</h3>
+      <h3 style="margin: 0; color: var(--accent); font-size: 1.1rem;">🚀 VYDEX - The Ultimate Secure Meeting &amp; Collaboration Platform</h3>
       <span id="closeAboutBtn" style="cursor:pointer; color:var(--danger); font-size:22px; padding:0 5px; line-height:1; flex-shrink:0;" title="Close">✖</span>
     </div>
     <div style="padding: 20px; font-size: 14px; line-height: 1.7; color: #e0e0e0;">
       <p style="margin: 0 0 12px 0;"><strong style="color: var(--accent);">What is VYDEX?</strong><br>
-      VYDEX is much more than just a study-oriented application—it is a powerful, all-in-one platform designed for both collaborative learning and professional virtual meetings. Whether you are gathering friends for a group study session or hosting a formal team meeting, VYDEX provides the perfect digital environment to connect, discuss, and boost productivity.</p>
+      Looking for a powerful, secure, and highly productive virtual meeting workspace? VYDEX is a premier meeting platform designed for professionals, teams, and collaborative minds. Whether you are hosting a crucial business discussion, managing a team sync, or organizing an interactive study group, VYDEX delivers a seamless, high-quality conferencing experience with unmatched privacy controls.</p>
 
-      <p style="margin: 0 0 12px 0;"><strong style="color: #f1c40f;">🌟 Why choose VYDEX?</strong></p>
+      <p style="margin: 0 0 12px 0;"><strong style="color: #f1c40f;">🌟 Why VYDEX is Your Best Choice for Meetings:</strong></p>
       <ul style="margin: 0 0 12px 0; padding-left: 20px;">
-        <li><strong>Versatile Workspaces:</strong> Effortlessly switch between interactive study rooms for students and professional meeting spaces for teams.</li>
-        <li><strong>Stay on Track:</strong> Keep everyone aligned with clear goals and structured discussions.</li>
-        <li><strong>Never Miss a Detail:</strong> Easily keep records of what was discussed without having to take manual notes throughout the entire session.</li>
+        <li><strong>Uncompromised Privacy:</strong> Take absolute control of your virtual space. Secure your ongoing discussions from unwanted interruptions with advanced host privileges.</li>
+        <li><strong>Unmatched Productivity:</strong> Keep participants focused and aligned with structured agendas and instant post-meeting records.</li>
+        <li><strong>A True All-in-One Workspace:</strong> While engineered as a top-tier professional meeting app, its versatile and intuitive design makes it equally perfect for hosting highly organized virtual study rooms and educational sessions.</li>
       </ul>
 
-      <p style="margin: 0 0 12px 0;"><strong style="color: #f1c40f;">✨ Key Features:</strong></p>
+      <p style="margin: 0 0 12px 0;"><strong style="color: #f1c40f;">✨ Premium Features:</strong></p>
       <ul style="margin: 0 0 12px 0; padding-left: 20px;">
-        <li><strong>Comprehensive Meeting Tools:</strong> Enjoy all standard, high-quality meeting features including seamless audio/video connectivity, real-time collaboration, and smooth screen sharing.</li>
-        <li><strong>Shared Meeting Agenda:</strong> The host can set a specific agenda before or during the session. This agenda remains visible to all participants, ensuring the discussion stays focused and productive.</li>
-        <li><strong>Downloadable Meeting Summaries:</strong> Once the session concludes, the host can instantly download a complete summary of the meeting. This feature provides a clear overview of all key takeaways, decisions, and topics discussed.</li>
-        <li><strong>Fast, Secure &amp; Lightweight:</strong> Built on a live cloud server for quick logins, secure data handling, and optimized performance on all Android devices.</li>
+        <li><strong>🔒 Host-Controlled Room Lock (Ultimate Privacy):</strong> Security comes first! The host can instantly lock the meeting room once all intended participants have joined, completely restricting any unauthorized entries during confidential and private discussions.</li>
+        <li><strong>📋 Shared Meeting Agenda:</strong> The host can set a specific, real-time agenda that remains visibly pinned for all participants. Say goodbye to off-topic conversations and keep your meetings strictly on track.</li>
+        <li><strong>📝 Downloadable Meeting Summaries:</strong> No need to stress over taking manual notes. Once the meeting ends, the host can instantly download a comprehensive summary outlining all the key takeaways, decisions, and topics discussed.</li>
+        <li><strong>🎥 Seamless A/V &amp; Collaboration Tools:</strong> Enjoy crystal-clear audio, high-definition video, and lag-free screen sharing for a flawless presentation experience.</li>
+        <li><strong>⚡ Fast, Secure &amp; Lightweight:</strong> Built on robust live cloud servers ensuring lightning-fast logins, encrypted data handling, and a smooth experience across devices.</li>
       </ul>
 
       <p style="margin: 0; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);"><strong style="color: #e74c3c;">📞 Developer Contact &amp; Support:</strong><br>
