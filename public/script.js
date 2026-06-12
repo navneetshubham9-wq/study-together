@@ -3207,22 +3207,10 @@ function addFileLink(name, url) {
     const a = document.createElement("a");
     a.href = absoluteUrl(url);
     a.textContent = name;
+    a.download = name;
     a.style.cursor = "pointer";
     if(fileList) {
-        a.addEventListener("click", (e) => {
-            e.preventDefault();
-            const fullUrl = absoluteUrl(url);
-            showNotification("Downloading " + name + " to your Downloads folder...", "info");
-            fetch(fullUrl).then(r => r.blob()).then(blob => {
-                const blobUrl = URL.createObjectURL(blob);
-                const dl = document.createElement("a");
-                dl.href = blobUrl;
-                dl.download = name;
-                dl.click();
-                URL.revokeObjectURL(blobUrl);
-                showNotification(name + " saved to your Downloads folder!", "success");
-            }).catch(() => showNotification("Failed to download " + name, "error"));
-        });
+        a.addEventListener("click", () => showNotification("Downloading " + name + " to your Downloads folder...", "info"));
         fileList.prepend(a);
     }
 }
@@ -3483,8 +3471,8 @@ downloadSummaryBtn?.addEventListener("click", () => {
 socket.on("room-summary", (data) => {
     if (!data || data.roomCode !== currentRoom) return;
 
-    // If agenda panel is open, show data
-    if (agendaPanel?.style.display === "block") {
+    // If agenda panel is open, show data (but DON'T return if we need to end the meeting)
+    if (agendaPanel?.style.display === "block" && !endMeetingAfterSummary) {
         if (agendaInput) agendaInput.value = data.agenda || "";
         if (isHost) {
             if (agendaHostEdit) agendaHostEdit.style.display = "block";
@@ -3603,16 +3591,42 @@ socket.on("room-summary", (data) => {
         }
 
         showNotification("Downloading Meeting Summary PDF to your Downloads folder...", "info");
-        doc.save("Meeting_Summary_" + data.roomCode + ".pdf");
-        setTimeout(() => showNotification("Meeting Summary PDF saved to your Downloads folder!", "success"), 500);
+        const pdfBlob = doc.output("blob");
+        const reader = new FileReader();
+        reader.onload = () => {
+            const base64 = reader.result.split(",")[1];
+            fetch(SERVER_URL + "/api/download", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ filename: "Meeting_Summary_" + data.roomCode + ".pdf", data: base64 })
+            }).then(r => r.json()).then(resp => {
+                if (resp.url) {
+                    const dl = document.createElement("a");
+                    dl.href = SERVER_URL + resp.url;
+                    dl.download = "Meeting_Summary_" + data.roomCode + ".pdf";
+                    dl.click();
+                    showNotification("Meeting Summary PDF saved to your Downloads folder!", "success");
+                } else {
+                    doc.save("Meeting_Summary_" + data.roomCode + ".pdf");
+                }
+            }).catch(() => {
+                doc.save("Meeting_Summary_" + data.roomCode + ".pdf");
+                showNotification("Meeting Summary PDF saved to your Downloads folder!", "success");
+            }).finally(() => {
+                if (endMeetingAfterSummary) {
+                    endMeetingAfterSummary = false;
+                    socket.emit("end-meeting", { room: currentRoom });
+                }
+            });
+        };
+        reader.readAsDataURL(pdfBlob);
     } catch (e) {
         console.error("PDF generation error:", e);
         showNotification("Failed to generate PDF: " + e.message, "error");
-    }
-    // Always end meeting after summary is attempted, regardless of PDF success
-    if (endMeetingAfterSummary) {
-        endMeetingAfterSummary = false;
-        socket.emit("end-meeting", { room: currentRoom });
+        if (endMeetingAfterSummary) {
+            endMeetingAfterSummary = false;
+            socket.emit("end-meeting", { room: currentRoom });
+        }
     }
 });
 
