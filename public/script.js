@@ -328,6 +328,8 @@ function createRemoteWrapper(uid, labelText) {
     card.style.height = "200px"; 
     card.style.position = "relative";
     
+    const uidStr = uid.toString ? uid.toString() : uid;
+    const isHostUser = globalHostUid === uidStr;
     const labelDiv = document.createElement("div"); 
     labelDiv.style.position = "absolute"; 
     labelDiv.style.top = "6px"; 
@@ -338,7 +340,11 @@ function createRemoteWrapper(uid, labelText) {
     labelDiv.style.borderRadius = "6px"; 
     labelDiv.style.fontSize = "13px"; 
     labelDiv.style.zIndex = "10"; 
-    labelDiv.textContent = labelText || `User ${uid}`; 
+    if (isHostUser) {
+        labelDiv.innerHTML = `<span style="color:#2ecc71;font-weight:bold;">HOST ${labelText || `User ${uid}`}</span>`;
+    } else {
+        labelDiv.textContent = labelText || `User ${uid}`;
+    }
     card.appendChild(labelDiv);
     
     const controlsDiv = document.createElement("div"); 
@@ -393,8 +399,9 @@ function createRemoteWrapper(uid, labelText) {
     wrapper.appendChild(card); 
     wrapper.appendChild(controlsDiv); 
     
-    if(videoArea) { 
-        videoArea.appendChild(wrapper); 
+    if(videoArea) {
+        if (isHostUser) videoArea.prepend(wrapper);
+        else videoArea.appendChild(wrapper);
         addSizeControls(wrapper, card); 
     }
     return `remote-${uid}`;
@@ -2723,7 +2730,20 @@ initWorldMap();
 // ==========================================
 socket.on("room-history", (data) => {
     if(data.isHost !== undefined) isHost = data.isHost;
-    if(data.hostUid) globalHostUid = data.hostUid;
+    if(data.hostUid) {
+        globalHostUid = data.hostUid;
+        setTimeout(() => {
+            const hostWrapper = document.getElementById(`remote-wrapper-${data.hostUid}`);
+            if (hostWrapper && videoArea) {
+                videoArea.prepend(hostWrapper);
+                const card = hostWrapper.querySelector('.video-card');
+                if (card && card.children[0]) {
+                    const name = card.children[0].textContent.replace(/^(HOST )?/, '');
+                    card.children[0].innerHTML = `<span style="color:#2ecc71;font-weight:bold;">HOST ${name}</span>`;
+                }
+            }
+        }, 2000);
+    }
     if (data.chats) data.chats.forEach(chat => { if(chat.name === "System" && chat.text.includes("left")) return; appendMessage(`${chat.name}: ${chat.text}`); });
     if (data.files && fileList) [...data.files].reverse().forEach(file => addFileLink(file.filename, file.url));
     if (data.wbVisible && whiteboardBox) { hideAllBigPanels(); whiteboardBox.style.display = "block"; if(isHost && toggleWbBtn) toggleWbBtn.dataset.show = "true"; }
@@ -2825,6 +2845,22 @@ socket.on("host-assignment", (data) => {
         const viewGraphBtn = document.getElementById("viewGraphBtn");
         if(viewGraphBtn && viewGraphBtn.parentElement) viewGraphBtn.parentElement.style.display = "none"; 
         document.querySelectorAll('.host-only-btn').forEach(btn => btn.style.setProperty("display", "none", "important"));
+    }
+
+    // Update host video label + ordering if wrapper already exists
+    if (data.hostUid) {
+        const hostWrapper = document.getElementById(`remote-wrapper-${data.hostUid}`);
+        if (hostWrapper) {
+            const card = hostWrapper.querySelector('.video-card');
+            if (card) {
+                const labelDiv = card.children[0];
+                if (labelDiv) {
+                    const name = labelDiv.textContent.replace(/^(HOST )?/, '');
+                    labelDiv.innerHTML = `<span style="color:#2ecc71;font-weight:bold;">HOST ${name}</span>`;
+                }
+            }
+            if (videoArea) videoArea.prepend(hostWrapper);
+        }
     }
 });
 
