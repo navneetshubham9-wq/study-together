@@ -908,14 +908,14 @@ document.getElementById("officeDownloadBtn")?.addEventListener("click", () => {
         ext = "csv"; mime = "text/csv"; filename = "VYDEX_Excel";
     }
     if(!content) return;
-    showNotification("Downloading " + filename + "." + ext + "...", "info");
+    showNotification("Downloading " + filename + "." + ext + " to your Downloads folder...", "info");
     const blob = new Blob([content], { type: mime }); 
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); 
     a.href = url; 
     a.download = `${filename}.${ext}`; 
     a.click();
-    setTimeout(() => showNotification(filename + "." + ext + " downloaded!", "success"), 500);
+    setTimeout(() => showNotification(filename + "." + ext + " saved to your Downloads folder!", "success"), 500);
 });
 
 // ---- Excel helpers ----
@@ -3212,7 +3212,7 @@ function addFileLink(name, url) {
         a.addEventListener("click", (e) => {
             e.preventDefault();
             const fullUrl = absoluteUrl(url);
-            showNotification("Downloading " + name + "...", "info");
+            showNotification("Downloading " + name + " to your Downloads folder...", "info");
             fetch(fullUrl).then(r => r.blob()).then(blob => {
                 const blobUrl = URL.createObjectURL(blob);
                 const dl = document.createElement("a");
@@ -3220,7 +3220,7 @@ function addFileLink(name, url) {
                 dl.download = name;
                 dl.click();
                 URL.revokeObjectURL(blobUrl);
-                showNotification(name + " downloaded!", "success");
+                showNotification(name + " saved to your Downloads folder!", "success");
             }).catch(() => showNotification("Failed to download " + name, "error"));
         });
         fileList.prepend(a);
@@ -3602,16 +3602,17 @@ socket.on("room-summary", (data) => {
             addLine("  No files shared.", 10);
         }
 
-        showNotification("Downloading Meeting Summary PDF...", "info");
+        showNotification("Downloading Meeting Summary PDF to your Downloads folder...", "info");
         doc.save("Meeting_Summary_" + data.roomCode + ".pdf");
-        setTimeout(() => showNotification("Meeting Summary PDF downloaded!", "success"), 500);
-        if (endMeetingAfterSummary) {
-            endMeetingAfterSummary = false;
-            socket.emit("end-meeting", { room: currentRoom });
-        }
+        setTimeout(() => showNotification("Meeting Summary PDF saved to your Downloads folder!", "success"), 500);
     } catch (e) {
         console.error("PDF generation error:", e);
         showNotification("Failed to generate PDF: " + e.message, "error");
+    }
+    // Always end meeting after summary is attempted, regardless of PDF success
+    if (endMeetingAfterSummary) {
+        endMeetingAfterSummary = false;
+        socket.emit("end-meeting", { room: currentRoom });
     }
 });
 
