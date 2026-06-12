@@ -20,9 +20,10 @@ main { max-width: 1450px; margin: 0 auto; padding: 0 20px 40px; }
 .hamburger-btn:hover { background: #c0392b; }
 .about-btn { position: fixed; bottom: 20px; right: 20px; z-index: 2147483647; background: var(--primary); color: white; border: 2px solid rgba(255,255,255,0.3); border-radius: 8px; padding: 8px 14px; font-size: 15px; font-weight: 600; cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.5); transition: background 0.3s ease; }
 .about-btn:hover { background: #2980b9; }
-.announcement-btn { animation: blinkAnnounce 1.5s ease-in-out infinite; border-color: #f39c12 !important; background: rgba(243,156,18,0.9) !important; }
-.announcement-btn:hover { background: #e67e22 !important; animation: none !important; }
-@keyframes blinkAnnounce { 0%,100% { opacity: 1; box-shadow: 0 0 10px rgba(243,156,18,0.5); } 50% { opacity: 0.5; box-shadow: 0 0 25px rgba(243,156,18,0.9); } }
+.announcement-btn { border-color: #e74c3c !important; background: rgba(231,76,60,0.9) !important; }
+.announcement-btn:hover { background: #c0392b !important; }
+.announcement-btn.announcement-new { animation: blinkAnnounce 1.5s ease-in-out infinite; }
+@keyframes blinkAnnounce { 0%,100% { opacity: 1; box-shadow: 0 0 10px rgba(231,76,60,0.5); } 50% { opacity: 0.5; box-shadow: 0 0 25px rgba(231,76,60,0.9); } }
 .about-modal-box { transform: translate(-50%, -50%) !important; }
 .about-modal-box:hover { transform: translate(-50%, -50%) !important; }
 .hide-vertical { display: none !important; }

@@ -2092,32 +2092,40 @@ const announcementOverlay = document.getElementById("announcement-overlay");
 if (announcementBtn) {
     announcementBtn.dataset.title = "📢 Announcement";
     announcementBtn.dataset.message = "Welcome to VYDEX! Stay tuned for updates.";
+    announcementBtn.dataset.version = "0";
 }
 // Fetch latest content from server (silent fallback to default on failure)
 fetch(SERVER_URL + "/api/announcement").then(r => r.json()).then(data => {
     if (data && data.message && announcementBtn) {
         announcementBtn.dataset.title = data.title || "📢 Announcement";
         announcementBtn.dataset.message = data.message;
+        announcementBtn.dataset.version = (data.version || 0).toString();
+        // Blink if this version is newer than the last seen version
+        const lastSeen = localStorage.getItem("announcement_seen_version") || "0";
+        if (parseInt(announcementBtn.dataset.version) > parseInt(lastSeen)) {
+            announcementBtn.classList.add("announcement-new");
+        }
     }
 }).catch(() => {});
 
-function showAnnouncementModal() {
+function toggleAnnouncementModal() {
     if (!announcementModal || !announcementBody || !announcementBtn) return;
-    announcementTitle.textContent = announcementBtn.dataset.title || "📢 Announcement";
-    announcementBody.textContent = announcementBtn.dataset.message || "";
-    announcementModal.style.display = "block";
-    if (announcementOverlay) announcementOverlay.style.display = "block";
+    const isOpen = announcementModal.style.display === "block";
+    if (!isOpen) {
+        announcementTitle.textContent = announcementBtn.dataset.title || "📢 Announcement";
+        announcementBody.textContent = announcementBtn.dataset.message || "";
+        // Mark as seen and stop blinking
+        const ver = announcementBtn.dataset.version || "0";
+        localStorage.setItem("announcement_seen_version", ver);
+        announcementBtn.classList.remove("announcement-new");
+    }
+    announcementModal.style.display = isOpen ? "none" : "block";
+    if (announcementOverlay) announcementOverlay.style.display = isOpen ? "none" : "block";
 }
 
-if (announcementBtn) announcementBtn.addEventListener("click", showAnnouncementModal);
-document.getElementById("closeAnnouncementBtn")?.addEventListener("click", () => {
-    if(announcementModal) announcementModal.style.display = "none";
-    if(announcementOverlay) announcementOverlay.style.display = "none";
-});
-if (announcementOverlay) announcementOverlay.addEventListener("click", () => {
-    if(announcementModal) announcementModal.style.display = "none";
-    if(announcementOverlay) announcementOverlay.style.display = "none";
-});
+if (announcementBtn) announcementBtn.addEventListener("click", toggleAnnouncementModal);
+document.getElementById("closeAnnouncementBtn")?.addEventListener("click", toggleAnnouncementModal);
+if (announcementOverlay) announcementOverlay.addEventListener("click", toggleAnnouncementModal);
 
 // Hide announcement button when user joins (join section is hidden)
 const joinObserver = new MutationObserver(() => {
