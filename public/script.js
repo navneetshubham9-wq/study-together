@@ -36,20 +36,17 @@ function saveFileViaCapacitor(filename, base64Data) {
     return new Promise(function(resolve, reject) {
         try {
             var fs = window.Capacitor.Plugins.Filesystem;
-            fs.mkdir({ path: "VydexApp", directory: "DOCUMENTS", recursive: true })
-            .catch(function(){})
-            .then(function() {
+            // Request permissions (needed for Documents on Android 10+)
+            fs.requestPermissions().then(function() {
                 return fs.writeFile({
-                    path: "VydexApp/" + filename,
+                    path: filename,
                     data: base64Data,
                     directory: "DOCUMENTS"
                 });
-            })
-            .then(function(result) {
-                showNotification("File saved to Documents/VydexApp/ on your device!", "success");
+            }).then(function(result) {
+                showNotification("File saved to your device's Documents folder!", "success");
                 resolve(result);
-            })
-            .catch(function(err) {
+            }).catch(function(err) {
                 reject(err);
             });
         } catch(e) {
