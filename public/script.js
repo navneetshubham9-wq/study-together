@@ -30,6 +30,33 @@ socket.on("disconnect", (reason) => {
 });
 var isAndroid = /android/i.test(navigator.userAgent);
 var downloadLabel = isAndroid ? "Download" : "Downloads";
+var isCapacitor = typeof window.Capacitor !== 'undefined' && window.Capacitor.isNative;
+
+function saveFileViaCapacitor(filename, base64Data) {
+    return new Promise(function(resolve, reject) {
+        try {
+            var fs = window.Capacitor.Plugins.Filesystem;
+            fs.mkdir({ path: "VydexApp", directory: "DOCUMENTS", recursive: true })
+            .catch(function(){})
+            .then(function() {
+                return fs.writeFile({
+                    path: "VydexApp/" + filename,
+                    data: base64Data,
+                    directory: "DOCUMENTS"
+                });
+            })
+            .then(function(result) {
+                showNotification("File saved to Documents/VydexApp/ on your device!", "success");
+                resolve(result);
+            })
+            .catch(function(err) {
+                reject(err);
+            });
+        } catch(e) {
+            reject(e);
+        }
+    });
+}
 socket.on("connect_error", (err) => {
     console.error("Socket connect error:", err.message);
     const el = document.getElementById("conn-status");
@@ -3212,7 +3239,26 @@ function addFileLink(name, url) {
     a.download = name;
     a.style.cursor = "pointer";
     if(fileList) {
-        a.addEventListener("click", () => showNotification("Saving " + name + " to your device's " + downloadLabel + " folder...", "info"));
+        a.addEventListener("click", function(e) {
+            if (isCapacitor) {
+                e.preventDefault();
+                showNotification("Saving " + name + " to your device...", "info");
+                fetch(absoluteUrl(url)).then(function(r) { return r.blob(); }).then(function(blob) {
+                    var reader = new FileReader();
+                    reader.onloadend = function() {
+                        var b64 = reader.result.split(",")[1];
+                        saveFileViaCapacitor(name, b64).catch(function(err) {
+                            showNotification("Failed to save file: " + err.message, "error");
+                        });
+                    };
+                    reader.readAsDataURL(blob);
+                }).catch(function() {
+                    showNotification("Failed to download file from server.", "error");
+                });
+            } else {
+                showNotification("Saving " + name + " to your " + downloadLabel + " folder...", "info");
+            }
+        });
         fileList.prepend(a);
     }
 }
@@ -3301,6 +3347,30 @@ function loadVydexDownloads() {
         .catch(function() {
             vydexList.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.4);">Failed to load downloads</div>';
         });
+    // Intercept VYDEX downloads in Capacitor to use native file save
+    if (vydexList && isCapacitor) {
+        vydexList.addEventListener("click", function(e) {
+            var target = e.target.closest("a[href]");
+            if (target) {
+                e.preventDefault();
+                var name = target.getAttribute("download") || target.textContent.trim();
+                var fileUrl = target.getAttribute("href");
+                showNotification("Saving " + name + " to your device...", "info");
+                fetch(fileUrl).then(function(r) { return r.blob(); }).then(function(blob) {
+                    var reader = new FileReader();
+                    reader.onloadend = function() {
+                        var b64 = reader.result.split(",")[1];
+                        saveFileViaCapacitor(name, b64).catch(function(err) {
+                            showNotification("Failed to save file: " + err.message, "error");
+                        });
+                    };
+                    reader.readAsDataURL(blob);
+                }).catch(function() {
+                    showNotification("Failed to download file from server.", "error");
+                });
+            }
+        });
+    }
 }
 
 function openVydexPanel() {
@@ -3652,26 +3722,53 @@ socket.on("room-summary", (data) => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ filename: "Meeting_Summary_" + data.roomCode + ".pdf", data: pdfB64, room: currentRoom })
         }).then(function(r) { return r.json(); }).then(function(resp) {
-            if (resp && resp.url) {
-                // Add tappable link in shared files list (real user gesture, works on Android)
-                addFileLink("Meeting_Summary_" + data.roomCode + ".pdf", resp.url);
-                // Refresh the VYDEX downloads panel if open
-                if (vydexPanel && vydexPanel.style.display === "block") loadVydexDownloads();
-                // Also trigger browser download (works on desktop browsers)
-                var dl = document.createElement("a");
-                dl.href = SERVER_URL + resp.url;
-                dl.download = "Meeting_Summary_" + data.roomCode + ".pdf";
-                dl.style.display = "none";
-                document.body.appendChild(dl);
-                dl.click();
-                setTimeout(function() { document.body.removeChild(dl); }, 1000);
-                showNotification("Meeting Summary PDF ready! Tap the link above to save to your " + downloadLabel + " folder.", "success");
+            // Save directly via Capacitor Filesystem if running inside native app
+            if (isCapacitor) {
+                saveFileViaCapacitor("Meeting_Summary_" + data.roomCode + ".pdf", pdfB64)
+                .then(function() {
+                    // Also upload to server VYDEX folder for in-app panel access
+                    if (resp && resp.url) {
+                        addFileLink("Meeting_Summary_" + data.roomCode + ".pdf", resp.url);
+                        if (vydexPanel && vydexPanel.style.display === "block") loadVydexDownloads();
+                    }
+                })
+                .catch(function() {
+                    showNotification("Could not save to device. Try opening from Files panel.", "warning");
+                    if (resp && resp.url) addFileLink("Meeting_Summary_" + data.roomCode + ".pdf", resp.url);
+                });
             } else {
-                doc.save("Meeting_Summary_" + data.roomCode + ".pdf");
+                // Browser: add tappable link + trigger download
+                if (resp && resp.url) {
+                    addFileLink("Meeting_Summary_" + data.roomCode + ".pdf", resp.url);
+                    if (vydexPanel && vydexPanel.style.display === "block") loadVydexDownloads();
+                    var pdfBlob = doc.output("blob");
+                    var blobUrl = URL.createObjectURL(pdfBlob);
+                    var dl = document.createElement("a");
+                    dl.href = blobUrl;
+                    dl.download = "Meeting_Summary_" + data.roomCode + ".pdf";
+                    dl.style.position = "fixed";
+                    dl.style.left = "-9999px";
+                    dl.style.top = "-9999px";
+                    dl.style.opacity = "0.01";
+                    document.body.appendChild(dl);
+                    dl.click();
+                    setTimeout(function() { URL.revokeObjectURL(blobUrl); document.body.removeChild(dl); }, 1000);
+                    showNotification("Meeting Summary PDF saved to your " + downloadLabel + " folder!", "success");
+                } else {
+                    doc.save("Meeting_Summary_" + data.roomCode + ".pdf");
+                }
             }
         }).catch(function() {
-            doc.save("Meeting_Summary_" + data.roomCode + ".pdf");
-            showNotification("Meeting Summary PDF saved!", "success");
+            if (isCapacitor) {
+                saveFileViaCapacitor("Meeting_Summary_" + data.roomCode + ".pdf", pdfB64)
+                .then(function() {})
+                .catch(function(e) {
+                    doc.save("Meeting_Summary_" + data.roomCode + ".pdf");
+                });
+            } else {
+                doc.save("Meeting_Summary_" + data.roomCode + ".pdf");
+                showNotification("Meeting Summary PDF saved!", "success");
+            }
         }).finally(function() {
             if (endMeetingAfterSummary) {
                 endMeetingAfterSummary = false;
