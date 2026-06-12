@@ -32,76 +32,24 @@ var isAndroid = /android/i.test(navigator.userAgent);
 var downloadLabel = isAndroid ? "Download" : "Downloads";
 var isCapacitor = typeof window.Capacitor !== 'undefined' && window.Capacitor.isNative;
 
-// Request permissions at launch (Capacitor)
-if (isCapacitor) {
-    setTimeout(function() {
-        try {
-            var cap = window.Capacitor;
-            var fs = cap && cap.Plugins && cap.Plugins.Filesystem;
-            if (fs) {
-                // Test write to DATA (always works, no permissions)
-                fs.writeFile({ path: "vydex_test.txt", data: "ok" })
-                .then(function(r) {
-                    fs.deleteFile({ path: "vydex_test.txt", directory: "DATA" }).catch(function(){});
-                    // Now request Documents permissions
-                    fs.requestPermissions().then(function(perm) {
-                        // Try writing to Documents
-                        fs.writeFile({ path: "vydex_test.txt", data: "ok", directory: "DOCUMENTS" })
-                        .then(function(r2) {
-                            showNotification("Capacitor: Documents OK! File at " + (r2.uri || "Documents"), "success");
-                            fs.deleteFile({ path: "vydex_test.txt", directory: "DOCUMENTS" }).catch(function(){});
-                        })
-                        .catch(function(e) {
-                            showNotification("Capacitor: DATA ok, Documents FAILED: " + (e.message || e), "warning");
-                        });
-                    }).catch(function(){});
-                })
-                .catch(function(e) {
-                    showNotification("Capacitor: Filesystem write FAILED: " + (e.message || e), "error");
-                });
-            } else {
-                showNotification("Capacitor: Filesystem plugin NOT found", "error");
-            }
-        } catch(e) {
-            showNotification("Capacitor init error: " + e.message, "error");
-        }
-    }, 2000);
-}
-
 function saveFileViaCapacitor(filename, base64Data) {
     return new Promise(function(resolve, reject) {
-        function shareFile(uri) {
-            var share = window.Capacitor.Plugins.Share;
-            if (share) {
-                share.share({ title: filename, text: "Save " + filename, files: [uri] })
-                .then(function(){ resolve(); })
-                .catch(function(){ showNotification("Choose Save to Downloads in the share menu.", "info"); resolve(); });
-            } else { resolve(); }
-        }
         try {
-            var fs = window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem;
-            if (!fs) return reject(new Error("Filesystem plugin not available"));
-            // Documents (public, visible in file manager, uses MediaStore on Android 11+)
-            fs.writeFile({ path: filename, data: base64Data, directory: "DOCUMENTS" })
-            .then(function(result) {
+            var fs = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem;
+            if (!fs) return reject(new Error("No Filesystem plugin"));
+            fs.requestPermissions().catch(function(){}).then(function() {
+                return fs.writeFile({ path: filename, data: base64Data, directory: "DOCUMENTS" });
+            }).then(function(r) {
                 showNotification("File saved to your Documents folder!", "success");
-                resolve(result);
-            })
-            .catch(function() {
-                // Fallback: write to Cache, then open Share sheet to let user save to Downloads
-                fs.writeFile({ path: filename, data: base64Data, directory: "CACHE" })
-                .then(function(result2) {
-                    showNotification("Tap Share to save file to your Download folder.", "info");
-                    shareFile(result2.uri);
-                    resolve(result2);
-                })
-                .catch(function(err2) {
-                    reject(new Error("All save attempts failed: " + (err2.message || err2)));
-                });
+                resolve(r);
+            }).catch(function() {
+                fs.writeFile({ path: filename, data: base64Data, directory: "CACHE" }).then(function(cr) {
+                    var share = window.Capacitor.Plugins && window.Capacitor.Plugins.Share;
+                    if (share) share.share({ title: filename, files: [cr.uri] }).catch(function(){});
+                    resolve(cr);
+                }).catch(function(e) { reject(e); });
             });
-        } catch(e) {
-            reject(e);
-        }
+        } catch(e) { reject(e); }
     });
 }
 socket.on("connect_error", (err) => {
@@ -3287,7 +3235,8 @@ function addFileLink(name, url) {
     a.style.cursor = "pointer";
     if(fileList) {
         a.addEventListener("click", function(e) {
-            if (isCapacitor) {
+            var capFs = window.Capacitor && window.Capacitor.isNative && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem;
+            if (capFs) {
                 e.preventDefault();
                 showNotification("Saving " + name + " to your device...", "info");
                 fetch(absoluteUrl(url)).then(function(r) { return r.blob(); }).then(function(blob) {
@@ -3392,9 +3341,11 @@ function loadVydexDownloads() {
         .catch(function() {
             vydexList.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.4);">Failed to load downloads</div>';
         });
-    // Intercept VYDEX downloads in Capacitor to use native file save
-    if (vydexList && isCapacitor) {
+    // Intercept VYDEX downloads for Capacitor native save
+    if (vydexList) {
         vydexList.addEventListener("click", function(e) {
+            var capFs = window.Capacitor && window.Capacitor.isNative && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem;
+            if (!capFs) return;
             var target = e.target.closest("a[href]");
             if (target) {
                 e.preventDefault();
@@ -3760,60 +3711,50 @@ socket.on("room-summary", (data) => {
         }
 
         showNotification("Generating Meeting Summary PDF...", "info");
-        // Upload PDF to server's VYDEX folder (organized by room)
         var pdfB64 = doc.output("datauristring").split(",")[1];
+        // Upload to server VYDEX folder (always)
         fetch(SERVER_URL + "/api/download", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ filename: "Meeting_Summary_" + data.roomCode + ".pdf", data: pdfB64, room: currentRoom })
         }).then(function(r) { return r.json(); }).then(function(resp) {
-            // Save directly via Capacitor Filesystem if running inside native app
-            if (isCapacitor) {
-                saveFileViaCapacitor("Meeting_Summary_" + data.roomCode + ".pdf", pdfB64)
-                .then(function() {
-                    // Also upload to server VYDEX folder for in-app panel access
-                    if (resp && resp.url) {
-                        addFileLink("Meeting_Summary_" + data.roomCode + ".pdf", resp.url);
-                        if (vydexPanel && vydexPanel.style.display === "block") loadVydexDownloads();
-                    }
-                })
-                .catch(function() {
-                    showNotification("Could not save to device. Try opening from Files panel.", "warning");
-                    if (resp && resp.url) addFileLink("Meeting_Summary_" + data.roomCode + ".pdf", resp.url);
-                });
-            } else {
-                // Browser: add tappable link + trigger download
-                if (resp && resp.url) {
-                    addFileLink("Meeting_Summary_" + data.roomCode + ".pdf", resp.url);
-                    if (vydexPanel && vydexPanel.style.display === "block") loadVydexDownloads();
-                    var pdfBlob = doc.output("blob");
-                    var blobUrl = URL.createObjectURL(pdfBlob);
-                    var dl = document.createElement("a");
-                    dl.href = blobUrl;
-                    dl.download = "Meeting_Summary_" + data.roomCode + ".pdf";
-                    dl.style.position = "fixed";
-                    dl.style.left = "-9999px";
-                    dl.style.top = "-9999px";
-                    dl.style.opacity = "0.01";
-                    document.body.appendChild(dl);
-                    dl.click();
-                    setTimeout(function() { URL.revokeObjectURL(blobUrl); document.body.removeChild(dl); }, 1000);
-                    showNotification("Meeting Summary PDF saved to your " + downloadLabel + " folder!", "success");
-                } else {
-                    doc.save("Meeting_Summary_" + data.roomCode + ".pdf");
-                }
+            // Always add a tappable link in the Files panel
+            if (resp && resp.url) {
+                addFileLink("Meeting_Summary_" + data.roomCode + ".pdf", resp.url);
+                if (vydexPanel && vydexPanel.style.display === "block") loadVydexDownloads();
             }
-        }).catch(function(err) {
-            if (isCapacitor) {
-                saveFileViaCapacitor("Meeting_Summary_" + data.roomCode + ".pdf", pdfB64)
-                .then(function() {})
-                .catch(function(e) {
-                    showNotification("Save error: " + (e.message || e), "warning");
+            // Try Capacitor native save if available
+            var cap = window.Capacitor;
+            var capFs = cap && cap.isNative && cap.Plugins && cap.Plugins.Filesystem;
+            if (capFs) {
+                // Request permissions first (dialog on Android 6-10, no-op on 11+)
+                capFs.requestPermissions().catch(function(){}).then(function() {
+                    return capFs.writeFile({ path: "Meeting_Summary_" + data.roomCode + ".pdf", data: pdfB64, directory: "DOCUMENTS" });
+                }).then(function() {
+                    showNotification("PDF saved to your Documents folder!", "success");
+                }).catch(function() {
+                    // Fallback: write to cache, offer share
+                    capFs.writeFile({ path: "Meeting_Summary_" + data.roomCode + ".pdf", data: pdfB64, directory: "CACHE" }).then(function(cr) {
+                        var share = cap.Plugins && cap.Plugins.Share;
+                        if (share) share.share({ title: "Meeting Summary", files: [cr.uri] }).catch(function(){});
+                    }).catch(function(){});
                 });
+            } else if (resp && resp.url) {
+                // Browser: trigger download
+                var dl = document.createElement("a");
+                dl.href = SERVER_URL + resp.url;
+                dl.download = "Meeting_Summary_" + data.roomCode + ".pdf";
+                dl.style.display = "none";
+                document.body.appendChild(dl);
+                dl.click();
+                setTimeout(function() { document.body.removeChild(dl); }, 1000);
+                showNotification("Meeting Summary PDF saved to your " + downloadLabel + " folder!", "success");
             } else {
                 doc.save("Meeting_Summary_" + data.roomCode + ".pdf");
-                showNotification("Meeting Summary PDF saved!", "success");
             }
+        }).catch(function() {
+            doc.save("Meeting_Summary_" + data.roomCode + ".pdf");
+            showNotification("Meeting Summary PDF saved!", "success");
         }).finally(function() {
             if (endMeetingAfterSummary) {
                 endMeetingAfterSummary = false;
