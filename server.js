@@ -19,6 +19,7 @@ const io = new Server(server, {
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, "uploads");
 const DOWNLOAD_DIR = path.join(__dirname, "downloads");
+const VYDEX_DIR = path.join(DOWNLOAD_DIR, "VYDEX");
 const PORT = process.env.PORT || 3000;
 
 if (!fs.existsSync(UPLOAD_DIR)) {
@@ -26,6 +27,9 @@ if (!fs.existsSync(UPLOAD_DIR)) {
 }
 if (!fs.existsSync(DOWNLOAD_DIR)) {
   fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
+}
+if (!fs.existsSync(VYDEX_DIR)) {
+  fs.mkdirSync(VYDEX_DIR, { recursive: true });
 }
 
 // ---- Database & Encryption Setup ----
@@ -116,26 +120,47 @@ app.use("/uploads", (req, res, next) => {
 
 // Download endpoint: POST base64 file data, returns downloadable URL
 app.post("/api/download", express.json({ limit: "50mb" }), (req, res) => {
-  const { filename, data } = req.body;
+  const { filename, data, room } = req.body;
   if (!filename || !data) return res.status(400).json({ error: "Missing filename or data" });
+  const roomFolder = room ? room.replace(/[^a-zA-Z0-9_-]/g, "") : "shared";
+  const roomVydir = path.join(VYDEX_DIR, roomFolder);
+  if (!fs.existsSync(roomVydir)) fs.mkdirSync(roomVydir, { recursive: true });
   const safeName = Date.now() + "-" + path.basename(filename).replace(/\s+/g, "_");
-  const filePath = path.join(DOWNLOAD_DIR, safeName);
+  const filePath = path.join(roomVydir, safeName);
   try {
     const buffer = Buffer.from(data, "base64");
     fs.writeFileSync(filePath, buffer);
-    res.json({ url: `/downloads/${safeName}` });
+    res.json({ url: `/vydex/${roomFolder}/${safeName}` });
   } catch (e) {
     res.status(500).json({ error: "Failed to save file" });
   }
 });
 
-// Serve downloaded files with attachment header
-app.use("/downloads", (req, res, next) => {
-  const filePath = path.join(DOWNLOAD_DIR, req.path);
-  if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-    res.setHeader("Content-Disposition", `attachment; filename="${path.basename(filePath)}"`);
+// List VYDEX downloads for a room
+app.get("/api/vydex-downloads/:room", (req, res) => {
+  const roomFolder = req.params.room.replace(/[^a-zA-Z0-9_-]/g, "");
+  const roomVydir = path.join(VYDEX_DIR, roomFolder);
+  try {
+    if (fs.existsSync(roomVydir)) {
+      const files = fs.readdirSync(roomVydir).map(f => {
+        const stat = fs.statSync(path.join(roomVydir, f));
+        return { name: f.replace(/^\d+-/, ""), url: `/vydex/${roomFolder}/${f}`, size: stat.size, time: stat.mtime };
+      }).sort((a, b) => b.time - a.time);
+      return res.json(files);
+    }
+    res.json([]);
+  } catch (e) {
+    res.status(500).json({ error: "Failed to list downloads" });
   }
-  express.static(DOWNLOAD_DIR)(req, res, next);
+});
+
+// Serve VYDEX files with attachment header
+app.use("/vydex", (req, res, next) => {
+  const filePath = path.join(VYDEX_DIR, req.path);
+  if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+    res.setHeader("Content-Disposition", `attachment; filename="${path.basename(filePath).replace(/^\d+-/, "")}"`);
+  }
+  express.static(VYDEX_DIR)(req, res, next);
 });
 
 const uidToSocket = new Map();

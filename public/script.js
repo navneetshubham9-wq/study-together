@@ -28,6 +28,8 @@ socket.on("disconnect", (reason) => {
     const el = document.getElementById("conn-status");
     if (el) { el.textContent = "✗ Disconnected"; el.style.color = "#e74c3c"; }
 });
+var isAndroid = /android/i.test(navigator.userAgent);
+var downloadLabel = isAndroid ? "Download" : "Downloads";
 socket.on("connect_error", (err) => {
     console.error("Socket connect error:", err.message);
     const el = document.getElementById("conn-status");
@@ -908,14 +910,14 @@ document.getElementById("officeDownloadBtn")?.addEventListener("click", () => {
         ext = "csv"; mime = "text/csv"; filename = "VYDEX_Excel";
     }
     if(!content) return;
-    showNotification("Downloading " + filename + "." + ext + " to your Downloads folder...", "info");
+    showNotification("Downloading " + filename + "." + ext + " to your " + downloadLabel + " folder...", "info");
     const blob = new Blob([content], { type: mime }); 
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); 
     a.href = url; 
     a.download = `${filename}.${ext}`; 
     a.click();
-    setTimeout(() => showNotification(filename + "." + ext + " saved to your Downloads folder!", "success"), 500);
+    setTimeout(() => showNotification(filename + "." + ext + " saved to your " + downloadLabel + " folder!", "success"), 500);
 });
 
 // ---- Excel helpers ----
@@ -3210,7 +3212,7 @@ function addFileLink(name, url) {
     a.download = name;
     a.style.cursor = "pointer";
     if(fileList) {
-        a.addEventListener("click", () => showNotification("Downloading " + name + " to your Downloads folder...", "info"));
+        a.addEventListener("click", () => showNotification("Saving " + name + " to your device's " + downloadLabel + " folder...", "info"));
         fileList.prepend(a);
     }
 }
@@ -3264,6 +3266,58 @@ function closeParticipantsPanel() {
 if (participantsBtn) participantsBtn.addEventListener("click", openParticipantsPanel);
 if (closeParticipantsBtn) closeParticipantsBtn.addEventListener("click", closeParticipantsPanel);
 if (participantsOverlay) participantsOverlay.addEventListener("click", closeParticipantsPanel);
+
+// ==========================================
+// VYDEX DOWNLOADS PANEL
+// ==========================================
+const vydexBtn = document.getElementById("vydexDownloadsBtn");
+const vydexPanel = document.getElementById("vydex-panel");
+const vydexList = document.getElementById("vydex-list");
+const closeVydexBtn = document.getElementById("closeVydexBtn");
+const vydexOverlay = document.getElementById("vydex-overlay");
+
+function loadVydexDownloads() {
+    if (!vydexList || !currentRoom) return;
+    vydexList.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.4);">Loading...</div>';
+    fetch(SERVER_URL + "/api/vydex-downloads/" + encodeURIComponent(currentRoom))
+        .then(function(r) { return r.json(); })
+        .then(function(files) {
+            if (!files || files.length === 0) {
+                vydexList.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.4);">No downloads yet</div>';
+            } else {
+                vydexList.innerHTML = files.map(function(f) {
+                    var fullUrl = SERVER_URL + f.url;
+                    return '<div style="display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid rgba(255,255,255,0.06);">' +
+                        '<span style="font-size:20px;">📄</span>' +
+                        '<div style="flex:1;min-width:0;">' +
+                        '<a href="' + fullUrl + '" download="' + f.name + '" style="color:#9b59b6;font-size:14px;font-weight:500;text-decoration:none;cursor:pointer;word-break:break-all;">' + f.name + '</a>' +
+                        '<div style="color:rgba(255,255,255,0.4);font-size:11px;margin-top:2px;">' + new Date(f.time).toLocaleString() + ' · ' + (f.size > 1024 ? Math.round(f.size/1024) + ' KB' : f.size + ' B') + '</div>' +
+                        '</div>' +
+                        '<a href="' + fullUrl + '" download="' + f.name + '" style="background:#9b59b6;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;text-decoration:none;">Download</a>' +
+                        '</div>';
+                }).join("");
+            }
+        })
+        .catch(function() {
+            vydexList.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.4);">Failed to load downloads</div>';
+        });
+}
+
+function openVydexPanel() {
+    if (!vydexPanel || !currentRoom) return;
+    loadVydexDownloads();
+    vydexPanel.style.display = "block";
+    if (vydexOverlay) vydexOverlay.style.display = "block";
+}
+
+function closeVydexPanel() {
+    if (vydexPanel) vydexPanel.style.display = "none";
+    if (vydexOverlay) vydexOverlay.style.display = "none";
+}
+
+if (vydexBtn) vydexBtn.addEventListener("click", openVydexPanel);
+if (closeVydexBtn) closeVydexBtn.addEventListener("click", closeVydexPanel);
+if (vydexOverlay) vydexOverlay.addEventListener("click", closeVydexPanel);
 
 // ==========================================
 // 12. MUSIC STUDIO (Host Upload, Sync, Per-User Mute)
@@ -3590,15 +3644,20 @@ socket.on("room-summary", (data) => {
             addLine("  No files shared.", 10);
         }
 
-        showNotification("Downloading Meeting Summary PDF...", "info");
-        // Upload PDF to server and download via HTTP (works on all devices)
+        showNotification("Generating Meeting Summary PDF...", "info");
+        // Upload PDF to server's VYDEX folder (organized by room)
         var pdfB64 = doc.output("datauristring").split(",")[1];
         fetch(SERVER_URL + "/api/download", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ filename: "Meeting_Summary_" + data.roomCode + ".pdf", data: pdfB64 })
+            body: JSON.stringify({ filename: "Meeting_Summary_" + data.roomCode + ".pdf", data: pdfB64, room: currentRoom })
         }).then(function(r) { return r.json(); }).then(function(resp) {
             if (resp && resp.url) {
+                // Add tappable link in shared files list (real user gesture, works on Android)
+                addFileLink("Meeting_Summary_" + data.roomCode + ".pdf", resp.url);
+                // Refresh the VYDEX downloads panel if open
+                if (vydexPanel && vydexPanel.style.display === "block") loadVydexDownloads();
+                // Also trigger browser download (works on desktop browsers)
                 var dl = document.createElement("a");
                 dl.href = SERVER_URL + resp.url;
                 dl.download = "Meeting_Summary_" + data.roomCode + ".pdf";
@@ -3606,13 +3665,13 @@ socket.on("room-summary", (data) => {
                 document.body.appendChild(dl);
                 dl.click();
                 setTimeout(function() { document.body.removeChild(dl); }, 1000);
-                showNotification("Meeting Summary PDF saved to your device!", "success");
+                showNotification("Meeting Summary PDF ready! Tap the link above to save to your " + downloadLabel + " folder.", "success");
             } else {
                 doc.save("Meeting_Summary_" + data.roomCode + ".pdf");
             }
         }).catch(function() {
             doc.save("Meeting_Summary_" + data.roomCode + ".pdf");
-            showNotification("Meeting Summary PDF saved to your device!", "success");
+            showNotification("Meeting Summary PDF saved!", "success");
         }).finally(function() {
             if (endMeetingAfterSummary) {
                 endMeetingAfterSummary = false;
