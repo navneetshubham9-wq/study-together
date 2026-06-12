@@ -146,6 +146,18 @@ if (joinBtn) {
         joinBtn.textContent = "Joining...";
         joinBtn.disabled = true;
 
+        // Check if room is locked before attempting any join
+        const accessCheck = await new Promise(resolve => {
+            socket.emit("check-room-access", { room: roomId }, (resp) => resolve(resp));
+            setTimeout(() => resolve({ locked: false }), 5000);
+        });
+        if (accessCheck && accessCheck.locked) {
+            alert("This room is locked by the host. You cannot join at this time.");
+            joinBtn.textContent = "🚀 Join Room";
+            joinBtn.disabled = false;
+            return;
+        }
+
         // Try Agora (video/audio) join, but don't block if it fails
         try {
             if (client) {

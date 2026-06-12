@@ -266,6 +266,11 @@ io.on("connection", socket => {
     socket.to(data.room).emit("agenda-sync", data);
   });
 
+  socket.on("check-room-access", (data, callback) => {
+    const locked = roomLocked.get(data.room) && roomHosts.get(data.room) !== null && roomHosts.get(data.room) !== undefined;
+    if (callback) callback({ locked: !!locked });
+  });
+
   socket.on("remove-user", data => {
     const targetSocketId = uidToSocket.get(data.targetUid);
     if (targetSocketId) {
