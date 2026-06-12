@@ -2821,8 +2821,14 @@ initWorldMap();
 // ==========================================
 // 13. SOCKET LISTENER BINDINGS
 // ==========================================
+function applyHostUI() {
+    document.querySelectorAll('.host-only-btn').forEach(btn => {
+        btn.style.setProperty("display", isHost ? "flex" : "none", "important");
+    });
+}
+
 socket.on("room-history", (data) => {
-    if(data.isHost !== undefined) isHost = data.isHost;
+    if(data.isHost !== undefined) { isHost = data.isHost; applyHostUI(); }
     if(data.hostUid) {
         globalHostUid = data.hostUid;
         setTimeout(() => {
@@ -2918,7 +2924,6 @@ socket.on("host-assignment", (data) => {
         if(toggleMapBtn) toggleMapBtn.style.display = "inline-block"; 
         if(togglePresBtn) togglePresBtn.style.display = "inline-block"; 
         if(toggleOfficeBtn) toggleOfficeBtn.style.display = "inline-block";
-        document.querySelectorAll('.host-only-btn').forEach(btn => btn.style.setProperty("display", "flex", "important"));
         if(pptEditor) pptEditor.contentEditable = "true";
         document.querySelectorAll('#excelGrid td').forEach(td => td.contentEditable = "true");
     } else {
@@ -2937,8 +2942,8 @@ socket.on("host-assignment", (data) => {
         
         const viewGraphBtn = document.getElementById("viewGraphBtn");
         if(viewGraphBtn && viewGraphBtn.parentElement) viewGraphBtn.parentElement.style.display = "none"; 
-        document.querySelectorAll('.host-only-btn').forEach(btn => btn.style.setProperty("display", "none", "important"));
     }
+    applyHostUI();
 
     // Update host video label + ordering if wrapper already exists
     if (data.hostUid) {
