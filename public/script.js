@@ -62,6 +62,7 @@ function enterVideoFullscreen(cardElement) {
     closeBtn.onclick = exitVideoFullscreen;
     overlay.appendChild(closeBtn);
     cardElement._fullscreenParent = cardElement.parentNode;
+    cardElement._fullscreenNextSibling = cardElement.nextSibling;
     cardElement.style.position = "absolute";
     cardElement.style.top = "0";
     cardElement.style.left = "0";
@@ -85,8 +86,9 @@ function exitVideoFullscreen() {
         card.style.width = "100%";
         card.style.height = "200px";
         card.style.maxHeight = "";
-        card._fullscreenParent.appendChild(card);
+        card._fullscreenParent.insertBefore(card, card._fullscreenNextSibling || null);
         delete card._fullscreenParent;
+        delete card._fullscreenNextSibling;
     }
     videoFullscreenOverlay.remove();
     videoFullscreenOverlay = null;
