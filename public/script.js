@@ -299,9 +299,21 @@ function createRemoteWrapper(uid, labelText) {
         wbBtn.style.background = isGranting ? "var(--danger)" : "var(--primary)"; 
     };
     
+    const removeBtn = document.createElement("button"); 
+    removeBtn.className = "small-btn host-only-btn"; 
+    removeBtn.style.display = isHost ? "inline-block" : "none"; 
+    removeBtn.textContent = "❌ Remove"; 
+    removeBtn.title = "Remove User"; 
+    removeBtn.style.background = "rgba(231,76,60,0.8)"; 
+    removeBtn.onclick = () => { 
+        if (!confirm(`Remove ${labelText || uid} from the room?`)) return; 
+        socket.emit("remove-user", { room: currentRoom, targetUid: uid.toString() }); 
+    };
+    
     controlsDiv.appendChild(muteRemoteBtn); 
     controlsDiv.appendChild(camOffBtn); 
     controlsDiv.appendChild(wbBtn); 
+    controlsDiv.appendChild(removeBtn); 
     wrapper.appendChild(card); 
     wrapper.appendChild(controlsDiv); 
     
@@ -2636,6 +2648,13 @@ socket.on("room-history", (data) => {
     if (data.presVisible && presentationBox) { hideAllBigPanels(); presentationBox.style.display = "block"; if(isHost && togglePresBtn) togglePresBtn.dataset.show = "true"; }
     if (data.officeVisible && officeBox) { hideAllBigPanels(); officeBox.style.display = "block"; if(isHost && toggleOfficeBtn) toggleOfficeBtn.dataset.show = "true"; }
     if (data.agenda !== undefined && currentRoom) localStorage.setItem("agenda_" + currentRoom, data.agenda);
+    if (data.roomLocked !== undefined && roomLockBtn) {
+        roomLockBtn.dataset.locked = data.roomLocked ? "true" : "false";
+        roomLockBtn.textContent = data.roomLocked ? "🔒 Locked" : "🔓 Lock Room";
+        roomLockBtn.style.background = data.roomLocked
+            ? "linear-gradient(135deg, #e74c3c, #c0392b)"
+            : "linear-gradient(135deg, #2ecc71, #27ae60)";
+    }
 });
 
 socket.on("host-assignment", (data) => {
@@ -3058,6 +3077,31 @@ socket.on("agenda-sync", (data) => {
 });
 
 // ==========================================
+// ROOM LOCK / UNLOCK (HOST ONLY)
+// ==========================================
+const roomLockBtn = document.getElementById("roomLockBtn");
+
+roomLockBtn?.addEventListener("click", () => {
+    if (!currentRoom) return;
+    socket.emit("toggle-room-lock", { room: currentRoom });
+});
+
+socket.on("room-lock-state", (data) => {
+    if (!data || data.room !== currentRoom) return;
+    if (roomLockBtn) {
+        roomLockBtn.dataset.locked = data.locked ? "true" : "false";
+        roomLockBtn.textContent = data.locked ? "🔒 Locked" : "🔓 Lock Room";
+        roomLockBtn.style.background = data.locked
+            ? "linear-gradient(135deg, #e74c3c, #c0392b)"
+            : "linear-gradient(135deg, #2ecc71, #27ae60)";
+    }
+});
+
+socket.on("room-locked", (data) => {
+    alert(data.message || "This room is locked by the host.");
+});
+
+// ==========================================
 // END MEETING (HOST ONLY)
 // ==========================================
 const endMeetingBtn = document.getElementById("endMeetingBtn");
@@ -3071,6 +3115,11 @@ endMeetingBtn?.addEventListener("click", () => {
 
 socket.on("meeting-ended", () => {
     alert("The host has ended the meeting.");
+    window.location.reload();
+});
+
+socket.on("kicked", (data) => {
+    alert(data.message || "You were removed from the room by the host.");
     window.location.reload();
 });
 

@@ -116,6 +116,7 @@ const roomPresState = new Map();
 const roomOfficeState = new Map(); 
 const roomChartData = new Map(); 
 const roomAgenda = new Map(); 
+const roomLocked = new Map(); 
 
 app.get("/proxy-image", (req, res) => {
   const imgUrl = req.query.url;
@@ -175,6 +176,13 @@ io.on("connection", socket => {
     const { room, uid, name } = info;
     socket.join(room);
     
+    // Room lock check — reject new joiners if locked and a host exists
+    if (roomLocked.get(room) && roomHosts.get(room) !== null && roomHosts.get(room) !== undefined) {
+      socket.emit("room-locked", { room, message: "This room is locked by the host. Please try again later." });
+      socket.leave(room);
+      return;
+    }
+
     // Log room creation and join to database
     try {
       const existing = db.prepare("SELECT id FROM rooms WHERE code = ?").get(room);
@@ -205,7 +213,8 @@ io.on("connection", socket => {
       officeVisible: roomOfficeState.get(room) || false,
       chartData: roomChartData.get(room) || null,
       hostUid: roomHostUid.get(room),
-      agenda: roomAgenda.get(room) || ""
+      agenda: roomAgenda.get(room) || "",
+      roomLocked: !!roomLocked.get(room)
     });
 
     socket.to(room).emit("user-joined", { uid, name });
@@ -245,9 +254,27 @@ io.on("connection", socket => {
     } catch (e) { console.error("DB chat log error:", e); }
   });
 
+  socket.on("toggle-room-lock", data => {
+    const room = data.room;
+    const newState = !roomLocked.get(room);
+    roomLocked.set(room, newState);
+    io.to(room).emit("room-lock-state", { room, locked: newState });
+  });
+
   socket.on("agenda-sync", data => {
     roomAgenda.set(data.room, data.agenda);
     socket.to(data.room).emit("agenda-sync", data);
+  });
+
+  socket.on("remove-user", data => {
+    const targetSocketId = uidToSocket.get(data.targetUid);
+    if (targetSocketId) {
+      const targetSocket = io.sockets.sockets.get(targetSocketId);
+      if (targetSocket) {
+        targetSocket.emit("kicked", { message: "You were removed from the room by the host." });
+        targetSocket.disconnect(true);
+      }
+    }
   });
 
   socket.on("end-meeting", data => {
@@ -268,6 +295,7 @@ io.on("connection", socket => {
     roomOfficeState.delete(room);
     roomChartData.delete(room);
     roomAgenda.delete(room);
+    roomLocked.delete(room);
     roomHosts.delete(room);
     roomHostUid.delete(room);
     console.log(`Meeting ended for room ${room}`);
