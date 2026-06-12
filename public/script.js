@@ -28,30 +28,7 @@ socket.on("disconnect", (reason) => {
     const el = document.getElementById("conn-status");
     if (el) { el.textContent = "✗ Disconnected"; el.style.color = "#e74c3c"; }
 });
-var isAndroid = /android/i.test(navigator.userAgent);
-var downloadLabel = isAndroid ? "Download" : "Downloads";
-var isCapacitor = typeof window.Capacitor !== 'undefined' && window.Capacitor.isNative;
 
-function saveFileViaCapacitor(filename, base64Data) {
-    return new Promise(function(resolve, reject) {
-        try {
-            var fs = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem;
-            if (!fs) return reject(new Error("No Filesystem plugin"));
-            fs.requestPermissions().catch(function(){}).then(function() {
-                return fs.writeFile({ path: filename, data: base64Data, directory: "DOCUMENTS" });
-            }).then(function(r) {
-                showNotification("File saved to your Documents folder!", "success");
-                resolve(r);
-            }).catch(function() {
-                fs.writeFile({ path: filename, data: base64Data, directory: "CACHE" }).then(function(cr) {
-                    var share = window.Capacitor.Plugins && window.Capacitor.Plugins.Share;
-                    if (share) share.share({ title: filename, files: [cr.uri] }).catch(function(){});
-                    resolve(cr);
-                }).catch(function(e) { reject(e); });
-            });
-        } catch(e) { reject(e); }
-    });
-}
 socket.on("connect_error", (err) => {
     console.error("Socket connect error:", err.message);
     const el = document.getElementById("conn-status");
@@ -932,14 +909,14 @@ document.getElementById("officeDownloadBtn")?.addEventListener("click", () => {
         ext = "csv"; mime = "text/csv"; filename = "VYDEX_Excel";
     }
     if(!content) return;
-    showNotification("Downloading " + filename + "." + ext + " to your " + downloadLabel + " folder...", "info");
+    showNotification("Downloading " + filename + "." + ext + "...", "info");
     const blob = new Blob([content], { type: mime }); 
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); 
     a.href = url; 
     a.download = `${filename}.${ext}`; 
     a.click();
-    setTimeout(() => showNotification(filename + "." + ext + " saved to your " + downloadLabel + " folder!", "success"), 500);
+    setTimeout(() => showNotification(filename + "." + ext + " saved!", "success"), 500);
 });
 
 // ---- Excel helpers ----
@@ -3234,25 +3211,6 @@ function addFileLink(name, url) {
     a.download = name;
     a.style.cursor = "pointer";
     if(fileList) {
-        a.addEventListener("click", function(e) {
-            var capFs = window.Capacitor && window.Capacitor.isNative && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem;
-            if (capFs) {
-                e.preventDefault();
-                showNotification("Saving " + name + " to your device...", "info");
-                fetch(absoluteUrl(url)).then(function(r) { return r.blob(); }).then(function(blob) {
-                    var reader = new FileReader();
-                    reader.onloadend = function() {
-                        var b64 = reader.result.split(",")[1];
-                        saveFileViaCapacitor(name, b64).catch(function(err) {
-                            showNotification("Save failed: " + (err.message || err), "error");
-                        });
-                    };
-                    reader.readAsDataURL(blob);
-                }).catch(function() {
-                    showNotification("Failed to download file from server.", "error");
-                });
-            }
-        });
         fileList.prepend(a);
     }
 }
@@ -3338,35 +3296,10 @@ function loadVydexDownloads() {
                 }).join("");
             }
         })
-        .catch(function() {
-            vydexList.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.4);">Failed to load downloads</div>';
+        .catch(function(e) {
+            vydexList.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.4);">Failed to load downloads (check server connection)</div>';
+            console.error("VYDEX list error:", e);
         });
-    // Intercept VYDEX downloads for Capacitor native save
-    if (vydexList) {
-        vydexList.addEventListener("click", function(e) {
-            var capFs = window.Capacitor && window.Capacitor.isNative && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem;
-            if (!capFs) return;
-            var target = e.target.closest("a[href]");
-            if (target) {
-                e.preventDefault();
-                var name = target.getAttribute("download") || target.textContent.trim();
-                var fileUrl = target.getAttribute("href");
-                showNotification("Saving " + name + " to your device...", "info");
-                fetch(fileUrl).then(function(r) { return r.blob(); }).then(function(blob) {
-                    var reader = new FileReader();
-                    reader.onloadend = function() {
-                        var b64 = reader.result.split(",")[1];
-                        saveFileViaCapacitor(name, b64).catch(function(err) {
-                            showNotification("Save failed: " + (err.message || err), "error");
-                        });
-                    };
-                    reader.readAsDataURL(blob);
-                }).catch(function() {
-                    showNotification("Failed to download file from server.", "error");
-                });
-            }
-        });
-    }
 }
 
 function openVydexPanel() {
@@ -3712,35 +3645,20 @@ socket.on("room-summary", (data) => {
 
         showNotification("Generating Meeting Summary PDF...", "info");
         var pdfB64 = doc.output("datauristring").split(",")[1];
-        // Upload to server VYDEX folder (always)
+        // Upload to server VYDEX folder
         fetch(SERVER_URL + "/api/download", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ filename: "Meeting_Summary_" + data.roomCode + ".pdf", data: pdfB64, room: currentRoom })
         }).then(function(r) { return r.json(); }).then(function(resp) {
-            // Always add a tappable link in the Files panel
+            // Add tappable link to Files panel
             if (resp && resp.url) {
                 addFileLink("Meeting_Summary_" + data.roomCode + ".pdf", resp.url);
                 if (vydexPanel && vydexPanel.style.display === "block") loadVydexDownloads();
+                showNotification("📄 Meeting Summary ready! Open the Files panel and tap the link to save.", "success");
             }
-            // Try Capacitor native save if available
-            var cap = window.Capacitor;
-            var capFs = cap && cap.isNative && cap.Plugins && cap.Plugins.Filesystem;
-            if (capFs) {
-                // Request permissions first (dialog on Android 6-10, no-op on 11+)
-                capFs.requestPermissions().catch(function(){}).then(function() {
-                    return capFs.writeFile({ path: "Meeting_Summary_" + data.roomCode + ".pdf", data: pdfB64, directory: "DOCUMENTS" });
-                }).then(function() {
-                    showNotification("PDF saved to your Documents folder!", "success");
-                }).catch(function() {
-                    // Fallback: write to cache, offer share
-                    capFs.writeFile({ path: "Meeting_Summary_" + data.roomCode + ".pdf", data: pdfB64, directory: "CACHE" }).then(function(cr) {
-                        var share = cap.Plugins && cap.Plugins.Share;
-                        if (share) share.share({ title: "Meeting Summary", files: [cr.uri] }).catch(function(){});
-                    }).catch(function(){});
-                });
-            } else if (resp && resp.url) {
-                // Browser: trigger download
+            // Desktop: auto-download via programmatic click
+            if (resp && resp.url && !/android|iphone|ipad|ipod/i.test(navigator.userAgent)) {
                 var dl = document.createElement("a");
                 dl.href = SERVER_URL + resp.url;
                 dl.download = "Meeting_Summary_" + data.roomCode + ".pdf";
@@ -3748,11 +3666,10 @@ socket.on("room-summary", (data) => {
                 document.body.appendChild(dl);
                 dl.click();
                 setTimeout(function() { document.body.removeChild(dl); }, 1000);
-                showNotification("Meeting Summary PDF saved to your " + downloadLabel + " folder!", "success");
-            } else {
-                doc.save("Meeting_Summary_" + data.roomCode + ".pdf");
+                showNotification("Meeting Summary PDF saved!", "success");
             }
         }).catch(function() {
+            // Server upload failed, try direct browser save
             doc.save("Meeting_Summary_" + data.roomCode + ".pdf");
             showNotification("Meeting Summary PDF saved!", "success");
         }).finally(function() {

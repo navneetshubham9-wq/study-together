@@ -9,6 +9,14 @@ const Database = require("better-sqlite3");
 const crypto = require("crypto");
 
 const app = express();
+// CORS for Express HTTP routes (needed by Capacitor WebView cross-origin fetch)
+app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type");
+    if (req.method === "OPTIONS") return res.sendStatus(200);
+    next();
+});
 const server = http.createServer(app);
 const io = new Server(server, {
   maxHttpBufferSize: 2e7,
