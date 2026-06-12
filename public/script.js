@@ -40,7 +40,64 @@ function absoluteUrl(url) {
     return url;
 }
 
-// Force video elements to fill on fullscreen change + toggle fs-active class for mobile
+// Custom fullscreen overlay for video cards (works reliably on desktop + mobile)
+let videoFullscreenOverlay = null;
+
+function enterVideoFullscreen(cardElement) {
+    exitVideoFullscreen();
+    const overlay = document.createElement("div");
+    overlay.id = "video-fullscreen-overlay";
+    Object.assign(overlay.style, {
+        position: "fixed", top: "0", left: "0", width: "100vw", height: "100vh",
+        zIndex: "2147483647", background: "#000"
+    });
+    const closeBtn = document.createElement("button");
+    closeBtn.textContent = "✕";
+    Object.assign(closeBtn.style, {
+        position: "absolute", top: "15px", right: "20px", zIndex: "10",
+        background: "rgba(0,0,0,0.6)", color: "#fff", border: "none",
+        borderRadius: "50%", width: "40px", height: "40px",
+        fontSize: "22px", cursor: "pointer", lineHeight: "40px", textAlign: "center"
+    });
+    closeBtn.onclick = exitVideoFullscreen;
+    overlay.appendChild(closeBtn);
+    cardElement._fullscreenParent = cardElement.parentNode;
+    cardElement.style.position = "absolute";
+    cardElement.style.top = "0";
+    cardElement.style.left = "0";
+    cardElement.style.width = "100%";
+    cardElement.style.height = "100%";
+    cardElement.style.maxHeight = "";
+    overlay.appendChild(cardElement);
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) exitVideoFullscreen(); });
+    document.body.appendChild(overlay);
+    videoFullscreenOverlay = overlay;
+    document.addEventListener("keydown", videoFullscreenEscape);
+}
+
+function exitVideoFullscreen() {
+    if (!videoFullscreenOverlay) return;
+    const card = videoFullscreenOverlay.querySelector(".video-card");
+    if (card && card._fullscreenParent) {
+        card.style.position = "";
+        card.style.top = "";
+        card.style.left = "";
+        card.style.width = "100%";
+        card.style.height = "200px";
+        card.style.maxHeight = "";
+        card._fullscreenParent.appendChild(card);
+        delete card._fullscreenParent;
+    }
+    videoFullscreenOverlay.remove();
+    videoFullscreenOverlay = null;
+    document.removeEventListener("keydown", videoFullscreenEscape);
+}
+
+function videoFullscreenEscape(e) {
+    if (e.key === "Escape") exitVideoFullscreen();
+}
+
+// Native fullscreen for panels (whiteboard, map, etc.)
 document.addEventListener("fullscreenchange", () => {
     if (document.fullscreenElement) {
         document.fullscreenElement.querySelectorAll("video").forEach(v => {
@@ -352,9 +409,16 @@ function addSizeControls(targetWrapper, elementToFullscreen) {
     if(targetWrapper.id !== 'map-box') {
         const maxBtn = document.createElement("button"); 
         maxBtn.className = "icon-btn"; maxBtn.innerHTML = "🖥️";
-        maxBtn.onclick = () => { 
-            if (!document.fullscreenElement) { targetWrapper.requestFullscreen().catch(e => console.warn(e)); }
-            else { document.exitFullscreen(); }
+        const isVideoCard = targetWrapper.classList && (targetWrapper.classList.contains("video-card") || targetWrapper.querySelector(".video-card"));
+        maxBtn.onclick = () => {
+            if (isVideoCard) {
+                const card = targetWrapper.classList.contains("video-card") ? targetWrapper : targetWrapper.querySelector(".video-card");
+                if (videoFullscreenOverlay) exitVideoFullscreen();
+                else enterVideoFullscreen(card);
+            } else {
+                if (!document.fullscreenElement) { targetWrapper.requestFullscreen().catch(e => console.warn(e)); }
+                else { document.exitFullscreen(); }
+            }
         };
         controlsDiv.appendChild(maxBtn);
     }
