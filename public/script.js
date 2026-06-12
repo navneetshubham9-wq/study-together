@@ -3274,33 +3274,71 @@ const vydexList = document.getElementById("vydex-list");
 const closeVydexBtn = document.getElementById("closeVydexBtn");
 const vydexOverlay = document.getElementById("vydex-overlay");
 
+function triggerDownload(url, filename) {
+    // Strategy 1: iframe download (most reliable in Android WebView)
+    var iframe = document.createElement("iframe");
+    iframe.style.display = "none";
+    iframe.src = url;
+    document.body.appendChild(iframe);
+    setTimeout(function() { document.body.removeChild(iframe); }, 10000);
+    // Strategy 2: anchor with download attribute (works on desktop)
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = filename || "";
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function() { document.body.removeChild(a); }, 1000);
+}
+
 function loadVydexDownloads() {
     if (!vydexList || !currentRoom) return;
     vydexList.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.4);">Loading...</div>';
-    fetch(SERVER_URL + "/api/vydex-downloads/" + encodeURIComponent(currentRoom))
-        .then(function(r) { return r.json(); })
-        .then(function(files) {
-            if (!files || files.length === 0) {
-                vydexList.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.4);">No downloads yet</div>';
-            } else {
-                vydexList.innerHTML = files.map(function(f) {
-                    var fullUrl = SERVER_URL + f.url;
-                    return '<div style="display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid rgba(255,255,255,0.06);">' +
-                        '<span style="font-size:20px;">📄</span>' +
-                        '<div style="flex:1;min-width:0;">' +
-                        '<a href="' + fullUrl + '" download="' + f.name + '" style="color:#9b59b6;font-size:14px;font-weight:500;text-decoration:none;cursor:pointer;word-break:break-all;">' + f.name + '</a>' +
-                        '<div style="color:rgba(255,255,255,0.4);font-size:11px;margin-top:2px;">' + new Date(f.time).toLocaleString() + ' · ' + (f.size > 1024 ? Math.round(f.size/1024) + ' KB' : f.size + ' B') + '</div>' +
-                        '</div>' +
-                        '<a href="' + fullUrl + '" download="' + f.name + '" style="background:#9b59b6;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;text-decoration:none;">Download</a>' +
-                        '</div>';
-                }).join("");
-            }
-        })
-        .catch(function(e) {
-            vydexList.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.4);">Failed to load downloads (check server connection)</div>';
-            console.error("VYDEX list error:", e);
-        });
+    socket.emit("get-vydex-files", { room: currentRoom });
 }
+
+socket.on("vydex-files-list", function(data) {
+    if (!vydexList) return;
+    if (data.error) {
+        vydexList.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.4);">' + data.error + '</div>';
+        return;
+    }
+    var files = data.files;
+    if (!files || files.length === 0) {
+        vydexList.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.4);">No downloads yet</div>';
+    } else {
+        vydexList.innerHTML = files.map(function(f) {
+            var fullUrl = SERVER_URL + f.url;
+            var safeName = f.name.replace(/'/g, "\\'");
+            return '<div style="display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid rgba(255,255,255,0.06);">' +
+                '<span style="font-size:20px;">📄</span>' +
+                '<div style="flex:1;min-width:0;">' +
+                '<a style="color:#9b59b6;font-size:14px;font-weight:500;text-decoration:none;cursor:pointer;word-break:break-all;">' + f.name + '</a>' +
+                '<div style="color:rgba(255,255,255,0.4);font-size:11px;margin-top:2px;">' + new Date(f.time).toLocaleString() + ' · ' + (f.size > 1024 ? Math.round(f.size/1024) + ' KB' : f.size + ' B') + '</div>' +
+                '</div>' +
+                '<div style="display:flex;gap:6px;flex-shrink:0;">' +
+                '<button class="vydex-dl-btn" data-url="' + fullUrl + '" data-name="' + safeName + '" style="background:#9b59b6;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;">Download</button>' +
+                '<button class="vydex-open-btn" data-url="' + fullUrl + '" style="background:rgba(255,255,255,0.1);color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;" title="Open in browser">🌐</button>' +
+                '</div>' +
+                '</div>';
+        }).join("");
+        // Attach click handlers to download buttons
+        vydexList.querySelectorAll(".vydex-dl-btn").forEach(function(btn) {
+            btn.addEventListener("click", function() {
+                var url = btn.getAttribute("data-url");
+                var name = btn.getAttribute("data-name");
+                triggerDownload(url, name);
+            });
+        });
+        // Attach click handlers to open-in-browser buttons
+        vydexList.querySelectorAll(".vydex-open-btn").forEach(function(btn) {
+            btn.addEventListener("click", function() {
+                var url = btn.getAttribute("data-url");
+                window.open(url, "_blank");
+            });
+        });
+    }
+});
 
 function openVydexPanel() {
     if (!vydexPanel || !currentRoom) return;
@@ -3516,16 +3554,19 @@ socket.on("kicked", (data) => {
 // ==========================================
 const downloadSummaryBtn = document.getElementById("downloadSummaryBtn");
 
+var isGeneratingSummary = false;
 downloadSummaryBtn?.addEventListener("click", () => {
     if (!currentRoom) return;
+    isGeneratingSummary = true;
     socket.emit("get-room-summary", { room: currentRoom });
 });
 
 socket.on("room-summary", (data) => {
     if (!data || data.roomCode !== currentRoom) return;
 
-    // If agenda panel is open, show data (but DON'T return if we need to end the meeting)
-    if (agendaPanel?.style.display === "block" && !endMeetingAfterSummary) {
+    // If agenda panel is open and not generating summary, show agenda data
+    // (endMeetingAfterSummary and isGeneratingSummary skip this to produce PDF)
+    if (agendaPanel?.style.display === "block" && !endMeetingAfterSummary && !isGeneratingSummary) {
         if (agendaInput) agendaInput.value = data.agenda || "";
         if (isHost) {
             if (agendaHostEdit) agendaHostEdit.style.display = "block";
@@ -3534,6 +3575,7 @@ socket.on("room-summary", (data) => {
         }
         return;
     }
+    isGeneratingSummary = false;
 
     // Generate PDF
     try {
@@ -3643,6 +3685,7 @@ socket.on("room-summary", (data) => {
             addLine("  No files shared.", 10);
         }
 
+        console.log("room-summary: generating PDF for room", data.roomCode);
         showNotification("Generating Meeting Summary PDF...", "info");
         var pdfB64 = doc.output("datauristring").split(",")[1];
         // Upload to server VYDEX folder
@@ -3655,15 +3698,9 @@ socket.on("room-summary", (data) => {
                 if (vydexPanel && vydexPanel.style.display === "block") loadVydexDownloads();
                 showNotification("📄 Meeting Summary ready! Open 📁 VYDEX panel to download.", "success");
             }
-            // Desktop: auto-download via programmatic click
+            // Desktop: auto-download via triggerDownload
             if (resp && resp.url && !/android|iphone|ipad|ipod/i.test(navigator.userAgent)) {
-                var dl = document.createElement("a");
-                dl.href = SERVER_URL + resp.url;
-                dl.download = "Meeting_Summary_" + data.roomCode + ".pdf";
-                dl.style.display = "none";
-                document.body.appendChild(dl);
-                dl.click();
-                setTimeout(function() { document.body.removeChild(dl); }, 1000);
+                triggerDownload(SERVER_URL + resp.url, "Meeting_Summary_" + data.roomCode + ".pdf");
                 showNotification("Meeting Summary PDF saved!", "success");
             }
         }).catch(function() {

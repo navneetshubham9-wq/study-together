@@ -495,6 +495,30 @@ io.on("connection", socket => {
     socket.emit("room-summary", { roomCode: room, db: dbData, chats, files, agenda: roomAgenda.get(room) || "", allUsers: allUsersArr });
   });
 
+  socket.on("get-vydex-files", data => {
+    const room = data.room;
+    if (!room) return socket.emit("vydex-files-list", { error: "No room specified" });
+    // Only the host can access VYDEX downloads
+    const hostSockId = roomHosts.get(room);
+    if (hostSockId !== socket.id) return socket.emit("vydex-files-list", { error: "Only host can access VYDEX downloads" });
+    const roomFolder = room.replace(/[^a-zA-Z0-9_-]/g, "");
+    const roomVydir = path.join(VYDEX_DIR, roomFolder);
+    try {
+      if (fs.existsSync(roomVydir)) {
+        const files = fs.readdirSync(roomVydir).map(f => {
+          const stat = fs.statSync(path.join(roomVydir, f));
+          return { name: f.replace(/^\d+-/, ""), url: `/vydex/${roomFolder}/${f}`, size: stat.size, time: stat.mtime };
+        }).sort((a, b) => b.time - a.time);
+        socket.emit("vydex-files-list", { files });
+      } else {
+        socket.emit("vydex-files-list", { files: [] });
+      }
+    } catch (e) {
+      console.error("VYDEX list error:", e);
+      socket.emit("vydex-files-list", { error: "Failed to list downloads" });
+    }
+  });
+
   socket.on("drawing", data => socket.to(data.room).emit("drawing", data));
   socket.on("wb-fill", data => socket.to(data.room).emit("wb-fill", data));
   socket.on("wb-stamp", data => socket.to(data.room).emit("wb-stamp", data));
