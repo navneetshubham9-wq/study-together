@@ -3710,6 +3710,15 @@ socket.on("room-summary", (data) => {
 
         addVydexDirectDownload(pdfFilename, pdfDataUri);
 
+        var pdfB64 = pdfDataUri.split(",")[1];
+        fetch(SERVER_URL + "/api/download", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ filename: pdfFilename, data: pdfB64, room: currentRoom })
+        }).then(function(r) { return r.json(); }).then(function(resp) {
+            if (resp && resp.url && vydexPanel && vydexPanel.style.display === "block") loadVydexDownloads();
+        }).catch(function() {});
+
         if (!/android|iphone|ipad|ipod/i.test(navigator.userAgent)) {
             triggerDownload(pdfDataUri, pdfFilename);
         }
