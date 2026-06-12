@@ -3375,12 +3375,19 @@ socket.on("room-locked", (data) => {
 // END MEETING (HOST ONLY)
 // ==========================================
 const endMeetingBtn = document.getElementById("endMeetingBtn");
+let endMeetingAfterSummary = false;
 
 endMeetingBtn?.addEventListener("click", () => {
     if (!currentRoom) return;
     const confirmed = confirm("End meeting for all participants?\n\nThis will disconnect everyone and clear all room data. This action cannot be undone.");
     if (!confirmed) return;
-    socket.emit("end-meeting", { room: currentRoom });
+    const dlSummary = confirm("Do you want to download the meeting summary before ending?");
+    if (dlSummary) {
+        endMeetingAfterSummary = true;
+        socket.emit("get-room-summary", { room: currentRoom });
+    } else {
+        socket.emit("end-meeting", { room: currentRoom });
+    }
 });
 
 socket.on("meeting-ended", () => {
@@ -3496,6 +3503,10 @@ socket.on("room-summary", (data) => {
         }
 
         doc.save("Meeting_Summary_" + data.roomCode + ".pdf");
+        if (endMeetingAfterSummary) {
+            endMeetingAfterSummary = false;
+            socket.emit("end-meeting", { room: currentRoom });
+        }
     } catch (e) {
         console.error("PDF generation error:", e);
         showNotification("Failed to generate PDF: " + e.message, "error");
