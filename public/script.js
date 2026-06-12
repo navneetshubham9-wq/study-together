@@ -2088,11 +2088,16 @@ const announcementBody = document.getElementById("announcement-body");
 const announcementTitle = document.getElementById("announcement-title");
 const announcementOverlay = document.getElementById("announcement-overlay");
 
+// Set default content immediately (button is already visible from HTML)
+if (announcementBtn) {
+    announcementBtn.dataset.title = "📢 Announcement";
+    announcementBtn.dataset.message = "Welcome to VYDEX! Stay tuned for updates.";
+}
+// Fetch latest content from server (silent fallback to default on failure)
 fetch(SERVER_URL + "/api/announcement").then(r => r.json()).then(data => {
     if (data && data.message && announcementBtn) {
         announcementBtn.dataset.title = data.title || "📢 Announcement";
         announcementBtn.dataset.message = data.message;
-        announcementBtn.style.display = "";
     }
 }).catch(() => {});
 
