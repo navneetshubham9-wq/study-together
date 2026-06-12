@@ -908,12 +908,14 @@ document.getElementById("officeDownloadBtn")?.addEventListener("click", () => {
         ext = "csv"; mime = "text/csv"; filename = "VYDEX_Excel";
     }
     if(!content) return;
+    showNotification("Downloading " + filename + "." + ext + "...", "info");
     const blob = new Blob([content], { type: mime }); 
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); 
     a.href = url; 
     a.download = `${filename}.${ext}`; 
     a.click();
+    setTimeout(() => showNotification(filename + "." + ext + " downloaded!", "success"), 500);
 });
 
 // ---- Excel helpers ----
@@ -2562,6 +2564,33 @@ function drawShape(ctx, type, x1, y1, x2, y2, color, size) {
     ctx.restore();
 }
 
+function hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : { r: 0, g: 0, b: 0 };
+}
+
+function floodFill(ctx, startX, startY, fillRgb) {
+    const w = ctx.canvas.width, h = ctx.canvas.height;
+    const imageData = ctx.getImageData(0, 0, w, h);
+    const data = imageData.data;
+    const idx = (startY * w + startX) * 4;
+    const targetR = data[idx], targetG = data[idx + 1], targetB = data[idx + 2], targetA = data[idx + 3];
+    if (targetR === fillRgb.r && targetG === fillRgb.g && targetB === fillRgb.b) return;
+    const visited = new Uint8Array(w * h);
+    const stack = [startX, startY];
+    while (stack.length > 0) {
+        const y = stack.pop(), x = stack.pop();
+        const i = y * w + x;
+        if (x < 0 || x >= w || y < 0 || y >= h || visited[i]) continue;
+        const pi = i * 4;
+        if (Math.abs(data[pi] - targetR) > 5 || Math.abs(data[pi + 1] - targetG) > 5 || Math.abs(data[pi + 2] - targetB) > 5 || Math.abs(data[pi + 3] - targetA) > 5) continue;
+        visited[i] = 1;
+        data[pi] = fillRgb.r; data[pi + 1] = fillRgb.g; data[pi + 2] = fillRgb.b; data[pi + 3] = 255;
+        stack.push(x + 1, y, x - 1, y, x, y + 1, x, y - 1);
+    }
+    ctx.putImageData(imageData, 0, 0);
+}
+
 function getCanvasPoint(e) { 
     const rect = canvas.getBoundingClientRect(); 
     return { x: (e.clientX - rect.left) * (canvas.width / rect.width), y: (e.clientY - rect.top) * (canvas.height / rect.height) }; 
@@ -2607,6 +2636,15 @@ if(canvas) {
             document.getElementById('tool-pen')?.classList.add('active-tool');
             if(ctx) canvasSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height); 
             showNotification("Stamped successfully!", "join"); return;
+        }
+        if(currentTool === 'fill') {
+            if(ctx) {
+                const fillColor = hexToRgb(currentBrushColor);
+                floodFill(ctx, Math.round(pt.x), Math.round(pt.y), fillColor);
+                socket.emit("wb-fill", { room: currentRoom, x: Math.round(pt.x), y: Math.round(pt.y), color: currentBrushColor });
+                wbPagesFg[currentWbPage] = canvas.toDataURL("image/png", 0.5);
+            }
+            return;
         }
         if(currentTool === 'pointer') return; 
         drawing = true; startX = pt.x; startY = pt.y; 
@@ -2936,6 +2974,13 @@ socket.on('drawing', (data) => {
     if(isHost && canvas) wbPagesFg[currentWbPage] = canvas.toDataURL("image/png", 0.5);
 });
 
+socket.on("wb-fill", (data) => {
+    if (ctx && data && data.x !== undefined && data.y !== undefined && data.color) {
+        const fillRgb = hexToRgb(data.color);
+        floodFill(ctx, data.x, data.y, fillRgb);
+    }
+});
+
 socket.on("wb-stamp", (data) => {
     const img = new Image(); 
     img.onload = () => { 
@@ -3158,7 +3203,29 @@ sendMsgBtn?.addEventListener("touchstart", (e) => { e.preventDefault(); sendChat
 chatInput?.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); sendChatMessage(); } });
 socket.on("chat-message", data => { if(data.name === "System" && data.text.includes("left")) return; appendMessage(`${data.name}: ${data.text}`); });
 document.getElementById("uploadBtn")?.addEventListener("click", async () => { const f = fileUpload?.files[0]; if (!f) return; const fd = new FormData(); fd.append("file", f); fd.append("room", currentRoom); fd.append("uploader", usernameInput?.value || "User"); try { await fetch(SERVER_URL + "/upload", { method: "POST", body: fd }); } catch (err) { } });
-function addFileLink(name, url) { const a = document.createElement("a"); a.href = absoluteUrl(url); a.textContent = name; a.target = "_blank"; a.rel = "noopener"; a.style.cursor = "pointer"; if(fileList) fileList.prepend(a); }
+function addFileLink(name, url) {
+    const a = document.createElement("a");
+    a.href = absoluteUrl(url);
+    a.textContent = name;
+    a.style.cursor = "pointer";
+    if(fileList) {
+        a.addEventListener("click", (e) => {
+            e.preventDefault();
+            const fullUrl = absoluteUrl(url);
+            showNotification("Downloading " + name + "...", "info");
+            fetch(fullUrl).then(r => r.blob()).then(blob => {
+                const blobUrl = URL.createObjectURL(blob);
+                const dl = document.createElement("a");
+                dl.href = blobUrl;
+                dl.download = name;
+                dl.click();
+                URL.revokeObjectURL(blobUrl);
+                showNotification(name + " downloaded!", "success");
+            }).catch(() => showNotification("Failed to download " + name, "error"));
+        });
+        fileList.prepend(a);
+    }
+}
 socket.on("file-uploaded", data => { addFileLink(data.filename, data.url); showNotification(`${data.uploader} uploaded a file`, "info"); });
 socket.on("user-joined", info => showNotification(`${info.name || "User"} joined the room!`, "join"));
 
@@ -3535,7 +3602,9 @@ socket.on("room-summary", (data) => {
             addLine("  No files shared.", 10);
         }
 
+        showNotification("Downloading Meeting Summary PDF...", "info");
         doc.save("Meeting_Summary_" + data.roomCode + ".pdf");
+        setTimeout(() => showNotification("Meeting Summary PDF downloaded!", "success"), 500);
         if (endMeetingAfterSummary) {
             endMeetingAfterSummary = false;
             socket.emit("end-meeting", { room: currentRoom });
