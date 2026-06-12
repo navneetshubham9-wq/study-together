@@ -3467,7 +3467,12 @@ socket.on("room-summary", (data) => {
 
         // Participants
         addLine("Participants:", 13, "bold");
-        if (data.db && data.db.joins && data.db.joins.length) {
+        if (data.allUsers && data.allUsers.length) {
+            data.allUsers.forEach(u => {
+                const status = u.active ? "Active" : "Left";
+                addLine(`  ${u.name || u.uid} — ${status}`, 10);
+            });
+        } else if (data.db && data.db.joins && data.db.joins.length) {
             data.db.joins.forEach(j => {
                 const left = j.left_at || "Still in room";
                 addLine(`  ${j.name || j.uid} (IP: ${j.ip || "N/A"}) — Joined: ${j.joined_at}, Left: ${left}`, 10);

@@ -416,7 +416,9 @@ io.on("connection", socket => {
       dbData.room = db.prepare("SELECT code, created_at, host_name, host_ip FROM rooms WHERE code = ?").get(room);
       dbData.joins = db.prepare("SELECT uid, name, ip, joined_at, left_at FROM room_joins WHERE room_code = ? ORDER BY joined_at").all(room);
     } catch (e) { console.error("DB summary error:", e); }
-    socket.emit("room-summary", { roomCode: room, db: dbData, chats, files, agenda: roomAgenda.get(room) || "" });
+    const allUsers = roomAllUsers.get(room);
+    const allUsersArr = allUsers ? Array.from(allUsers.entries()).map(([uid, u]) => ({ uid, name: u.name, active: u.active })) : [];
+    socket.emit("room-summary", { roomCode: room, db: dbData, chats, files, agenda: roomAgenda.get(room) || "", allUsers: allUsersArr });
   });
 
   socket.on("drawing", data => socket.to(data.room).emit("drawing", data));
