@@ -3548,19 +3548,13 @@ socket.on("room-locked", (data) => {
 // END MEETING (HOST ONLY)
 // ==========================================
 const endMeetingBtn = document.getElementById("endMeetingBtn");
-let endMeetingAfterSummary = false;
+
 
 endMeetingBtn?.addEventListener("click", () => {
     if (!currentRoom) return;
     const confirmed = confirm("End meeting for all participants?\n\nThis will disconnect everyone and clear all room data. This action cannot be undone.");
     if (!confirmed) return;
-    const dlSummary = confirm("Do you want to download the meeting summary before ending?");
-    if (dlSummary) {
-        endMeetingAfterSummary = true;
-        socket.emit("get-room-summary", { room: currentRoom });
-    } else {
-        socket.emit("end-meeting", { room: currentRoom });
-    }
+    socket.emit("end-meeting", { room: currentRoom });
 });
 
 socket.on("meeting-ended", () => {
@@ -3587,9 +3581,10 @@ downloadSummaryBtn?.addEventListener("click", () => {
 
 socket.on("room-summary", (data) => {
     if (!data || data.roomCode !== currentRoom) return;
+    if (data.error) { showNotification(data.error, "error"); return; }
 
-    // If agenda panel is open, show agenda data (skip if generating summary or ending meeting)
-    if (agendaPanel?.style.display === "block" && !endMeetingAfterSummary && !isGeneratingSummary) {
+    // If agenda panel is open, show agenda data (skip if generating summary)
+    if (agendaPanel?.style.display === "block" && !isGeneratingSummary) {
         if (agendaInput) agendaInput.value = data.agenda || "";
         if (isHost) {
             if (agendaHostEdit) agendaHostEdit.style.display = "block";
@@ -3711,35 +3706,17 @@ socket.on("room-summary", (data) => {
         console.log("room-summary: generating PDF for room", data.roomCode);
         showNotification("Generating Meeting Summary PDF...", "info");
         var pdfDataUri = doc.output("datauristring");
-        var pdfB64 = pdfDataUri.split(",")[1];
         var pdfFilename = "Meeting_Summary_" + data.roomCode + ".pdf";
 
         addVydexDirectDownload(pdfFilename, pdfDataUri);
-
-        fetch(SERVER_URL + "/api/download", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ filename: pdfFilename, data: pdfB64, room: currentRoom })
-        }).then(function(r) { return r.json(); }).then(function(resp) {
-            if (resp && resp.url && vydexPanel && vydexPanel.style.display === "block") loadVydexDownloads();
-        }).catch(function() {});
 
         if (!/android|iphone|ipad|ipod/i.test(navigator.userAgent)) {
             triggerDownload(pdfDataUri, pdfFilename);
         }
         showNotification("📄 Meeting Summary ready! Open 📁 VYDEX panel and tap Download.", "success");
-
-        if (endMeetingAfterSummary) {
-            endMeetingAfterSummary = false;
-            socket.emit("end-meeting", { room: currentRoom });
-        }
     } catch (e) {
         console.error("PDF generation error:", e);
         showNotification("Failed to generate PDF: " + e.message, "error");
-        if (endMeetingAfterSummary) {
-            endMeetingAfterSummary = false;
-            socket.emit("end-meeting", { room: currentRoom });
-        }
     }
 });
 

@@ -485,6 +485,9 @@ io.on("connection", socket => {
 
   socket.on("get-room-summary", data => {
     const room = data.room;
+    // Only host can generate summary
+    const hostSockId = roomHosts.get(room);
+    if (hostSockId !== socket.id) return socket.emit("room-summary", { error: "Only host can generate summary" });
     const chats = roomChats.get(room) || [];
     const files = roomFiles.get(room) || [];
     let dbData = { room: null, joins: [] };
