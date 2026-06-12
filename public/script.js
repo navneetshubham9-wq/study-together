@@ -32,22 +32,46 @@ var isAndroid = /android/i.test(navigator.userAgent);
 var downloadLabel = isAndroid ? "Download" : "Downloads";
 var isCapacitor = typeof window.Capacitor !== 'undefined' && window.Capacitor.isNative;
 
+// Request permissions at launch (Capacitor)
+if (isCapacitor) {
+    setTimeout(function() {
+        try {
+            var fs = window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem;
+            if (fs) fs.requestPermissions().catch(function(){});
+        } catch(e) {}
+    }, 500);
+}
+
 function saveFileViaCapacitor(filename, base64Data) {
     return new Promise(function(resolve, reject) {
+        function shareFile(uri) {
+            var share = window.Capacitor.Plugins.Share;
+            if (share) {
+                share.share({ title: filename, text: "Save " + filename, files: [uri] })
+                .then(function(){ resolve(); })
+                .catch(function(){ showNotification("Choose Save to Downloads in the share menu.", "info"); resolve(); });
+            } else { resolve(); }
+        }
         try {
-            var fs = window.Capacitor.Plugins.Filesystem;
-            // Request permissions (needed for Documents on Android 10+)
-            fs.requestPermissions().then(function() {
-                return fs.writeFile({
-                    path: filename,
-                    data: base64Data,
-                    directory: "DOCUMENTS"
-                });
-            }).then(function(result) {
-                showNotification("File saved to your device's Documents folder!", "success");
+            var fs = window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem;
+            if (!fs) return reject(new Error("Filesystem plugin not available"));
+            // Documents (public, visible in file manager, uses MediaStore on Android 11+)
+            fs.writeFile({ path: filename, data: base64Data, directory: "DOCUMENTS" })
+            .then(function(result) {
+                showNotification("File saved to your Documents folder!", "success");
                 resolve(result);
-            }).catch(function(err) {
-                reject(err);
+            })
+            .catch(function() {
+                // Fallback: write to Cache, then open Share sheet to let user save to Downloads
+                fs.writeFile({ path: filename, data: base64Data, directory: "CACHE" })
+                .then(function(result2) {
+                    showNotification("Tap Share to save file to your Download folder.", "info");
+                    shareFile(result2.uri);
+                    resolve(result2);
+                })
+                .catch(function(err2) {
+                    reject(new Error("All save attempts failed: " + (err2.message || err2)));
+                });
             });
         } catch(e) {
             reject(e);
@@ -3245,15 +3269,13 @@ function addFileLink(name, url) {
                     reader.onloadend = function() {
                         var b64 = reader.result.split(",")[1];
                         saveFileViaCapacitor(name, b64).catch(function(err) {
-                            showNotification("Failed to save file: " + err.message, "error");
+                            showNotification("Save failed: " + (err.message || err), "error");
                         });
                     };
                     reader.readAsDataURL(blob);
                 }).catch(function() {
                     showNotification("Failed to download file from server.", "error");
                 });
-            } else {
-                showNotification("Saving " + name + " to your " + downloadLabel + " folder...", "info");
             }
         });
         fileList.prepend(a);
@@ -3358,7 +3380,7 @@ function loadVydexDownloads() {
                     reader.onloadend = function() {
                         var b64 = reader.result.split(",")[1];
                         saveFileViaCapacitor(name, b64).catch(function(err) {
-                            showNotification("Failed to save file: " + err.message, "error");
+                            showNotification("Save failed: " + (err.message || err), "error");
                         });
                     };
                     reader.readAsDataURL(blob);
@@ -3755,12 +3777,12 @@ socket.on("room-summary", (data) => {
                     doc.save("Meeting_Summary_" + data.roomCode + ".pdf");
                 }
             }
-        }).catch(function() {
+        }).catch(function(err) {
             if (isCapacitor) {
                 saveFileViaCapacitor("Meeting_Summary_" + data.roomCode + ".pdf", pdfB64)
                 .then(function() {})
                 .catch(function(e) {
-                    doc.save("Meeting_Summary_" + data.roomCode + ".pdf");
+                    showNotification("Save error: " + (e.message || e), "warning");
                 });
             } else {
                 doc.save("Meeting_Summary_" + data.roomCode + ".pdf");
