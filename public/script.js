@@ -36,10 +36,36 @@ var isCapacitor = typeof window.Capacitor !== 'undefined' && window.Capacitor.is
 if (isCapacitor) {
     setTimeout(function() {
         try {
-            var fs = window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem;
-            if (fs) fs.requestPermissions().catch(function(){});
-        } catch(e) {}
-    }, 500);
+            var cap = window.Capacitor;
+            var fs = cap && cap.Plugins && cap.Plugins.Filesystem;
+            if (fs) {
+                // Test write to DATA (always works, no permissions)
+                fs.writeFile({ path: "vydex_test.txt", data: "ok" })
+                .then(function(r) {
+                    fs.deleteFile({ path: "vydex_test.txt", directory: "DATA" }).catch(function(){});
+                    // Now request Documents permissions
+                    fs.requestPermissions().then(function(perm) {
+                        // Try writing to Documents
+                        fs.writeFile({ path: "vydex_test.txt", data: "ok", directory: "DOCUMENTS" })
+                        .then(function(r2) {
+                            showNotification("Capacitor: Documents OK! File at " + (r2.uri || "Documents"), "success");
+                            fs.deleteFile({ path: "vydex_test.txt", directory: "DOCUMENTS" }).catch(function(){});
+                        })
+                        .catch(function(e) {
+                            showNotification("Capacitor: DATA ok, Documents FAILED: " + (e.message || e), "warning");
+                        });
+                    }).catch(function(){});
+                })
+                .catch(function(e) {
+                    showNotification("Capacitor: Filesystem write FAILED: " + (e.message || e), "error");
+                });
+            } else {
+                showNotification("Capacitor: Filesystem plugin NOT found", "error");
+            }
+        } catch(e) {
+            showNotification("Capacitor init error: " + e.message, "error");
+        }
+    }, 2000);
 }
 
 function saveFileViaCapacitor(filename, base64Data) {
