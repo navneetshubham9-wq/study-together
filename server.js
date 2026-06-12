@@ -176,6 +176,16 @@ app.get("/proxy-image", (req, res) => {
   fetchImage(imgUrl);
 });
 
+// ---- Global Announcement (editable server-side, visible on join page) ----
+const ANNOUNCEMENT_FILE = path.join(UPLOAD_DIR, "announcement.json");
+function getAnnouncement() {
+  try {
+    if (fs.existsSync(ANNOUNCEMENT_FILE)) return JSON.parse(fs.readFileSync(ANNOUNCEMENT_FILE, "utf8"));
+  } catch (e) { /* ignore */ }
+  return { title: "📢 Announcement", message: "Welcome to VYDEX! Stay tuned for updates." };
+}
+app.get("/api/announcement", (req, res) => res.json(getAnnouncement()));
+
 app.post("/upload", upload.single("file"), (req, res) => {
   const room = req.body.room || "";
   const filename = req.file.filename;

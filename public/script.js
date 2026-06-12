@@ -2081,6 +2081,47 @@ document.getElementById("aboutBtn")?.addEventListener("click", () => {
 document.getElementById("closeAboutBtn")?.addEventListener("click", () => { if(aboutModal) aboutModal.style.display = "none"; if(aboutOverlay) aboutOverlay.style.display = "none"; });
 aboutOverlay?.addEventListener("click", () => { if(aboutModal) aboutModal.style.display = "none"; if(aboutOverlay) aboutOverlay.style.display = "none"; });
 
+// Global Announcement (server-side message, visible only on join page)
+const announcementBtn = document.getElementById("announcementBtn");
+const announcementModal = document.getElementById("announcement-modal");
+const announcementBody = document.getElementById("announcement-body");
+const announcementTitle = document.getElementById("announcement-title");
+const announcementOverlay = document.getElementById("announcement-overlay");
+
+fetch(SERVER_URL + "/api/announcement").then(r => r.json()).then(data => {
+    if (data && data.message && announcementBtn) {
+        announcementBtn.dataset.title = data.title || "📢 Announcement";
+        announcementBtn.dataset.message = data.message;
+        announcementBtn.style.display = "";
+    }
+}).catch(() => {});
+
+function showAnnouncementModal() {
+    if (!announcementModal || !announcementBody || !announcementBtn) return;
+    announcementTitle.textContent = announcementBtn.dataset.title || "📢 Announcement";
+    announcementBody.textContent = announcementBtn.dataset.message || "";
+    announcementModal.style.display = "block";
+    if (announcementOverlay) announcementOverlay.style.display = "block";
+}
+
+if (announcementBtn) announcementBtn.addEventListener("click", showAnnouncementModal);
+document.getElementById("closeAnnouncementBtn")?.addEventListener("click", () => {
+    if(announcementModal) announcementModal.style.display = "none";
+    if(announcementOverlay) announcementOverlay.style.display = "none";
+});
+if (announcementOverlay) announcementOverlay.addEventListener("click", () => {
+    if(announcementModal) announcementModal.style.display = "none";
+    if(announcementOverlay) announcementOverlay.style.display = "none";
+});
+
+// Hide announcement button when user joins (join section is hidden)
+const joinObserver = new MutationObserver(() => {
+    if (announcementBtn && joinSection) {
+        announcementBtn.style.display = joinSection.classList.contains("form-out") ? "none" : "";
+    }
+});
+if (joinSection) joinObserver.observe(joinSection, { attributes: true, attributeFilter: ["class"] });
+
 document.getElementById("broadcastMathBtn")?.addEventListener("click", () => {
     const eq = mathInput?.value.trim(); 
     if(!eq) return;

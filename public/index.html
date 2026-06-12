@@ -24,6 +24,7 @@
 
   <button id="hamburgerBtn" class="hamburger-btn" title="Open Controls">☰ Menu</button>
   <button id="aboutBtn" class="about-btn" title="About VYDEX">ℹ️ About</button>
+  <button id="announcementBtn" class="about-btn announcement-btn" title="View Announcement" style="display:none; bottom: 70px; left: 20px; right: auto;">📢</button>
 
   <header>
     <div style="display: flex; justify-content: center; align-items: center; gap: 20px;">
@@ -615,6 +616,16 @@
   </div>
   <div id="about-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 999998;"></div>
 
+  <!-- ANNOUNCEMENT MODAL -->
+  <div id="announcement-modal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 999999; width: 420px; max-width: 90vw; max-height: 70vh; overflow-y: auto; background: rgba(20,30,48,0.98); border: 2px solid #f39c12; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.9); padding: 0;">
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-bottom: 1px solid rgba(255,255,255,0.1); position: sticky; top: 0; background: rgba(20,30,48,0.98); z-index: 1; border-radius: 14px 14px 0 0;">
+      <h3 id="announcement-title" style="margin: 0; color: #f39c12; font-size: 1rem;">📢 Announcement</h3>
+      <span id="closeAnnouncementBtn" style="cursor:pointer; color:var(--danger); font-size:20px; padding:0 5px; line-height:1; flex-shrink:0;" title="Close">✖</span>
+    </div>
+    <div id="announcement-body" style="padding: 18px; font-size: 14px; line-height: 1.7; color: #e0e0e0; white-space: pre-wrap; word-wrap: break-word;"></div>
+  </div>
+  <div id="announcement-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 999998;"></div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -628,17 +639,47 @@
 
   <!-- Service Worker Registration for PWA -->
   <script>
+    // Delete all caches when app version changes (ensures clean state on update)
+    var APP_VERSION = '20260612.1';
+    var lastVersion = localStorage.getItem('vydex_app_version');
+    if (lastVersion && lastVersion !== APP_VERSION) {
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'clear-all-caches' });
+      }
+      // Also clear manually in case SW isn't active
+      if ('caches' in window) {
+        caches.keys().then(function(keys) {
+          keys.forEach(function(k) { caches.delete(k); });
+        });
+      }
+    }
+    localStorage.setItem('vydex_app_version', APP_VERSION);
+
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
+      window.addEventListener('load', function() {
         navigator.serviceWorker.register('/service-worker.js')
-          .then(registration => {
-            console.log('ServiceWorker registration successful');
+          .then(function(registration) {
+            // New SW waiting? Tell it to take over immediately
+            if (registration.waiting) {
+              registration.waiting.postMessage({ type: 'clear-all-caches' });
+              registration.waiting.postMessage({ type: 'skip-waiting' });
+            }
+            // Detect new SW during registration lifecycle
+            registration.addEventListener('updatefound', function() {
+              var newSW = registration.installing;
+              newSW.addEventListener('statechange', function() {
+                if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+                  newSW.postMessage({ type: 'clear-all-caches' });
+                  newSW.postMessage({ type: 'skip-waiting' });
+                }
+              });
+            });
           })
-          .catch(err => {
+          .catch(function(err) {
             console.log('ServiceWorker registration failed: ', err);
           });
       });
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
+      navigator.serviceWorker.addEventListener('controllerchange', function() {
         window.location.reload();
       });
     }
