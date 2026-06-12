@@ -3591,42 +3591,33 @@ socket.on("room-summary", (data) => {
         }
 
         showNotification("Downloading Meeting Summary PDF to your Downloads folder...", "info");
-        const pdfBlob = doc.output("blob");
-        const reader = new FileReader();
-        reader.onload = () => {
-            const base64 = reader.result.split(",")[1];
-            fetch(SERVER_URL + "/api/download", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ filename: "Meeting_Summary_" + data.roomCode + ".pdf", data: base64 })
-            }).then(r => r.json()).then(resp => {
-                if (resp.url) {
-                    const dl = document.createElement("a");
-                    dl.href = SERVER_URL + resp.url;
-                    dl.download = "Meeting_Summary_" + data.roomCode + ".pdf";
-                    dl.click();
-                    showNotification("Meeting Summary PDF saved to your Downloads folder!", "success");
-                } else {
-                    doc.save("Meeting_Summary_" + data.roomCode + ".pdf");
-                }
-            }).catch(() => {
-                doc.save("Meeting_Summary_" + data.roomCode + ".pdf");
-                showNotification("Meeting Summary PDF saved to your Downloads folder!", "success");
-            }).finally(() => {
-                if (endMeetingAfterSummary) {
-                    endMeetingAfterSummary = false;
-                    socket.emit("end-meeting", { room: currentRoom });
-                }
-            });
-        };
-        reader.readAsDataURL(pdfBlob);
+        // Primary: use doc.save() which works in all browsers
+        doc.save("Meeting_Summary_" + data.roomCode + ".pdf");
+        showNotification("Meeting Summary PDF saved to your Downloads folder!", "success");
+        // Secondary (non-blocking, best-effort): also save via server for WebView compatibility
+        try {
+            const pdfBlob = doc.output("blob");
+            const reader = new FileReader();
+            reader.onload = function() {
+                try {
+                    const b64 = reader.result.split(",")[1];
+                    fetch(SERVER_URL + "/api/download", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ filename: "Meeting_Summary_" + data.roomCode + ".pdf", data: b64 })
+                    }).catch(function(){});
+                } catch(e) {}
+            };
+            reader.readAsDataURL(pdfBlob);
+        } catch(e) {}
     } catch (e) {
         console.error("PDF generation error:", e);
         showNotification("Failed to generate PDF: " + e.message, "error");
-        if (endMeetingAfterSummary) {
-            endMeetingAfterSummary = false;
-            socket.emit("end-meeting", { room: currentRoom });
-        }
+    }
+    // Always end meeting after summary attempt (regardless of PDF success)
+    if (endMeetingAfterSummary) {
+        endMeetingAfterSummary = false;
+        socket.emit("end-meeting", { room: currentRoom });
     }
 });
 
