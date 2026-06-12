@@ -3551,14 +3551,8 @@ endMeetingBtn?.addEventListener("click", () => {
     if (!confirmed) return;
     const dlSummary = confirm("Do you want to download the meeting summary before ending?");
     if (dlSummary) {
-        // Server-side PDF download (reliable on all devices)
-        var pdfUrl = SERVER_URL + "/api/summary-pdf/" + encodeURIComponent(currentRoom);
-        triggerDownload(pdfUrl, "Meeting_Summary_" + currentRoom + ".pdf");
-        showNotification("Downloading Meeting Summary...", "info");
-        // Wait a bit for download to start, then end the meeting
-        setTimeout(function() {
-            socket.emit("end-meeting", { room: currentRoom });
-        }, 3000);
+        endMeetingAfterSummary = true;
+        socket.emit("get-room-summary", { room: currentRoom });
     } else {
         socket.emit("end-meeting", { room: currentRoom });
     }
@@ -3582,16 +3576,15 @@ const downloadSummaryBtn = document.getElementById("downloadSummaryBtn");
 var isGeneratingSummary = false;
 downloadSummaryBtn?.addEventListener("click", () => {
     if (!currentRoom) return;
-    // Direct server-side PDF download (bypasses all client-side jsPDF, socket events, and CORS)
-    showNotification("Generating and downloading Meeting Summary PDF...", "info");
-    triggerDownload(SERVER_URL + "/api/summary-pdf/" + encodeURIComponent(currentRoom), "Meeting_Summary_" + currentRoom + ".pdf");
+    isGeneratingSummary = true;
+    socket.emit("get-room-summary", { room: currentRoom });
 });
 
 socket.on("room-summary", (data) => {
     if (!data || data.roomCode !== currentRoom) return;
 
-    // If agenda panel is open, show agenda data (Summary & End Meeting now bypass this)
-    if (agendaPanel?.style.display === "block") {
+    // If agenda panel is open, show agenda data (skip if generating summary or ending meeting)
+    if (agendaPanel?.style.display === "block" && !endMeetingAfterSummary && !isGeneratingSummary) {
         if (agendaInput) agendaInput.value = data.agenda || "";
         if (isHost) {
             if (agendaHostEdit) agendaHostEdit.style.display = "block";
@@ -3599,6 +3592,149 @@ socket.on("room-summary", (data) => {
             if (agendaEmpty) agendaEmpty.style.display = "none";
         }
         return;
+    }
+    isGeneratingSummary = false;
+
+    // Generate PDF
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF("p", "mm", "a4");
+        const pageW = 190;
+        let y = 15;
+
+        function addLine(text, size, style) {
+            if (y > 275) { doc.addPage(); y = 15; }
+            doc.setFontSize(size || 11);
+            if (style) doc.setFont(undefined, style);
+            const lines = doc.splitTextToSize(text, pageW);
+            lines.forEach(line => {
+                if (y > 275) { doc.addPage(); y = 15; }
+                doc.text(line, 10, y);
+                y += (size || 11) * 0.4;
+            });
+            if (style) doc.setFont(undefined, "normal");
+        }
+
+        // Title
+        doc.setFontSize(18);
+        doc.setFont(undefined, "bold");
+        doc.text("Meeting Summary", 10, y);
+        y += 8;
+        doc.setFontSize(11);
+        doc.setFont(undefined, "normal");
+        doc.text("Room: " + data.roomCode, 10, y); y += 6;
+        if (data.db && data.db.room) {
+            doc.text("Created: " + data.db.room.created_at, 10, y); y += 6;
+            doc.text("Host IP: " + data.db.room.host_ip, 10, y); y += 6;
+        }
+        y += 4;
+
+        // Agenda
+        if (data.agenda) {
+            addLine("Agenda:", 13, "bold");
+            addLine(data.agenda, 11);
+            y += 4;
+        }
+
+        // Participants
+        addLine("Participants:", 13, "bold");
+        if (data.allUsers && data.allUsers.length) {
+            data.allUsers.forEach(u => {
+                const status = u.active ? "Active" : "Left";
+                const ip = u.ip || "N/A";
+                addLine(`  ${u.name || u.uid} (IP: ${ip}) — ${status}`, 10);
+            });
+        } else if (data.db && data.db.joins && data.db.joins.length) {
+            data.db.joins.forEach(j => {
+                const left = j.left_at || "Still in room";
+                addLine(`  ${j.name || j.uid} (IP: ${j.ip || "N/A"}) — Joined: ${j.joined_at}, Left: ${left}`, 10);
+            });
+        } else {
+            addLine("  No participant data recorded.", 10);
+        }
+        y += 4;
+
+        // Chat Messages (filter out system join/leave events)
+        addLine("Chat Messages:", 13, "bold");
+        const userChats = (data.chats || []).filter(c => c.name !== "System");
+        if (userChats.length) {
+            userChats.forEach(c => {
+                const time = c.time ? new Date(c.time).toLocaleTimeString() : "";
+                addLine(`  [${time}] ${c.name}: ${c.text}`, 10);
+            });
+        } else {
+            addLine("  No messages sent.", 10);
+        }
+        y += 4;
+
+        // Participant Activity (join / leave events)
+        addLine("Participant Activity:", 13, "bold");
+        const sysEvents = (data.chats || []).filter(c => c.name === "System");
+        const dbJoins = (data.db && data.db.joins) || [];
+        const joinEvents = dbJoins.map(j => ({
+            time: j.joined_at,
+            text: `${j.name || j.uid} joined the room`
+        }));
+        const leaveEvents = sysEvents.map(c => ({
+            time: c.time,
+            text: c.text
+        }));
+        const allEvents = [...joinEvents, ...leaveEvents].sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+        if (allEvents.length) {
+            allEvents.forEach(e => {
+                const t = e.time ? new Date(e.time).toLocaleString() : "";
+                addLine(`  [${t}] ${e.text}`, 10);
+            });
+        } else {
+            addLine("  No activity recorded.", 10);
+        }
+        y += 4;
+
+        // Shared Files
+        addLine("Shared Files:", 13, "bold");
+        if (data.files && data.files.length) {
+            data.files.forEach(f => {
+                const parts = f.filename.split(".");
+                const ext = parts.length > 1 ? parts.pop() : "";
+                const name = parts.join(".");
+                addLine(`  ${name}.${ext} (shared by ${f.uploader})`, 10);
+            });
+        } else {
+            addLine("  No files shared.", 10);
+        }
+
+        console.log("room-summary: generating PDF for room", data.roomCode);
+        showNotification("Generating Meeting Summary PDF...", "info");
+        var pdfDataUri = doc.output("datauristring");
+        var pdfB64 = pdfDataUri.split(",")[1];
+        var pdfFilename = "Meeting_Summary_" + data.roomCode + ".pdf";
+
+        addVydexDirectDownload(pdfFilename, pdfDataUri);
+
+        fetch(SERVER_URL + "/api/download", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ filename: pdfFilename, data: pdfB64, room: currentRoom })
+        }).then(function(r) { return r.json(); }).then(function(resp) {
+            if (resp && resp.url && vydexPanel && vydexPanel.style.display === "block") loadVydexDownloads();
+        }).catch(function() {});
+
+        if (!/android|iphone|ipad|ipod/i.test(navigator.userAgent)) {
+            triggerDownload(pdfDataUri, pdfFilename);
+        }
+        showNotification("📄 Meeting Summary ready! Open 📁 VYDEX panel and tap Download.", "success");
+
+        if (endMeetingAfterSummary) {
+            endMeetingAfterSummary = false;
+            socket.emit("end-meeting", { room: currentRoom });
+        }
+    } catch (e) {
+        console.error("PDF generation error:", e);
+        showNotification("Failed to generate PDF: " + e.message, "error");
+        if (endMeetingAfterSummary) {
+            endMeetingAfterSummary = false;
+            socket.emit("end-meeting", { room: currentRoom });
+        }
     }
 });
 

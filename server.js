@@ -7,7 +7,6 @@ const { Server } = require("socket.io");
 const fs = require("fs");
 const Database = require("better-sqlite3");
 const crypto = require("crypto");
-const { jsPDF } = require("jspdf");
 
 const app = express();
 // CORS for Express HTTP routes (needed by Capacitor WebView cross-origin fetch)
@@ -172,113 +171,7 @@ app.use("/vydex", (req, res, next) => {
   express.static(VYDEX_DIR)(req, res, next);
 });
 
-// Server-side PDF summary generation (reliable on all devices including Xiaomi Pad 6)
-app.get("/api/summary-pdf/:room", (req, res) => {
-  const room = req.params.room;
-  const chats = roomChats.get(room) || [];
-  const files = roomFiles.get(room) || [];
-  let dbData = { room: null, joins: [] };
-  try {
-    dbData.room = db.prepare("SELECT code, created_at, host_name, host_ip FROM rooms WHERE code = ?").get(room);
-    dbData.joins = db.prepare("SELECT uid, name, ip, joined_at, left_at FROM room_joins WHERE room_code = ? ORDER BY joined_at").all(room);
-  } catch (e) { console.error("DB summary error:", e); }
-  const allUsers = roomAllUsers.get(room);
-  const allUsersArr = allUsers ? Array.from(allUsers.entries()).map(([uid, u]) => ({ uid, name: u.name, active: u.active, ip: u.ip })) : [];
-  const agenda = roomAgenda.get(room) || "";
 
-  try {
-    const doc = new jsPDF("p", "mm", "a4");
-    const pageW = 190;
-    let y = 15;
-
-    function addLine(text, size, style) {
-      if (y > 275) { doc.addPage(); y = 15; }
-      doc.setFontSize(size || 11);
-      if (style) doc.setFont(undefined, style);
-      const lines = doc.splitTextToSize(text, pageW);
-      lines.forEach(line => {
-        if (y > 275) { doc.addPage(); y = 15; }
-        doc.text(line, 10, y);
-        y += (size || 11) * 0.4;
-      });
-      if (style) doc.setFont(undefined, "normal");
-    }
-
-    doc.setFontSize(18);
-    doc.setFont(undefined, "bold");
-    doc.text("Meeting Summary", 10, y);
-    y += 8;
-    doc.setFontSize(11);
-    doc.setFont(undefined, "normal");
-    doc.text("Room: " + room, 10, y); y += 6;
-    if (dbData.room) {
-      doc.text("Created: " + dbData.room.created_at, 10, y); y += 6;
-      doc.text("Host IP: " + dbData.room.host_ip, 10, y); y += 6;
-    }
-    y += 4;
-
-    if (agenda) { addLine("Agenda:", 13, "bold"); addLine(agenda, 11); y += 4; }
-
-    addLine("Participants:", 13, "bold");
-    if (allUsersArr.length) {
-      allUsersArr.forEach(u => {
-        addLine(`  ${u.name || u.uid} (IP: ${u.ip || "N/A"}) — ${u.active ? "Active" : "Left"}`, 10);
-      });
-    } else if (dbData.joins.length) {
-      dbData.joins.forEach(j => {
-        addLine(`  ${j.name || j.uid} (IP: ${j.ip || "N/A"}) — Joined: ${j.joined_at}, Left: ${j.left_at || "Still in room"}`, 10);
-      });
-    } else {
-      addLine("  No participant data recorded.", 10);
-    }
-    y += 4;
-
-    addLine("Chat Messages:", 13, "bold");
-    const userChats = chats.filter(c => c.name !== "System");
-    if (userChats.length) {
-      userChats.forEach(c => {
-        const time = c.time ? new Date(c.time).toLocaleTimeString() : "";
-        addLine(`  [${time}] ${c.name}: ${c.text}`, 10);
-      });
-    } else {
-      addLine("  No messages sent.", 10);
-    }
-    y += 4;
-
-    addLine("Participant Activity:", 13, "bold");
-    const sysEvents = chats.filter(c => c.name === "System");
-    const joinEvents = dbData.joins.map(j => ({ time: j.joined_at, text: `${j.name || j.uid} joined the room` }));
-    const leaveEvents = sysEvents.map(c => ({ time: c.time, text: c.text }));
-    const allEvents = [...joinEvents, ...leaveEvents].sort((a, b) => (a.time || "").localeCompare(b.time || ""));
-    if (allEvents.length) {
-      allEvents.forEach(e => {
-        const t = e.time ? new Date(e.time).toLocaleString() : "";
-        addLine(`  [${t}] ${e.text}`, 10);
-      });
-    } else {
-      addLine("  No activity recorded.", 10);
-    }
-    y += 4;
-
-    addLine("Shared Files:", 13, "bold");
-    if (files.length) {
-      files.forEach(f => {
-        addLine(`  ${f.filename} (shared by ${f.uploader})`, 10);
-      });
-    } else {
-      addLine("  No files shared.", 10);
-    }
-
-    const pdfBuffer = Buffer.from(doc.output("arraybuffer"));
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="Meeting_Summary_${room}.pdf"`);
-    res.setHeader("Content-Length", pdfBuffer.length);
-    res.send(pdfBuffer);
-  } catch (e) {
-    console.error("Server PDF generation error:", e);
-    res.status(500).json({ error: "Failed to generate PDF" });
-  }
-});
 
 const uidToSocket = new Map();
 const roomHosts = new Map();
