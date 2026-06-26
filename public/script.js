@@ -3764,7 +3764,7 @@ function priceRow(label, data) {
 function fetchPrices(type, labels, container, timeEl) {
   if (!container) return;
   container.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.4);padding:20px;">Loading...</div>';
-  var url = (window.SERVER_URL || "") + "/api/market-prices?type=" + type;
+  var url = SERVER_URL + "/api/market-prices?type=" + type;
   fetch(url).then(function(r) { return r.json(); }).then(function(data) {
     if (data.error) { container.innerHTML = '<div style="text-align:center;color:#e74c3c;padding:20px;">' + data.error + '</div>'; return; }
     var html = "";
