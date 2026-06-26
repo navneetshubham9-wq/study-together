@@ -2,6 +2,13 @@ const express = require("express");
 const http = require("http");
 const https = require("https"); 
 const path = require("path");
+
+const noCache = (req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  next();
+};
 const multer = require("multer");
 const { Server } = require("socket.io");
 const fs = require("fs");
@@ -118,7 +125,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-app.use(express.static(path.join(__dirname, "public")));
+app.use(noCache, express.static(path.join(__dirname, "public")));
 app.use("/uploads", (req, res, next) => {
   const filePath = path.join(UPLOAD_DIR, req.path);
   if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
@@ -651,36 +658,55 @@ app.get("/api/market-prices", async (req, res) => {
           results.silver.inrPrice10g = (results.silver.price / TROY_OZ_TO_GRAM) * 10 * rate;
           results.silver.currency = "INR";
         }
-        // State-wise gold price breakdown (24K per 10g with 3% GST + local market premium)
+        // State-wise gold price breakdown (24K per 10g)
+        // Central: 15% import duty (10% BCD + 5% AIDC) | State: 3% GST (1.5% CGST + 1.5% SGST) + local premium
         if (results.gold && results.gold.inrPrice10g) {
           var baseInr = results.gold.inrPrice10g;
-          var goldPrevInr = results.gold.prevClose ? (results.gold.prevClose / TROY_OZ_TO_GRAM) * 10 * rate : baseInr;
+          var dutyRate = 0.15;
+          var gstRate = 0.03;
+          var landedCost = baseInr * (1 + dutyRate);
+          var prevBaseInr = results.gold.prevClose ? (results.gold.prevClose / TROY_OZ_TO_GRAM) * 10 * rate : baseInr;
+          var prevLanded = prevBaseInr * (1 + dutyRate);
           var GOLD_STATES = {
-            "Maharashtra (Mumbai)": { premium: 0 },
-            "Delhi": { premium: 50 },
-            "Gujarat (Ahmedabad)": { premium: -30 },
-            "Rajasthan (Jaipur)": { premium: 40 },
-            "Uttar Pradesh (Lucknow)": { premium: 80 },
-            "Punjab (Chandigarh)": { premium: 60 },
-            "Haryana": { premium: 50 },
-            "West Bengal (Kolkata)": { premium: 70 },
-            "Bihar (Patna)": { premium: 120 },
-            "Assam (Guwahati)": { premium: 150 },
-            "Madhya Pradesh (Bhopal)": { premium: 60 },
-            "Odisha": { premium: 100 },
-            "Kerala": { premium: 150 },
-            "Tamil Nadu (Chennai)": { premium: 180 },
-            "Karnataka (Bengaluru)": { premium: 100 },
-            "Andhra Pradesh": { premium: 130 },
-            "Telangana (Hyderabad)": { premium: 90 }
+            "Maharashtra (Mumbai)": { premium: 3500 },
+            "Delhi": { premium: 3800 },
+            "Gujarat (Ahmedabad)": { premium: 3000 },
+            "Rajasthan (Jaipur)": { premium: 4000 },
+            "Uttar Pradesh (Lucknow)": { premium: 4500 },
+            "Punjab (Chandigarh)": { premium: 4200 },
+            "Haryana": { premium: 4000 },
+            "West Bengal (Kolkata)": { premium: 4800 },
+            "Bihar (Patna)": { premium: 5500 },
+            "Assam (Guwahati)": { premium: 6000 },
+            "Madhya Pradesh (Bhopal)": { premium: 4500 },
+            "Odisha": { premium: 5200 },
+            "Kerala": { premium: 6500 },
+            "Tamil Nadu (Chennai)": { premium: 7000 },
+            "Karnataka (Bengaluru)": { premium: 5000 },
+            "Andhra Pradesh": { premium: 5800 },
+            "Telangana (Hyderabad)": { premium: 4800 }
           };
           var statesArr = [];
           for (var s in GOLD_STATES) {
-            var beforeGst = baseInr + GOLD_STATES[s].premium;
-            var withGst = Math.round(beforeGst * 1.03);
-            var prevBeforeGst = goldPrevInr + GOLD_STATES[s].premium;
-            var prevWithGst = Math.round(prevBeforeGst * 1.03);
-            statesArr.push({ state: s, price: withGst, change: withGst - prevWithGst });
+            var statePrem = GOLD_STATES[s].premium;
+            var beforeGst = landedCost + statePrem;
+            var finalPrice = Math.round(beforeGst * (1 + gstRate));
+            var prevBeforeGst = prevLanded + statePrem;
+            var prevFinal = Math.round(prevBeforeGst * (1 + gstRate));
+            var dutyAmt = Math.round(baseInr * dutyRate);
+            var gstAmt = Math.round(beforeGst * gstRate);
+            statesArr.push({
+              state: s,
+              price: finalPrice,
+              change: finalPrice - prevFinal,
+              baseIntl: Math.round(baseInr),
+              importDuty: dutyAmt,
+              landedCost: Math.round(landedCost),
+              statePremium: statePrem,
+              gst: gstAmt,
+              cgst: Math.round(gstAmt / 2),
+              sgst: Math.round(gstAmt / 2)
+            });
           }
           results.gold.indiaStates = statesArr;
         }
