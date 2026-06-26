@@ -605,56 +605,84 @@ io.on("connection", socket => {
 // CHESS GAME HANDLERS
 // ==========================================
 io.on("connection", (socket) => {
-socket.on("chess-start", (data) => {
-  const room = data.room;
-  const username = data.username;
-  const playerSocketId = socket.id;
 
+socket.on("chess-enable", (data) => {
+  const room = data.room;
+  const hostSockId = roomHosts.get(room);
+  if (hostSockId !== socket.id) return socket.emit("chess-error", { message: "Only host can enable chess" });
   let gameState = chessGames.get(room);
   if (!gameState) {
-    gameState = { game: new Chess(), players: new Map(), spectators: new Set(), challenges: [] };
+    gameState = { game: new Chess(), players: new Map(), spectators: new Set(), enabled: true };
+    chessGames.set(room, gameState);
+  } else {
+    gameState.enabled = true;
+  }
+  io.to(room).emit("chess-enabled", { enabled: true });
+});
+
+socket.on("chess-disable", (data) => {
+  const room = data.room;
+  const hostSockId = roomHosts.get(room);
+  if (hostSockId !== socket.id) return;
+  chessGames.delete(room);
+  io.to(room).emit("chess-enabled", { enabled: false });
+});
+
+socket.on("chess-assign-player", (data) => {
+  const room = data.room;
+  const hostSockId = roomHosts.get(room);
+  if (hostSockId !== socket.id) return socket.emit("chess-error", { message: "Only host can assign players" });
+  const targetUid = data.targetUid;
+  const color = data.color;
+  if (color !== "w" && color !== "b") return;
+  const targetSocketId = uidToSocket.get(targetUid);
+  if (!targetSocketId) return socket.emit("chess-error", { message: "User not found" });
+  const targetUser = socketUsers.get(targetSocketId);
+  if (!targetUser) return socket.emit("chess-error", { message: "User not in room" });
+  let gameState = chessGames.get(room);
+  if (!gameState) {
+    gameState = { game: new Chess(), players: new Map(), spectators: new Set(), enabled: true };
     chessGames.set(room, gameState);
   }
-
-  // If a game is already in progress, reject
-  if (gameState.players.size >= 2) {
-    return socket.emit("chess-error", { message: "A game is already in progress" });
+  // Remove this user from any existing assignment
+  for (const [c, info] of gameState.players) {
+    if (info.uid === targetUid) { gameState.players.delete(c); io.to(room).emit("chess-player-unassigned", { color: c, username: info.username }); break; }
   }
-
-  // Join as white if no players, black if one player
-  let color = null;
-  if (!gameState.players.has("w")) {
-    color = "w";
-  } else if (!gameState.players.has("b")) {
-    color = "b";
-  } else {
-    // Both spots taken, auto-spectate
-    gameState.spectators.add(playerSocketId);
-    return socket.emit("chess-spectator", { fen: gameState.game.fen(), turn: gameState.game.turn() });
+  // If color already taken, unassign that player
+  if (gameState.players.has(color)) {
+    const oldInfo = gameState.players.get(color);
+    io.to(room).emit("chess-player-unassigned", { color, username: oldInfo.username });
+    gameState.players.delete(color);
   }
-
-  gameState.players.set(color, { socketId: playerSocketId, username: username || "Player" });
-
-  // Tell this player their color
-  socket.emit("chess-your-color", { color: color });
-
-  // Notify everyone in the room about the chess join
-  io.to(room).emit("chess-player-joined", {
-    color: color,
-    username: username || "Player",
-    playerCount: gameState.players.size,
-    fen: gameState.game.fen(),
-    turn: gameState.game.turn()
-  });
-
+  gameState.players.set(color, { socketId: targetSocketId, username: targetUser.name, uid: targetUid });
+  io.to(room).emit("chess-player-assigned", { color, username: targetUser.name, uid: targetUid, playerCount: gameState.players.size });
+  io.to(targetSocketId).emit("chess-your-color", { color });
   if (gameState.players.size === 2) {
-    // Game starts
+    gameState.game = new Chess();
     io.to(room).emit("chess-game-start", {
-      fen: gameState.game.fen(),
-      turn: gameState.game.turn(),
-      white: gameState.players.get("w").username,
-      black: gameState.players.get("b").username
+      fen: gameState.game.fen(), turn: gameState.game.turn(),
+      white: gameState.players.get("w").username, black: gameState.players.get("b").username
     });
+  }
+});
+
+socket.on("chess-unassign-player", (data) => {
+  const room = data.room;
+  const hostSockId = roomHosts.get(room);
+  if (hostSockId !== socket.id) return;
+  const targetUid = data.targetUid;
+  const gameState = chessGames.get(room);
+  if (!gameState) return;
+  for (const [color, info] of gameState.players) {
+    if (info.uid === targetUid) {
+      gameState.players.delete(color);
+      io.to(room).emit("chess-player-unassigned", { color, username: info.username });
+      if (gameState.game && !gameState.game.isGameOver()) {
+        io.to(room).emit("chess-game-over", { result: "Game ended — player unassigned", winner: null, fen: gameState.game.fen() });
+      }
+      gameState.game = new Chess();
+      break;
+    }
   }
 });
 
@@ -662,43 +690,23 @@ socket.on("chess-move", (data) => {
   const room = data.room;
   const gameState = chessGames.get(room);
   if (!gameState) return socket.emit("chess-error", { message: "No chess game in this room" });
-
-  // Verify this socket is one of the players
   let playerColor = null;
   for (const [color, info] of gameState.players) {
     if (info.socketId === socket.id) { playerColor = color; break; }
   }
   if (!playerColor) return socket.emit("chess-error", { message: "You are not a player in this game" });
-
-  // Verify it's their turn (w="w", b="b")
-  const turnMap = { w: "w", b: "b" };
-  if (turnMap[playerColor] !== gameState.game.turn()) {
-    return socket.emit("chess-error", { message: "Not your turn" });
-  }
-
+  if (playerColor !== gameState.game.turn()) return socket.emit("chess-error", { message: "Not your turn" });
   try {
     const move = gameState.game.move(data.move);
     if (!move) return socket.emit("chess-error", { message: "Invalid move" });
-
-    // Broadcast the move to everyone in the room
     io.to(room).emit("chess-move-made", {
-      fen: gameState.game.fen(),
-      san: move.san,
-      from: move.from,
-      to: move.to,
-      turn: gameState.game.turn(),
-      inCheck: gameState.game.isCheck(),
-      inCheckmate: gameState.game.isCheckmate(),
-      inStalemate: gameState.game.isStalemate(),
-      inDraw: gameState.game.isDraw(),
-      isGameOver: gameState.game.isGameOver()
+      fen: gameState.game.fen(), san: move.san, from: move.from, to: move.to,
+      turn: gameState.game.turn(), inCheck: gameState.game.isCheck(),
+      inCheckmate: gameState.game.isCheckmate(), inStalemate: gameState.game.isStalemate(),
+      inDraw: gameState.game.isDraw(), isGameOver: gameState.game.isGameOver()
     });
-
-    // If game over, clean up after a delay
     if (gameState.game.isGameOver()) {
-      setTimeout(() => {
-        chessGames.delete(room);
-      }, 60000); // Keep for 1 minute for spectators to see
+      setTimeout(() => { chessGames.delete(room); }, 60000);
     }
   } catch (e) {
     socket.emit("chess-error", { message: "Invalid move: " + e.message });
@@ -709,19 +717,15 @@ socket.on("chess-resign", (data) => {
   const room = data.room;
   const gameState = chessGames.get(room);
   if (!gameState) return;
-
   let playerColor = null;
   let username = "";
   for (const [color, info] of gameState.players) {
     if (info.socketId === socket.id) { playerColor = color; username = info.username; break; }
   }
   if (!playerColor) return;
-
   io.to(room).emit("chess-game-over", {
     result: (playerColor === "w" ? "Black" : "White") + " wins by resignation",
-    winner: playerColor === "w" ? "b" : "w",
-    fen: gameState.game.fen(),
-    resignedBy: username
+    winner: playerColor === "w" ? "b" : "w", fen: gameState.game.fen(), resignedBy: username
   });
   setTimeout(() => chessGames.delete(room), 60000);
 });
@@ -730,40 +734,24 @@ socket.on("chess-offer-draw", (data) => {
   const room = data.room;
   const gameState = chessGames.get(room);
   if (!gameState) return;
-
   let playerColor = null;
   for (const [color, info] of gameState.players) {
     if (info.socketId === socket.id) { playerColor = color; break; }
   }
   if (!playerColor) return;
-
-  // Notify the other player
   for (const [color, info] of gameState.players) {
-    if (info.socketId !== socket.id) {
-      io.to(info.socketId).emit("chess-draw-offered", { byColor: playerColor });
-    }
+    if (info.socketId !== socket.id) { io.to(info.socketId).emit("chess-draw-offered", { byColor: playerColor }); }
   }
 });
 
 socket.on("chess-draw-response", (data) => {
-  const room = data.room;
-  const gameState = chessGames.get(room);
-  if (!gameState) return;
-
+  const room = data.room; const gs = chessGames.get(room);
+  if (!gs) return;
   if (data.accept) {
-    io.to(room).emit("chess-game-over", {
-      result: "Draw by agreement",
-      winner: null,
-      fen: gameState.game.fen()
-    });
+    io.to(room).emit("chess-game-over", { result: "Draw by agreement", winner: null, fen: gs.game.fen() });
     setTimeout(() => chessGames.delete(room), 60000);
   } else {
-    // Notify the offering player that draw was declined
-    for (const [color, info] of gameState.players) {
-      if (info.socketId !== socket.id) {
-        io.to(info.socketId).emit("chess-draw-declined", {});
-      }
-    }
+    for (const [c, info] of gs.players) { if (info.socketId !== socket.id) { io.to(info.socketId).emit("chess-draw-declined", {}); } }
   }
 });
 
@@ -771,61 +759,30 @@ socket.on("chess-spectate", (data) => {
   const room = data.room;
   const gameState = chessGames.get(room);
   if (!gameState) return socket.emit("chess-error", { message: "No chess game in this room" });
-
   gameState.spectators.add(socket.id);
-  socket.emit("chess-spectator", {
-    fen: gameState.game.fen(),
-    turn: gameState.game.turn(),
-    white: gameState.players.get("w")?.username || "White",
-    black: gameState.players.get("b")?.username || "Black",
-    isGameOver: gameState.game.isGameOver()
-  });
+  socket.emit("chess-spectator", { fen: gameState.game.fen(), turn: gameState.game.turn(), white: gameState.players.get("w")?.username || "White", black: gameState.players.get("b")?.username || "Black", isGameOver: gameState.game.isGameOver() });
 });
 
 socket.on("chess-get-state", (data) => {
   const room = data.room;
   const gameState = chessGames.get(room);
-  if (!gameState) return socket.emit("chess-state", { active: false });
-
+  if (!gameState) return socket.emit("chess-state", { active: false, enabled: false });
   const pArr = [];
-  for (const [color, info] of gameState.players) {
-    pArr.push({ color, username: info.username });
-  }
-
-  socket.emit("chess-state", {
-    active: true,
-    fen: gameState.game.fen(),
-    turn: gameState.game.turn(),
-    players: pArr,
-    spectatorCount: gameState.spectators.size,
-    isGameOver: gameState.game.isGameOver(),
-    inCheck: gameState.game.isCheck(),
-    inCheckmate: gameState.game.isCheckmate(),
-    inDraw: gameState.game.isDraw()
-  });
+  for (const [color, info] of gameState.players) { pArr.push({ color, username: info.username, uid: info.uid }); }
+  socket.emit("chess-state", { active: true, enabled: gameState.enabled || false, fen: gameState.game.fen(), turn: gameState.game.turn(), players: pArr, spectatorCount: gameState.spectators.size, isGameOver: gameState.game.isGameOver(), inCheck: gameState.game.isCheck(), inCheckmate: gameState.game.isCheckmate(), inDraw: gameState.game.isDraw() });
 });
 
 socket.on("chess-leave", (data) => {
   const room = data.room;
   const gameState = chessGames.get(room);
   if (!gameState) return;
-
-  // Remove from spectators
   gameState.spectators.delete(socket.id);
-
-  // Remove from players - if a player leaves, the game ends
   for (const [color, info] of gameState.players) {
     if (info.socketId === socket.id) {
       gameState.players.delete(color);
       io.to(room).emit("chess-player-left", { color, username: info.username });
-
       if (gameState.players.size < 2) {
-        io.to(room).emit("chess-game-over", {
-          result: "Game ended — a player left",
-          winner: null,
-          fen: gameState.game.fen()
-        });
-        chessGames.delete(room);
+        io.to(room).emit("chess-game-over", { result: "Game ended — a player left", winner: null, fen: gameState.game.fen() });
       }
       return;
     }

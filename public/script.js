@@ -3730,318 +3730,687 @@ socket.on("room-summary", (data) => {
 });
 
 // ==========================================
-// CHESS GAME
+// CHESS GAME — 3D with Three.js
 // ==========================================
 (function() {
-var chessBoardEl = document.getElementById("chess-board");
-var chessInfoEl = document.getElementById("chess-info");
-var chessControlsEl = document.getElementById("chess-controls");
-var chessStatusEl = document.getElementById("chess-status");
+var THREE = window.THREE;
+var Chess = window.Chess;
+
+var containerEl = document.getElementById("chess-3d-container");
+var turnIndicatorEl = document.getElementById("chess-turn-indicator");
+var statusEl = document.getElementById("chess-status");
+var controlsEl = document.getElementById("chess-controls");
 var chessPanel = document.getElementById("chess-panel");
 var chessOverlay = document.getElementById("chess-overlay");
 var closeChessBtn = document.getElementById("closeChessBtn");
 var chessBtn = document.getElementById("chessBtn");
+var enableChessBtn = document.getElementById("enableChessBtn");
 
+if (!containerEl || !THREE || !Chess) { if (chessBtn) chessBtn.title = "Chess unavailable"; return; }
+
+// State
 var isChessOpen = false;
-var selectedSquare = null;
-var possibleMoves = [];
-var lastMoveFrom = null;
-var lastMoveTo = null;
-var myChessColor = null; // 'w' or 'b' or null (spectator)
+var chessEnabled = false;
 var gameActive = false;
-var players = [];
-
-// chess.js instance for client-side validation
+var myColor = null;
+var selectedSquare = null;
+var possibleSquares = [];
+var lastMove = null;
 var clientChess = new Chess();
+var cScene, cCamera, cRenderer;
+var boardMeshes = {}; // square -> mesh
+var pieceMeshes = {}; // square -> group
+var possibleMarkers = [];
+var selectedHighlight = null;
+var raycaster = new THREE.Raycaster();
+var mouse = new THREE.Vector2();
+var isDragging = false;
+var dragRotate = false;
+var isHost = false;
+var userChessColor = null;
+var whiteName = "White";
+var blackName = "Black";
 
-function getPieceUnicode(piece) {
-    var map = { 'K': '♔', 'Q': '♕', 'R': '♖', 'B': '♗', 'N': '♘', 'P': '♙',
-                'k': '♚', 'q': '♛', 'r': '♜', 'b': '♝', 'n': '♞', 'p': '♟' };
-    return map[piece] || piece;
+// Colors
+var COLORS = {
+  lightSq: 0xf0d9b5, darkSq: 0xb58863,
+  lightPiece: 0xfff8e7, darkPiece: 0x2d2d2d,
+  lightPieceDark: 0x333333, darkPieceDark: 0x111111,
+  boardFrame: 0x5d4037, selected: 0x7fc97f,
+  possible: 0x00ff88, lastMove: 0xffdd44
+};
+
+function initScene() {
+  if (cScene) return;
+  cScene = new THREE.Scene();
+  cScene.background = new THREE.Color(0x1a1a2e);
+
+  var w = containerEl.clientWidth || 520;
+  var h = containerEl.clientHeight || 520;
+  cCamera = new THREE.PerspectiveCamera(35, w / h, 0.1, 100);
+  cCamera.position.set(6, 8, 8);
+  cCamera.lookAt(0, 0, 0);
+
+  cRenderer = new THREE.WebGLRenderer({ antialias: true });
+  cRenderer.setSize(w, h);
+  cRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  cRenderer.shadowMap.enabled = true;
+  cRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  containerEl.appendChild(cRenderer.domElement);
+
+  var amb = new THREE.AmbientLight(0x404060, 0.6);
+  cScene.add(amb);
+  var dir = new THREE.DirectionalLight(0xffffff, 1.2);
+  dir.position.set(5, 12, 8);
+  dir.castShadow = true;
+  dir.shadow.mapSize.width = 1024;
+  dir.shadow.mapSize.height = 1024;
+  dir.shadow.camera.near = 0.1;
+  dir.shadow.camera.far = 25;
+  dir.shadow.camera.left = -8;
+  dir.shadow.camera.right = 8;
+  dir.shadow.camera.top = 8;
+  dir.shadow.camera.bottom = -8;
+  cScene.add(dir);
+  var fill = new THREE.DirectionalLight(0x8888ff, 0.3);
+  fill.position.set(-3, 5, -5);
+  cScene.add(fill);
+
+  createBoard();
+  animate();
 }
 
-function renderBoard(fen, selSq, possMoves, lmFrom, lmTo) {
-    if (!chessBoardEl) return;
-    var turn = fen ? fen.split(" ")[1] : "w";
-    var rows = fen ? fen.split(" ")[0].replace(/\d/g, function(d) { return " ".repeat(parseInt(d)); }) : "";
-    var pieces = rows.split("/");
-
-    var html = '<table><tbody>';
-    for (var r = 0; r < 8; r++) {
-        html += '<tr>';
-        for (var c = 0; c < 8; c++) {
-            var sq = String.fromCharCode(97 + c) + (8 - r);
-            var chr = pieces[r] ? pieces[r].charAt(c) : ' ';
-            var isLight = (r + c) % 2 === 0;
-            var cls = isLight ? 'light' : 'dark';
-            if (chr !== ' ') {
-                var isWhite = chr === chr.toUpperCase();
-                chr = isWhite ? chr.toUpperCase() : chr.toLowerCase();
-            }
-            if (selSq === sq) cls += ' selected';
-            if (possMoves && possMoves.indexOf(sq) !== -1) cls += ' possible';
-            if (lmFrom === sq || lmTo === sq) cls += ' last-move';
-            html += '<td class="' + cls + '" data-square="' + sq + '">';
-            if (chr && chr !== ' ') html += getPieceUnicode(chr);
-            html += '</td>';
-        }
-        html += '</tr>';
-    }
-    html += '</tbody></table>';
-    chessBoardEl.innerHTML = html;
-
-    // Attach click listeners
-    chessBoardEl.querySelectorAll("td").forEach(function(td) {
-        td.addEventListener("click", function() {
-            var sq = td.getAttribute("data-square");
-            onSquareClick(sq);
-        });
-    });
+function animate() {
+  requestAnimationFrame(animate);
+  if (cRenderer && cScene && cCamera) cRenderer.render(cScene, cCamera);
 }
 
-function onSquareClick(sq) {
-    if (!myChessColor || !gameActive) return;
-    if (clientChess.turn() !== myChessColor) {
-        showNotification("Not your turn", "warning");
-        return;
-    }
+function sqToPos(sq) {
+  var f = sq.charCodeAt(0) - 97;
+  var r = parseInt(sq.charAt(1)) - 1;
+  return { x: f - 3.5, z: r - 3.5 };
+}
 
-    // If no square selected, select this one if it has our piece
-    if (selectedSquare === null) {
-        var piece = clientChess.get(sq);
-        if (piece && piece.color === myChessColor) {
-            selectedSquare = sq;
-            possibleMoves = clientChess.moves({ square: sq, verbose: true }).map(function(m) { return m.to; });
-            renderBoard(clientChess.fen(), selectedSquare, possibleMoves, lastMoveFrom, lastMoveTo);
+function posToSq(x, z) {
+  var f = Math.round(x + 3.5);
+  var r = Math.round(z + 3.5);
+  if (f < 0 || f > 7 || r < 0 || r > 7) return null;
+  return String.fromCharCode(97 + f) + (r + 1);
+}
+
+function createBoard() {
+  // Frame
+  var frameGeo = new THREE.BoxGeometry(9.2, 0.3, 9.2);
+  var frameMat = new THREE.MeshStandardMaterial({ color: COLORS.boardFrame, roughness: 0.7 });
+  var frame = new THREE.Mesh(frameGeo, frameMat);
+  frame.position.y = -0.15;
+  frame.receiveShadow = true;
+  cScene.add(frame);
+
+  // Squares
+  for (var r = 0; r < 8; r++) {
+    for (var f = 0; f < 8; f++) {
+      var sq = String.fromCharCode(97 + f) + (r + 1);
+      var light = (r + f) % 2 === 0;
+      var geo = new THREE.BoxGeometry(1, 0.12, 1);
+      var mat = new THREE.MeshStandardMaterial({
+        color: light ? COLORS.lightSq : COLORS.darkSq,
+        roughness: 0.6, metalness: 0.1
+      });
+      var mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(f - 3.5, 0.06, r - 3.5);
+      mesh.receiveShadow = true;
+      mesh.userData.square = sq;
+      cScene.add(mesh);
+      boardMeshes[sq] = mesh;
+    }
+  }
+}
+
+function makePiece(type, color, square) {
+  var group = new THREE.Group();
+  var isWhite = color === "w";
+  var matOpts = { roughness: 0.4, metalness: 0.2 };
+  var pieceColor = isWhite ? COLORS.lightPiece : COLORS.darkPiece;
+  var pieceColorDark = isWhite ? COLORS.lightPieceDark : COLORS.darkPieceDark;
+  var mat = new THREE.MeshStandardMaterial({ color: pieceColor, ...matOpts });
+  var matDark = new THREE.MeshStandardMaterial({ color: pieceColorDark, ...matOpts });
+
+  function addCyl(radTop, radBot, h, yOff, matUse) {
+    var g = new THREE.CylinderGeometry(radTop, radBot, h, 16);
+    var m = new THREE.Mesh(g, matUse || mat);
+    m.position.y = yOff;
+    m.castShadow = true;
+    group.add(m);
+    return m;
+  }
+
+  function addSphere(rad, yOff, matUse) {
+    var g = new THREE.SphereGeometry(rad, 12, 10);
+    var m = new THREE.Mesh(g, matUse || mat);
+    m.position.y = yOff;
+    m.castShadow = true;
+    group.add(m);
+    return m;
+  }
+
+  function addBox(w, h, d, yOff, matUse) {
+    var g = new THREE.BoxGeometry(w, h, d);
+    var m = new THREE.Mesh(g, matUse || mat);
+    m.position.y = yOff;
+    m.castShadow = true;
+    group.add(m);
+    return m;
+  }
+
+  function addCone(rad, h, yOff, matUse) {
+    var g = new THREE.ConeGeometry(rad, h, 16);
+    var m = new THREE.Mesh(g, matUse || mat);
+    m.position.y = yOff;
+    m.castShadow = true;
+    group.add(m);
+    return m;
+  }
+
+  var baseH = 0.1;
+  switch (type) {
+    case "p": // Pawn
+      addCyl(0.35, 0.4, 0.35, 0.06 + baseH);
+      addSphere(0.2, 0.35 + baseH);
+      break;
+    case "r": // Rook
+      addCyl(0.35, 0.4, 0.5, 0.25 + baseH);
+      addBox(0.45, 0.1, 0.45, 0.55 + baseH);
+      // Battlements
+      for (var i = -1; i <= 1; i += 2) {
+        for (var j = -1; j <= 1; j += 2) {
+          addBox(0.1, 0.12, 0.1, 0.66 + baseH, matDark)
+            .position.set(i * 0.16, 0, j * 0.16);
         }
-        return;
+      }
+      break;
+    case "n": // Knight (simplified)
+      addCyl(0.3, 0.38, 0.5, 0.25 + baseH);
+      var coneMat = new THREE.MeshStandardMaterial({ color: pieceColor, ...matOpts });
+      addCone(0.25, 0.35, 0.6 + baseH, coneMat);
+      break;
+    case "b": // Bishop
+      addCyl(0.25, 0.35, 0.25, 0.12 + baseH);
+      addCone(0.3, 0.45, 0.42 + baseH);
+      addSphere(0.15, 0.7 + baseH);
+      break;
+    case "q": // Queen
+      addCyl(0.3, 0.38, 0.4, 0.2 + baseH);
+      addSphere(0.25, 0.5 + baseH);
+      addCone(0.2, 0.25, 0.7 + baseH);
+      addSphere(0.1, 0.88 + baseH);
+      break;
+    case "k": // King
+      addCyl(0.3, 0.38, 0.5, 0.25 + baseH);
+      addCyl(0.15, 0.15, 0.2, 0.6 + baseH);
+      addBox(0.08, 0.25, 0.08, 0.8 + baseH, matDark);
+      addBox(0.22, 0.08, 0.08, 0.8 + baseH, matDark);
+      addBox(0.08, 0.25, 0.08, 0.8 + baseH, matDark);
+      addBox(0.08, 0.08, 0.22, 0.8 + baseH, matDark);
+      break;
+  }
+
+  var pos = sqToPos(square);
+  group.position.set(pos.x, 0, pos.z);
+  group.userData.square = square;
+  group.userData.pieceType = type;
+  group.userData.pieceColor = color;
+  cScene.add(group);
+  return group;
+}
+
+function renderPosition(fen) {
+  // Remove old pieces and markers
+  for (var k in pieceMeshes) { if (pieceMeshes[k]) { cScene.remove(pieceMeshes[k]); }}
+  pieceMeshes = {};
+  clearMarkers();
+  if (selectedHighlight) { cScene.remove(selectedHighlight); selectedHighlight = null; }
+
+  if (!fen) fen = new Chess().fen();
+  var rows = fen.split(" ")[0].split("/");
+  for (var r = 0; r < 8; r++) {
+    var c = 0;
+    for (var i = 0; i < rows[r].length; i++) {
+      var ch = rows[r].charAt(i);
+      if (ch >= "1" && ch <= "8") { c += parseInt(ch); continue; }
+      var square = String.fromCharCode(97 + c) + (8 - r);
+      var isWhite = ch === ch.toUpperCase();
+      var type = ch.toLowerCase();
+      var piece = makePiece(type, isWhite ? "w" : "b", square);
+      pieceMeshes[square] = piece;
+      c++;
+    }
+  }
+
+  // Last move highlight
+  if (lastMove) {
+    highlightSquare(lastMove.from, COLORS.lastMove);
+    highlightSquare(lastMove.to, COLORS.lastMove);
+  }
+  // Selected highlight
+  if (selectedSquare && boardMeshes[selectedSquare]) {
+    highlightSquare(selectedSquare, COLORS.selected);
+  }
+  // Possible moves
+  possibleSquares.forEach(function(sq) {
+    addPossibleMarker(sq);
+  });
+}
+
+function highlightSquare(sq, color) {
+  if (!boardMeshes[sq]) return;
+  var orig = boardMeshes[sq].material.color.getHex();
+  boardMeshes[sq].material.color.setHex(color || orig);
+}
+
+function clearBoardHighlights() {
+  for (var sq in boardMeshes) {
+    var light = (sq.charCodeAt(0) - 97 + parseInt(sq.charAt(1)) - 1) % 2 === 0;
+    boardMeshes[sq].material.color.setHex(light ? COLORS.lightSq : COLORS.darkSq);
+  }
+  clearMarkers();
+}
+
+function addPossibleMarker(sq) {
+  var pos = sqToPos(sq);
+  var geo = new THREE.SphereGeometry(0.12, 8, 8);
+  var mat = new THREE.MeshStandardMaterial({
+    color: COLORS.possible, transparent: true, opacity: 0.5
+  });
+  var mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(pos.x, 0.1, pos.z);
+  cScene.add(mesh);
+  possibleMarkers.push(mesh);
+  // Also a ring
+  var ring = new THREE.RingGeometry(0.15, 0.2, 16);
+  var rMat = new THREE.MeshStandardMaterial({
+    color: COLORS.possible, transparent: true, opacity: 0.6,
+    side: THREE.DoubleSide
+  });
+  var rMesh = new THREE.Mesh(ring, rMat);
+  rMesh.rotation.x = -Math.PI / 2;
+  rMesh.position.set(pos.x, 0.02, pos.z);
+  cScene.add(rMesh);
+  possibleMarkers.push(rMesh);
+}
+
+function clearMarkers() {
+  possibleMarkers.forEach(function(m) { cScene.remove(m); });
+  possibleMarkers = [];
+}
+
+function resizeRenderer() {
+  if (!cRenderer || !containerEl) return;
+  var w = containerEl.clientWidth || 520;
+  var h = containerEl.clientHeight || 520;
+  cCamera.aspect = w / h;
+  cCamera.updateProjectionMatrix();
+  cRenderer.setSize(w, h);
+}
+
+// Click / drag handling
+var pointerDown = false;
+var pointerX = 0, pointerY = 0;
+
+containerEl.addEventListener("pointerdown", function(e) {
+  pointerDown = true;
+  pointerX = e.clientX;
+  pointerY = e.clientY;
+  isDragging = false;
+});
+
+containerEl.addEventListener("pointermove", function(e) {
+  if (!pointerDown) return;
+  var dx = e.clientX - pointerX;
+  var dy = e.clientY - pointerY;
+  if (Math.abs(dx) > 4 || Math.abs(dy) > 4) isDragging = true;
+});
+
+containerEl.addEventListener("pointerup", function(e) {
+  if (!pointerDown) return;
+  pointerDown = false;
+  if (isDragging) return; // Was a drag, not a click
+  handleClick(e);
+});
+
+containerEl.addEventListener("wheel", function(e) {
+  if (!cCamera) return;
+  var d = cCamera.position.length();
+  var newD = d + e.deltaY * 0.01;
+  if (newD < 3) newD = 3;
+  if (newD > 20) newD = 20;
+  var dir = cCamera.position.clone().normalize();
+  cCamera.position.copy(dir.multiplyScalar(newD));
+  cCamera.lookAt(0, 0, 0);
+});
+
+// Orbit on drag
+containerEl.addEventListener("pointermove", function(e) {
+  if (!pointerDown || !isDragging || !cCamera) return;
+  var dx = e.movementX || 0;
+  var dy = e.movementY || 0;
+  var theta = dx * 0.01;
+  var phi = dy * 0.01;
+  var pos = cCamera.position.clone();
+  var r = pos.length();
+  var currentTheta = Math.atan2(pos.x, pos.z);
+  var currentPhi = Math.asin(pos.y / r);
+  currentTheta += theta;
+  currentPhi -= phi;
+  if (currentPhi > 1.4) currentPhi = 1.4;
+  if (currentPhi < 0.1) currentPhi = 0.1;
+  cCamera.position.x = r * Math.cos(currentPhi) * Math.sin(currentTheta);
+  cCamera.position.z = r * Math.cos(currentPhi) * Math.cos(currentTheta);
+  cCamera.position.y = r * Math.sin(currentPhi);
+  cCamera.lookAt(0, 0, 0);
+});
+
+function handleClick(e) {
+  if (!cCamera || !cScene || !containerEl) return;
+  var rect = containerEl.getBoundingClientRect();
+  mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(mouse, cCamera);
+  var intersects = raycaster.intersectObjects(cScene.children, false);
+
+  var clickedSq = null;
+  for (var i = 0; i < intersects.length; i++) {
+    var obj = intersects[i].object;
+    if (obj.userData && obj.userData.square) { clickedSq = obj.userData.square; break; }
+    // Check parent group
+    if (obj.parent && obj.parent.userData && obj.parent.userData.square) {
+      clickedSq = obj.parent.userData.square; break;
+    }
+  }
+
+  if (!clickedSq) return;
+  if (!gameActive) return;
+
+  // Check if it's my piece or an empty square
+  if (myColor && clientChess.turn() === myColor) {
+    var piece = clientChess.get(clickedSq);
+    if (piece && piece.color === myColor) {
+      // Select this piece
+      selectedSquare = clickedSq;
+      possibleSquares = clientChess.moves({ square: clickedSq, verbose: true }).map(function(m) { return m.to; });
+      renderPosition(clientChess.fen());
+      return;
     }
 
-    // If clicking the same square, deselect
-    if (sq === selectedSquare) {
-        selectedSquare = null;
-        possibleMoves = [];
-        renderBoard(clientChess.fen(), null, null, lastMoveFrom, lastMoveTo);
-        return;
-    }
-
-    // If clicking another piece of ours, select that instead
-    var targetPiece = clientChess.get(sq);
-    if (targetPiece && targetPiece.color === myChessColor) {
-        selectedSquare = sq;
-        possibleMoves = clientChess.moves({ square: sq, verbose: true }).map(function(m) { return m.to; });
-        renderBoard(clientChess.fen(), selectedSquare, possibleMoves, lastMoveFrom, lastMoveTo);
-        return;
-    }
-
-    // Try to move
-    var moveStr = selectedSquare + sq;
-    // Check for promotion
-    if (clientChess.get(selectedSquare) && clientChess.get(selectedSquare).type === 'p' && sq.charAt(1) === '8' && clientChess.turn() === 'w') moveStr += 'q';
-    if (clientChess.get(selectedSquare) && clientChess.get(selectedSquare).type === 'p' && sq.charAt(1) === '1' && clientChess.turn() === 'b') moveStr += 'q';
-
-    var move = clientChess.move(moveStr);
-    if (move) {
-        // Valid move locally, send to server
+    // Try to move to clicked square
+    if (selectedSquare) {
+      var moveStr = selectedSquare + clickedSq;
+      // Auto-queen promotion
+      if (clientChess.get(selectedSquare) && clientChess.get(selectedSquare).type === 'p') {
+        if (clickedSq.charAt(1) === '8' && clientChess.turn() === 'w') moveStr += 'q';
+        if (clickedSq.charAt(1) === '1' && clientChess.turn() === 'b') moveStr += 'q';
+      }
+      var move = clientChess.move(moveStr);
+      if (move) {
         socket.emit("chess-move", { room: currentRoom, move: moveStr });
         selectedSquare = null;
-        possibleMoves = [];
-        lastMoveFrom = move.from;
-        lastMoveTo = move.to;
-        renderBoard(clientChess.fen(), null, null, lastMoveFrom, lastMoveTo);
-    } else {
-        showNotification("Invalid move", "error");
+        possibleSquares = [];
+        lastMove = { from: move.from, to: move.to };
+        renderPosition(clientChess.fen());
+      } else {
         selectedSquare = null;
-        possibleMoves = [];
-        renderBoard(clientChess.fen(), null, null, lastMoveFrom, lastMoveTo);
+        possibleSquares = [];
+        renderPosition(clientChess.fen());
+        showNotification("Invalid move", "error");
+      }
     }
+  }
 }
 
-function updateControls() {
-    if (!chessControlsEl) return;
-    var html = "";
-
-    if (!gameActive) {
-        // Offer to start/join
-        if (players.length === 0) {
-            html += '<button id="chess-start-btn" style="background:#00b894;color:#fff;border:none;padding:8px 18px;border-radius:8px;cursor:pointer;font-weight:bold;">Start as White</button>';
-        } else if (players.length === 1 && players[0].color === "w") {
-            html += '<button id="chess-join-btn" style="background:#6c5ce7;color:#fff;border:none;padding:8px 18px;border-radius:8px;cursor:pointer;font-weight:bold;">Join as Black</button>';
-        }
-        html += '<button id="chess-spectate-btn" style="background:#636e72;color:#fff;border:none;padding:8px 18px;border-radius:8px;cursor:pointer;font-weight:bold;">Spectate</button>';
-    } else {
-        if (myChessColor) {
-            html += '<button id="chess-resign-btn" style="background:#d63031;color:#fff;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:12px;">Resign</button>';
-            html += '<button id="chess-draw-btn" style="background:#fdcb6e;color:#000;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:12px;">Offer Draw</button>';
-        }
-        html += '<button id="chess-spectate-btn" style="background:#636e72;color:#fff;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:12px;">Refresh</button>';
-    }
-
-    chessControlsEl.innerHTML = html;
-
-    document.getElementById("chess-start-btn")?.addEventListener("click", function() {
-        socket.emit("chess-start", { room: currentRoom, username: myName || "Player" });
-    });
-    document.getElementById("chess-join-btn")?.addEventListener("click", function() {
-        socket.emit("chess-start", { room: currentRoom, username: myName || "Player" });
-    });
-    document.getElementById("chess-spectate-btn")?.addEventListener("click", function() {
-        socket.emit("chess-spectate", { room: currentRoom });
-        setChessStatus("Spectating");
-    });
-    document.getElementById("chess-resign-btn")?.addEventListener("click", function() {
-        if (confirm("Resign the game?")) socket.emit("chess-resign", { room: currentRoom });
-    });
-    document.getElementById("chess-draw-btn")?.addEventListener("click", function() {
-        socket.emit("chess-offer-draw", { room: currentRoom });
-        showNotification("Draw offered to opponent", "info");
-    });
+// Panel close
+function closeChess() {
+  isChessOpen = false;
+  if (chessPanel) chessPanel.style.display = "none";
+  if (chessOverlay) chessOverlay.style.display = "none";
 }
 
-function setChessStatus(msg, color) {
-    if (chessStatusEl) {
-        chessStatusEl.textContent = msg;
-        chessStatusEl.style.color = color || "rgba(255,255,255,0.5)";
-    }
+// Enable/Disable Chess
+function setChessEnabled(enabled) {
+  chessEnabled = enabled;
+  if (enableChessBtn) {
+    enableChessBtn.textContent = enabled ? "♟ Disable Chess" : "♟ Enable Chess";
+    enableChessBtn.style.background = enabled ? "linear-gradient(135deg, #c0392b, #e74c3c)" : "linear-gradient(135deg, #2d3436, #636e72)";
+  }
+  if (chessBtn) chessBtn.style.display = isHost || enabled ? "inline-block" : "none";
 }
 
-function updateChessInfo(text) {
-    if (chessInfoEl) chessInfoEl.textContent = text;
-}
-
-// Socket event handlers
-socket.on("chess-player-joined", function(data) {
-    players = players.filter(function(p) { return p.color !== data.color; });
-    players.push({ color: data.color, username: data.username });
-    setChessStatus(data.username + " joined as " + (data.color === "w" ? "White" : "Black"), "#74b9ff");
-    if (data.fen) { clientChess.load(data.fen); renderBoard(data.fen, null, null, null, null); }
-    updateControls();
+// Socket handlers
+socket.on("chess-enabled", function(data) {
+  setChessEnabled(data.enabled);
+  if (!data.enabled && isChessOpen) closeChess();
 });
 
 socket.on("chess-your-color", function(data) {
-    myChessColor = data.color;
+  myColor = data.color;
+  userChessColor = data.color;
+});
+
+socket.on("chess-player-assigned", function(data) {
+  whiteName = "White";
+  blackName = "Black";
+  if (data.color === "w") whiteName = data.username;
+  if (data.color === "b") blackName = data.username;
+  updateTurnDisplay();
+});
+
+socket.on("chess-player-unassigned", function(data) {
+  if (data.color === "w") whiteName = "White";
+  if (data.color === "b") blackName = "Black";
+  updateTurnDisplay();
 });
 
 socket.on("chess-game-start", function(data) {
-    gameActive = true;
-    players = [];
-    if (data.white) players.push({ color: "w", username: data.white });
-    if (data.black) players.push({ color: "b", username: data.black });
-    clientChess.load(data.fen);
-    renderBoard(data.fen, null, null, null, null);
-    setChessStatus("Game started! " + data.white + " (White) vs " + data.black + " (Black)", "#00b894");
-    updateChessInfo(data.turn === "w" ? "White to move" : "Black to move");
-    updateControls();
+  gameActive = true;
+  clientChess.load(data.fen);
+  selectedSquare = null;
+  possibleSquares = [];
+  lastMove = null;
+  whiteName = data.white || "White";
+  blackName = data.black || "Black";
+  renderPosition(data.fen);
+  if (statusEl) { statusEl.textContent = "Playing"; statusEl.style.color = "#00b894"; }
+  updateTurnDisplay();
+  updateChessControls();
 });
 
 socket.on("chess-move-made", function(data) {
-    clientChess.load(data.fen);
-    renderBoard(data.fen, null, null, data.from, data.to);
-    selectedSquare = null;
-    possibleMoves = [];
-    lastMoveFrom = data.from;
-    lastMoveTo = data.to;
-
-    if (data.isGameOver) {
-        gameActive = false;
-        myChessColor = null;
-        var reason = data.inCheckmate ? "Checkmate!" : data.inStalemate ? "Stalemate!" : data.inDraw ? "Draw!" : "Game Over";
-        setChessStatus(reason, "#ff7675");
-        updateChessInfo(reason + " — " + (data.inCheckmate ? (data.turn === "w" ? "Black wins!" : "White wins!") : ""));
-        updateControls();
-    } else {
-        var turnText = data.turn === "w" ? "White to move" : "Black to move";
-        if (data.inCheck) turnText = "Check! " + turnText;
-        updateChessInfo(turnText);
-        setChessStatus("", "");
-    }
+  clientChess.load(data.fen);
+  selectedSquare = null;
+  possibleSquares = [];
+  lastMove = { from: data.from, to: data.to };
+  renderPosition(data.fen);
+  if (data.isGameOver) {
+    gameActive = false;
+    var reason = data.inCheckmate ? "Checkmate!" : data.inStalemate ? "Stalemate!" : data.inDraw ? "Draw!" : "Game Over";
+    if (statusEl) { statusEl.textContent = reason; statusEl.style.color = "#ff7675"; }
+    updateTurnDisplay(reason);
+  } else {
+    updateTurnDisplay();
+  }
+  updateChessControls();
 });
 
 socket.on("chess-game-over", function(data) {
-    gameActive = false;
-    myChessColor = null;
-    if (data.fen) { clientChess.load(data.fen); renderBoard(data.fen, null, null, null, null); }
-    setChessStatus(data.result || "Game Over", "#ff7675");
-    updateChessInfo(data.result || "");
-    updateControls();
+  gameActive = false;
+  myColor = null;
+  if (data.fen) { clientChess.load(data.fen); renderPosition(data.fen); }
+  if (statusEl) { statusEl.textContent = data.result || "Game Over"; statusEl.style.color = "#ff7675"; }
+  updateTurnDisplay(data.result || "Game Over");
+  updateChessControls();
 });
 
 socket.on("chess-spectator", function(data) {
-    gameActive = data.isGameOver === undefined || !data.isGameOver;
-    if (data.fen) { clientChess.load(data.fen); renderBoard(data.fen, null, null, null, null); }
-    setChessStatus("Spectating" + (data.white && data.black ? " — " + data.white + " vs " + data.black : ""), "#74b9ff");
-    if (data.turn) updateChessInfo(data.turn === "w" ? "White to move" : "Black to move");
-    updateControls();
-});
-
-socket.on("chess-player-left", function(data) {
-    setChessStatus(data.username + " left", "#ff7675");
-    players = players.filter(function(p) { return p.color !== data.color; });
+  gameActive = !data.isGameOver;
+  if (data.fen) { clientChess.load(data.fen); renderPosition(data.fen); }
+  if (statusEl) statusEl.textContent = "Spectating";
+  updateTurnDisplay();
+  updateChessControls();
 });
 
 socket.on("chess-draw-offered", function(data) {
-    var accept = confirm("Opponent offers a draw. Accept?");
-    socket.emit("chess-draw-response", { room: currentRoom, accept: accept });
+  var accept = confirm("Opponent offers a draw. Accept?");
+  socket.emit("chess-draw-response", { room: currentRoom, accept: accept });
 });
 
 socket.on("chess-draw-declined", function() {
-    showNotification("Draw declined by opponent", "warning");
+  showNotification("Draw declined by opponent", "warning");
 });
 
 socket.on("chess-state", function(data) {
-    if (!data.active) {
-        gameActive = false;
-        myChessColor = null;
-        players = [];
-        clientChess.reset();
-        renderBoard(clientChess.fen(), null, null, null, null);
-        setChessStatus("No active game", "rgba(255,255,255,0.5)");
-        updateChessInfo("");
-        updateControls();
-        return;
-    }
-    gameActive = !data.isGameOver;
-    players = data.players || [];
-    if (data.fen) { clientChess.load(data.fen); renderBoard(data.fen, null, null, null, null); }
-    if (data.isGameOver) {
-        setChessStatus("Game Over", "#ff7675");
-    } else {
-        setChessStatus("Active", "#00b894");
-        updateChessInfo(data.turn === "w" ? "White to move" : "Black to move");
-    }
-    updateControls();
+  if (!data.active || !data.enabled) {
+    gameActive = false;
+    myColor = null;
+    selectedSquare = null;
+    possibleSquares = [];
+    if (chessEnabled) setChessEnabled(true);
+    updateChessControls();
+    return;
+  }
+  chessEnabled = true;
+  gameActive = !data.isGameOver;
+  if (data.fen) { clientChess.load(data.fen); renderPosition(data.fen); }
+  // Restore player names
+  if (data.players) {
+    data.players.forEach(function(p) {
+      if (p.color === "w") whiteName = p.username;
+      if (p.color === "b") blackName = p.username;
+    });
+  }
+  if (data.isGameOver) {
+    if (statusEl) { statusEl.textContent = "Game Over"; statusEl.style.color = "#ff7675"; }
+  } else {
+    if (statusEl) { statusEl.textContent = "Playing"; statusEl.style.color = "#00b894"; }
+  }
+  updateTurnDisplay();
+  updateChessControls();
 });
 
 socket.on("chess-error", function(data) {
-    showNotification(data.message || "Chess error", "error");
+  showNotification(data.message || "Chess error", "error");
 });
 
-// Chess button toggle
-chessBtn?.addEventListener("click", function() {
-    if (!chessPanel || !chessOverlay) return;
-    isChessOpen = !isChessOpen;
-    chessPanel.style.display = isChessOpen ? "block" : "none";
-    chessOverlay.style.display = isChessOpen ? "block" : "none";
+function updateTurnDisplay(msg) {
+  if (!turnIndicatorEl) return;
+  var turn = clientChess ? clientChess.turn() : "w";
+  var text = "⚪ " + whiteName + (turn === "w" ? " ●" : "") + "  |  ⚫ " + blackName + (turn === "b" ? " ●" : "");
+  if (msg) text += " — " + msg;
+  turnIndicatorEl.textContent = text;
+}
 
-    if (isChessOpen) {
-        socket.emit("chess-get-state", { room: currentRoom });
+function updateChessControls() {
+  if (!controlsEl) return;
+  var html = "";
+  if (gameActive && myColor) {
+    // Player controls
+    if (myColor === clientChess.turn()) html += '<button class="chess-ctrl-btn" id="chess-resign-btn" style="background:#d63031;">Resign</button>';
+    html += '<button class="chess-ctrl-btn" id="chess-draw-btn" style="background:#fdcb6e;color:#000;">Draw</button>';
+  }
+  html += '<button class="chess-ctrl-btn" id="chess-refresh-btn" style="background:#636e72;">Refresh View</button>';
+  controlsEl.innerHTML = html;
+  document.getElementById("chess-resign-btn")?.addEventListener("click", function() {
+    if (confirm("Resign the game?")) socket.emit("chess-resign", { room: currentRoom });
+  });
+  document.getElementById("chess-draw-btn")?.addEventListener("click", function() {
+    socket.emit("chess-offer-draw", { room: currentRoom });
+    showNotification("Draw offered to opponent", "info");
+  });
+  document.getElementById("chess-refresh-btn")?.addEventListener("click", function() {
+    socket.emit("chess-get-state", { room: currentRoom });
+  });
+}
+
+// Button handlers
+enableChessBtn?.addEventListener("click", function() {
+  if (!chessEnabled) {
+    socket.emit("chess-enable", { room: currentRoom });
+  } else {
+    if (confirm("Disable chess? This will end any active game.")) {
+      socket.emit("chess-disable", { room: currentRoom });
     }
+  }
 });
 
-closeChessBtn?.addEventListener("click", function() {
-    isChessOpen = false;
-    if (chessPanel) chessPanel.style.display = "none";
-    if (chessOverlay) chessOverlay.style.display = "none";
+chessBtn?.addEventListener("click", function() {
+  if (!chessPanel || !chessOverlay) return;
+  isChessOpen = !isChessOpen;
+  chessPanel.style.display = isChessOpen ? "block" : "none";
+  chessOverlay.style.display = isChessOpen ? "block" : "none";
+  if (isChessOpen) {
+    initScene();
+    setTimeout(resizeRenderer, 50);
+    socket.emit("chess-get-state", { room: currentRoom });
+  }
 });
 
-chessOverlay?.addEventListener("click", function() {
-    isChessOpen = false;
-    if (chessPanel) chessPanel.style.display = "none";
-    if (chessOverlay) chessOverlay.style.display = "none";
-});
+closeChessBtn?.addEventListener("click", closeChess);
+chessOverlay?.addEventListener("click", closeChess);
 
-// Support for draw response from the socket listener above
-// (handled directly in socket.on("chess-draw-offered"))
+// Update host visibility when chess state changes
+// Called from outside when host assignment changes
+window._setChessHostState = function(host) {
+  isHost = host;
+  if (enableChessBtn) enableChessBtn.style.display = host ? "inline-block" : "none";
+  if (chessBtn) chessBtn.style.display = (isHost || chessEnabled) ? "inline-block" : "none";
+};
+
+// Participant assign in existing renderParticipantsList
+// Patch renderParticipantsList to add chess assign buttons
+var origRenderParticipants = window.renderParticipantsList;
+window.renderParticipantsList = function(users) {
+  if (origRenderParticipants) origRenderParticipants(users);
+  if (!chessEnabled || !isHost) return;
+  var list = document.getElementById("participants-list");
+  if (!list) return;
+  var items = list.querySelectorAll("div[style*='flex']");
+  if (!users) return;
+  users.forEach(function(u, idx) {
+    if (idx < items.length && items[idx]) {
+      var existingAssign = items[idx].querySelector(".chess-assign-btn");
+      if (existingAssign) return;
+      var btnDiv = document.createElement("div");
+      btnDiv.style.cssText = "display:flex;gap:4px;margin-left:auto;flex-shrink:0;";
+      var wBtn = document.createElement("button");
+      wBtn.className = "chess-assign-btn";
+      wBtn.textContent = "♟W";
+      wBtn.title = "Assign as White";
+      wBtn.style.cssText = "background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:4px;padding:2px 6px;font-size:11px;cursor:pointer;";
+      wBtn.addEventListener("click", function(e) { e.stopPropagation(); socket.emit("chess-assign-player", { room: currentRoom, targetUid: u.uid, color: "w" }); });
+      var bBtn = document.createElement("button");
+      bBtn.className = "chess-assign-btn";
+      bBtn.textContent = "♟B";
+      bBtn.title = "Assign as Black";
+      bBtn.style.cssText = "background:rgba(0,0,0,0.3);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:4px;padding:2px 6px;font-size:11px;cursor:pointer;";
+      bBtn.addEventListener("click", function(e) { e.stopPropagation(); socket.emit("chess-assign-player", { room: currentRoom, targetUid: u.uid, color: "b" }); });
+      var uBtn = document.createElement("button");
+      uBtn.textContent = "✕";
+      uBtn.title = "Unassign";
+      uBtn.style.cssText = "background:rgba(231,76,60,0.3);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:4px;padding:2px 5px;font-size:10px;cursor:pointer;";
+      uBtn.addEventListener("click", function(e) { e.stopPropagation(); socket.emit("chess-unassign-player", { room: currentRoom, targetUid: u.uid }); });
+      btnDiv.appendChild(wBtn);
+      btnDiv.appendChild(bBtn);
+      btnDiv.appendChild(uBtn);
+      items[idx].appendChild(btnDiv);
+    }
+  });
+};
+
+// Sync chess host state from room-history
+socket.on("room-history", function(data) {
+  if (data && data.isHost !== undefined) {
+    if (window._setChessHostState) window._setChessHostState(data.isHost);
+  }
+});
 
 })();
+
 
