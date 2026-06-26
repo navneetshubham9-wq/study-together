@@ -641,15 +641,48 @@ app.get("/api/market-prices", async (req, res) => {
       if (fx && fx.price) {
         const rate = fx.price;
         const TROY_OZ_TO_GRAM = 31.1035;
-        // Convert gold to INR per 10g (with import duty premium for Indian market)
+        // Convert gold to INR per 10g
         if (results.gold && results.gold.price) {
           results.gold.inrPrice10g = (results.gold.price / TROY_OZ_TO_GRAM) * 10 * rate;
           results.gold.currency = "INR";
         }
-        // Convert silver to INR per 10g (with import duty premium)
+        // Convert silver to INR per 10g
         if (results.silver && results.silver.price) {
           results.silver.inrPrice10g = (results.silver.price / TROY_OZ_TO_GRAM) * 10 * rate;
           results.silver.currency = "INR";
+        }
+        // State-wise gold price breakdown (24K per 10g with 3% GST + local market premium)
+        if (results.gold && results.gold.inrPrice10g) {
+          var baseInr = results.gold.inrPrice10g;
+          var goldPrevInr = results.gold.prevClose ? (results.gold.prevClose / TROY_OZ_TO_GRAM) * 10 * rate : baseInr;
+          var GOLD_STATES = {
+            "Maharashtra (Mumbai)": { premium: 0 },
+            "Delhi": { premium: 50 },
+            "Gujarat (Ahmedabad)": { premium: -30 },
+            "Rajasthan (Jaipur)": { premium: 40 },
+            "Uttar Pradesh (Lucknow)": { premium: 80 },
+            "Punjab (Chandigarh)": { premium: 60 },
+            "Haryana": { premium: 50 },
+            "West Bengal (Kolkata)": { premium: 70 },
+            "Bihar (Patna)": { premium: 120 },
+            "Assam (Guwahati)": { premium: 150 },
+            "Madhya Pradesh (Bhopal)": { premium: 60 },
+            "Odisha": { premium: 100 },
+            "Kerala": { premium: 150 },
+            "Tamil Nadu (Chennai)": { premium: 180 },
+            "Karnataka (Bengaluru)": { premium: 100 },
+            "Andhra Pradesh": { premium: 130 },
+            "Telangana (Hyderabad)": { premium: 90 }
+          };
+          var statesArr = [];
+          for (var s in GOLD_STATES) {
+            var beforeGst = baseInr + GOLD_STATES[s].premium;
+            var withGst = Math.round(beforeGst * 1.03);
+            var prevBeforeGst = goldPrevInr + GOLD_STATES[s].premium;
+            var prevWithGst = Math.round(prevBeforeGst * 1.03);
+            statesArr.push({ state: s, price: withGst, change: withGst - prevWithGst });
+          }
+          results.gold.indiaStates = statesArr;
         }
       }
     } catch (e) { /* FX rate unavailable, prices stay in USD */ }

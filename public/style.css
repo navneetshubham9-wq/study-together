@@ -167,12 +167,13 @@ body.no-scroll { overflow: hidden !important; }
 .excel-table th { background: #27ae60; color: white; padding: 12px; border: 1px solid #ddd; text-align: center; position: sticky; top: 0; }
 .excel-table td { background: #fdfdfd; padding: 12px; border: 1px solid #ddd; text-align: center; outline:none; }
 .excel-table td:focus { background: #e8f5e9; border: 2px solid #27ae60; }
-.calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-.calc-btn { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); padding: 15px 0; font-size: 18px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+.calc-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+.calc-btn { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); padding: 10px 0; font-size: 16px; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
 .calc-btn:hover { background: rgba(255,255,255,0.2); }
 .calc-btn.action { background: #34495e; color: #1abc9c; font-weight: bold; }
 .calc-btn.clear { background: #c0392b; }
-.calc-btn.equal { background: #16a085; font-weight: bold; }
+.calc-btn.equal { background: #16a085; font-weight: bold; grid-column: span 1; }
+.calc-btn.sci { background: #1a3a4a; color: #5dade2; font-size: 13px; }
 
 /* ── OFFICE TAB STYLES ── */
 .office-tab { display:flex; flex-direction:column; height:460px; border-radius:8px; overflow:hidden; background:#fff; }

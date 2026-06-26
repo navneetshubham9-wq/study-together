@@ -70,18 +70,49 @@
       </div>
 
       <!-- CALCULATOR MODAL -->
-      <div id="calc-modal" class="card" style="display: none; position: fixed; top: 15%; right: 5%; z-index: 99999; width: 250px; background: rgba(20,30,48,0.98); border: 2px solid #16a085; box-shadow: 0 20px 50px rgba(0,0,0,0.8); padding: 15px;">
+      <div id="calc-modal" class="card" style="display: none; position: fixed; top: 10%; right: 5%; z-index: 99999; width: 350px; background: rgba(20,30,48,0.98); border: 2px solid #16a085; box-shadow: 0 20px 50px rgba(0,0,0,0.8); padding: 15px;">
         <h4 id="calc-header" style="margin: 0 0 10px 0; color: #1abc9c; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; cursor: move; user-select: none; display: flex; justify-content: space-between; align-items: center;">
-            <span id="calcTitleText">🧮 Calculator</span>
+            <span id="calcTitleText">🧮 Scientific Calculator</span>
             <span id="closeCalcBtn" style="cursor:pointer; color:var(--danger); font-size:18px; padding:0 5px;" title="Close">✖</span>
         </h4>
-        <input type="text" id="calc-display" disabled style="width: 100%; padding: 15px; font-size: 20px; text-align: right; background: #000; color: #fff; border: 1px solid #16a085; border-radius: 8px; margin-bottom: 10px; box-sizing: border-box;">
-        <div class="calc-grid">
-          <button class="calc-btn" onclick="calcAppend('7')">7</button><button class="calc-btn" onclick="calcAppend('8')">8</button><button class="calc-btn" onclick="calcAppend('9')">9</button><button class="calc-btn action" onclick="calcAppend('/')">÷</button>
-          <button class="calc-btn" onclick="calcAppend('4')">4</button><button class="calc-btn" onclick="calcAppend('5')">5</button><button class="calc-btn" onclick="calcAppend('6')">6</button><button class="calc-btn action" onclick="calcAppend('*')">×</button>
-          <button class="calc-btn" onclick="calcAppend('1')">1</button><button class="calc-btn" onclick="calcAppend('2')">2</button><button class="calc-btn" onclick="calcAppend('3')">3</button><button class="calc-btn action" onclick="calcAppend('-')">-</button>
-          <button class="calc-btn clear" onclick="calcClear()">C</button><button class="calc-btn" onclick="calcAppend('0')">0</button><button class="calc-btn" onclick="calcAppend('.')">.</button><button class="calc-btn action" onclick="calcAppend('+')">+</button>
-          <button class="calc-btn equal" style="grid-column: span 4;" onclick="calcCalculate()">=</button>
+        <input type="text" id="calc-display" disabled style="width: 100%; padding: 12px; font-size: 22px; text-align: right; background: #000; color: #fff; border: 1px solid #16a085; border-radius: 8px; margin-bottom: 8px; box-sizing: border-box;">
+        <div id="calc-mode" style="text-align:right; font-size:11px; color:rgba(255,255,255,0.4); margin-bottom:6px;">DEG</div>
+        <div class="calc-grid" style="grid-template-columns: repeat(5,1fr);">
+          <button class="calc-btn sci" onclick="calcSci('sin')">sin</button>
+          <button class="calc-btn sci" onclick="calcSci('cos')">cos</button>
+          <button class="calc-btn sci" onclick="calcSci('tan')">tan</button>
+          <button class="calc-btn sci" onclick="calcSci('log')">log</button>
+          <button class="calc-btn sci" onclick="calcSci('ln')">ln</button>
+          <button class="calc-btn sci" onclick="calcSci('sqrt')">√</button>
+          <button class="calc-btn sci" onclick="calcSci('sq')">x²</button>
+          <button class="calc-btn sci" onclick="calcSci('cube')">x³</button>
+          <button class="calc-btn sci" onclick="calcSci('pow')">xⁿ</button>
+          <button class="calc-btn sci" onclick="calcSci('fact')">x!</button>
+          <button class="calc-btn sci" onclick="calcSci('pi')">π</button>
+          <button class="calc-btn sci" onclick="calcSci('e')">e</button>
+          <button class="calc-btn" onclick="calcAppend('(')">(</button>
+          <button class="calc-btn" onclick="calcAppend(')')">)</button>
+          <button class="calc-btn clear" onclick="calcClear()">C</button>
+          <button class="calc-btn" onclick="calcAppend('7')">7</button>
+          <button class="calc-btn" onclick="calcAppend('8')">8</button>
+          <button class="calc-btn" onclick="calcAppend('9')">9</button>
+          <button class="calc-btn action" onclick="calcAppend('/')">÷</button>
+          <button class="calc-btn" onclick="if(calcDisplay)calcDisplay.value=calcDisplay.value.slice(0,-1)">⌫</button>
+          <button class="calc-btn" onclick="calcAppend('4')">4</button>
+          <button class="calc-btn" onclick="calcAppend('5')">5</button>
+          <button class="calc-btn" onclick="calcAppend('6')">6</button>
+          <button class="calc-btn action" onclick="calcAppend('*')">×</button>
+          <button class="calc-btn sci" onclick="calcSci('inv')">1/x</button>
+          <button class="calc-btn" onclick="calcAppend('1')">1</button>
+          <button class="calc-btn" onclick="calcAppend('2')">2</button>
+          <button class="calc-btn" onclick="calcAppend('3')">3</button>
+          <button class="calc-btn action" onclick="calcAppend('-')">−</button>
+          <button class="calc-btn sci" onclick="calcSci('pm')">±</button>
+          <button class="calc-btn" onclick="calcAppend('0')">0</button>
+          <button class="calc-btn" onclick="calcAppend('.')">.</button>
+          <button class="calc-btn sci" onclick="calcSci('exp')">EXP</button>
+          <button class="calc-btn action" onclick="calcAppend('+')">+</button>
+          <button class="calc-btn equal" onclick="calcCalculate()">=</button>
         </div>
       </div>
 
@@ -644,6 +675,8 @@
     <div id="metals-prices" style="font-size:14px; color:#dfe6e9;">
       <div style="text-align:center; color:rgba(255,255,255,0.4); padding:20px;">Loading...</div>
     </div>
+    <button id="toggleStatesBtn" style="margin-top:8px; width:100%; background:rgba(255,255,255,0.05); color:#f1c40f; border:1px solid rgba(241,196,15,0.3); border-radius:6px; padding:6px; font-size:12px; cursor:pointer; display:none;">📍 India Gold Rates (by State)</button>
+    <div id="state-prices" style="display:none; margin-top:6px; max-height:200px; overflow-y:auto; font-size:12px; color:#dfe6e9;"></div>
     <div style="text-align:right; font-size:10px; color:rgba(255,255,255,0.3); margin-top:8px;" id="metals-update-time"></div>
   </div>
 

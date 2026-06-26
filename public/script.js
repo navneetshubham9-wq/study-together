@@ -765,33 +765,73 @@ document.addEventListener("pointerup", () => isConvDragging = false);
 // ==========================================
 // 6. DRAGGABLE CALCULATOR
 // ==========================================
-const calcModal = document.getElementById("calc-modal");
-const toggleCalcBtn = document.getElementById("toggleCalcBtn");
-const calcDisplay = document.getElementById("calc-display");
+var calcModal = document.getElementById("calc-modal");
+var toggleCalcBtn = document.getElementById("toggleCalcBtn");
+var calcDisplay = document.getElementById("calc-display");
+var calcDegMode = true;
+var calcModeEl = document.getElementById("calc-mode");
 
-toggleCalcBtn?.addEventListener("click", () => { 
+toggleCalcBtn?.addEventListener("click", function() { 
     if(calcModal) calcModal.style.display = calcModal.style.display === "none" || calcModal.style.display === "" ? "block" : "none"; 
 });
-window.calcAppend = (val) => { if(calcDisplay) calcDisplay.value += val; };
-window.calcClear = () => { if(calcDisplay) calcDisplay.value = ""; };
-window.calcCalculate = () => { 
-    if(calcDisplay) { 
-        try { calcDisplay.value = eval(calcDisplay.value); } 
-        catch(e) { calcDisplay.value = "Error"; setTimeout(calcClear, 1000); } 
-    } 
+
+function calcEvaluate(expr) {
+    var sanitized = expr.replace(/[^-()\d/*+.^,]/g, "");
+    try { return Function('"use strict"; return (' + sanitized + ')')(); } catch(e) { return NaN; }
+}
+
+window.calcAppend = function(val) { if(calcDisplay) calcDisplay.value += val; };
+window.calcClear = function() { if(calcDisplay) calcDisplay.value = ""; };
+window.calcCalculate = function() {
+    if(!calcDisplay) return;
+    try {
+        var expr = calcDisplay.value
+            .replace(/×/g, "*").replace(/÷/g, "/").replace(/−/g, "-").replace(/\^/g, "**");
+        var result = Function('"use strict"; return (' + expr + ')')();
+        calcDisplay.value = result;
+    } catch(e) { calcDisplay.value = "Error"; setTimeout(window.calcClear, 1000); }
 };
 
-document.addEventListener("keydown", (e) => {
+window.calcSci = function(fn) {
+    if(!calcDisplay) return;
+    var val = parseFloat(calcDisplay.value) || 0;
+    var result;
+    switch(fn) {
+        case "sin": result = calcDegMode ? Math.sin(val * Math.PI / 180) : Math.sin(val); break;
+        case "cos": result = calcDegMode ? Math.cos(val * Math.PI / 180) : Math.cos(val); break;
+        case "tan": result = calcDegMode ? Math.tan(val * Math.PI / 180) : Math.tan(val); break;
+        case "log": result = Math.log10(val); break;
+        case "ln": result = Math.log(val); break;
+        case "sqrt": result = Math.sqrt(val); break;
+        case "sq": result = val * val; break;
+        case "cube": result = val * val * val; break;
+        case "pow": var exp = prompt("Enter exponent:", "2"); if(exp===null) return; result = Math.pow(val, parseFloat(exp)); break;
+        case "fact": if(val<0||!Number.isInteger(val)) { result="Error"; break; } result = 1; for(var i=2;i<=val;i++) result*=i; break;
+        case "pi": calcDisplay.value += Math.PI.toFixed(8); return;
+        case "e": calcDisplay.value += Math.E.toFixed(8); return;
+        case "inv": result = 1 / val; break;
+        case "pm": calcDisplay.value = calcDisplay.value.startsWith("-") ? calcDisplay.value.slice(1) : "-" + calcDisplay.value; return;
+        case "exp": calcDisplay.value += "e"; return;
+        default: return;
+    }
+    if (result !== undefined && !isNaN(result) && result !== Infinity && result !== -Infinity) {
+        calcDisplay.value = result;
+    } else {
+        calcDisplay.value = "Error"; setTimeout(window.calcClear, 1000);
+    }
+};
+
+document.addEventListener("keydown", function(e) {
     if (calcModal && calcModal.style.display === "block") {
-        const key = e.key;
-        if (/^[0-9\.\+\-\*\/]$/.test(key)) calcAppend(key);
-        else if (key === "Enter" || key === "=") { e.preventDefault(); calcCalculate(); } 
-        else if (key === "Escape" || key === "Clear" || key === "Delete") calcClear();
+        var key = e.key;
+        if (/^[0-9\.\+\-\*\/\(\)]$/.test(key)) { window.calcAppend(key); }
+        else if (key === "Enter" || key === "=") { e.preventDefault(); window.calcCalculate(); } 
+        else if (key === "Escape" || key === "Delete") window.calcClear();
         else if (key === "Backspace" && calcDisplay) calcDisplay.value = calcDisplay.value.slice(0, -1);
     }
 });
 
-document.getElementById("closeCalcBtn")?.addEventListener("pointerdown", (e) => { 
+document.getElementById("closeCalcBtn")?.addEventListener("pointerdown", function(e) { 
     e.stopPropagation(); 
     if(calcModal) calcModal.style.display = "none"; 
 });
@@ -3761,6 +3801,24 @@ function priceRow(label, data) {
   return '<div class="price-row"><div><div class="price-name">' + label + '</div><div class="price-change ' + cls + '">' + arrow + ' ' + Math.abs(data.change).toFixed(2) + ' (' + data.changePercent + '%)</div></div><div style="text-align:right;"><div class="price-value">' + price + '</div><div style="font-size:10px;color:rgba(255,255,255,0.3);">' + (data.currency || 'USD') + unit + '</div></div></div>';
 }
 
+var toggleStatesBtn = document.getElementById("toggleStatesBtn");
+var statePricesDiv = document.getElementById("state-prices");
+var lastGoldStateData = null;
+
+function renderStatePrices(states) {
+  if (!statePricesDiv || !states) return;
+  var h = '<table style="width:100%;border-collapse:collapse;">';
+  h += '<tr style="border-bottom:1px solid rgba(255,255,255,0.1);"><th style="text-align:left;padding:4px 6px;color:#f1c40f;">State</th><th style="text-align:right;padding:4px 6px;color:#f1c40f;">₹/10g</th><th style="text-align:right;padding:4px 6px;color:#f1c40f;">Change</th></tr>';
+  for (var i = 0; i < states.length; i++) {
+    var s = states[i];
+    var cls = s.change >= 0 ? "up" : "down";
+    var arrow = s.change >= 0 ? "▲" : "▼";
+    h += '<tr style="border-bottom:1px solid rgba(255,255,255,0.05);"><td style="padding:3px 6px;">' + s.state + '</td><td style="text-align:right;padding:3px 6px;">₹' + s.price.toLocaleString() + '</td><td style="text-align:right;padding:3px 6px;color:' + (s.change >= 0 ? '#2ecc71' : '#e74c3c') + ';">' + arrow + ' ' + Math.abs(s.change).toLocaleString() + '</td></tr>';
+  }
+  h += '</table><div style="margin-top:4px;font-size:10px;color:rgba(255,255,255,0.3);text-align:center;">* Includes 3% GST + local market premium</div>';
+  statePricesDiv.innerHTML = h;
+}
+
 function fetchPrices(type, labels, container, timeEl) {
   if (!container) return;
   container.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.4);padding:20px;">Loading...</div>';
@@ -3773,6 +3831,14 @@ function fetchPrices(type, labels, container, timeEl) {
     }
     container.innerHTML = html;
     if (timeEl) timeEl.textContent = "Updated: " + new Date().toLocaleTimeString();
+    // Store state data for gold
+    if (data.gold && data.gold.indiaStates) {
+      lastGoldStateData = data.gold.indiaStates;
+      if (toggleStatesBtn) toggleStatesBtn.style.display = "block";
+      if (statePricesDiv && statePricesDiv.style.display !== "none") renderStatePrices(lastGoldStateData);
+    } else {
+      if (toggleStatesBtn) toggleStatesBtn.style.display = "none";
+    }
   }).catch(function() {
     container.innerHTML = '<div style="text-align:center;color:#e74c3c;padding:20px;">Failed to load prices</div>';
   });
@@ -3803,6 +3869,13 @@ var metalsVisible = false;
 var stocksVisible = false;
 var metalsTimer = null;
 var stocksTimer = null;
+
+toggleStatesBtn?.addEventListener("click", function() {
+  if (!statePricesDiv) return;
+  var isOpen = statePricesDiv.style.display !== "none";
+  statePricesDiv.style.display = isOpen ? "none" : "block";
+  if (!isOpen && lastGoldStateData) renderStatePrices(lastGoldStateData);
+});
 
 metalsBtn?.addEventListener("click", function() {
   metalsVisible = !metalsVisible;
