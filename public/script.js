@@ -3730,691 +3730,113 @@ socket.on("room-summary", (data) => {
 });
 
 // ==========================================
-// CHESS GAME — 3D with Three.js
+// MARKET PRICES (Gold, Oil, Stocks)
 // ==========================================
 (function() {
-var THREE = window.THREE;
-var Chess = window.Chess;
-var cdnReady = !!(THREE && Chess);
+var metalsModal = document.getElementById("metals-modal");
+var metalsPrices = document.getElementById("metals-prices");
+var metalsUpdateTime = document.getElementById("metals-update-time");
+var closeMetalsBtn = document.getElementById("closeMetalsBtn");
+var metalsBtn = document.getElementById("toggleMetalsBtn");
+var metalsHeader = document.getElementById("metals-header");
 
-var containerEl = document.getElementById("chess-3d-container");
-var turnIndicatorEl = document.getElementById("chess-turn-indicator");
-var statusEl = document.getElementById("chess-status");
-var controlsEl = document.getElementById("chess-controls");
-var chessPanel = document.getElementById("chess-panel");
-var chessOverlay = document.getElementById("chess-overlay");
-var closeChessBtn = document.getElementById("closeChessBtn");
-var chessBtn = document.getElementById("chessBtn");
-var enableChessBtn = document.getElementById("enableChessBtn");
+var stocksModal = document.getElementById("stocks-modal");
+var stocksPrices = document.getElementById("stocks-prices");
+var stocksUpdateTime = document.getElementById("stocks-update-time");
+var closeStocksBtn = document.getElementById("closeStocksBtn");
+var stocksBtn = document.getElementById("toggleStocksBtn");
+var stocksHeader = document.getElementById("stocks-header");
 
-// Always make buttons visible/functional regardless of CDN state
-if (enableChessBtn) enableChessBtn.style.display = "none";
-if (chessBtn) chessBtn.style.display = "inline-block";
+// Metals labels
+var METAL_LABELS = { gold: "Gold (XAU/USD)", silver: "Silver (XAG/USD)", platinum: "Platinum (XPT/USD)", palladium: "Palladium (XPD/USD)", crudeOil: "Crude Oil (CL/F)" };
+var STOCK_LABELS = { nifty50: "Nifty 50", sensex: "SENSEX", bankNifty: "Bank Nifty" };
 
-// State
-var isChessOpen = false;
-var chessEnabled = false;
-var gameActive = false;
-var myColor = null;
-var selectedSquare = null;
-var possibleSquares = [];
-var lastMove = null;
-var clientChess = new Chess();
-var cScene, cCamera, cRenderer;
-var boardMeshes = {}; // square -> mesh
-var pieceMeshes = {}; // square -> group
-var possibleMarkers = [];
-var selectedHighlight = null;
-var raycaster = new THREE.Raycaster();
-var mouse = new THREE.Vector2();
-var isDragging = false;
-var dragRotate = false;
-var isHost = false;
-var userChessColor = null;
-var whiteName = "White";
-var blackName = "Black";
-
-// Colors
-var COLORS = {
-  lightSq: 0xf0d9b5, darkSq: 0xb58863,
-  lightPiece: 0xfff8e7, darkPiece: 0x2d2d2d,
-  lightPieceDark: 0x333333, darkPieceDark: 0x111111,
-  boardFrame: 0x5d4037, selected: 0x7fc97f,
-  possible: 0x00ff88, lastMove: 0xffdd44
-};
-
-function initScene() {
-  if (cScene) return;
-  cScene = new THREE.Scene();
-  cScene.background = new THREE.Color(0x1a1a2e);
-
-  var w = containerEl.clientWidth || 520;
-  var h = containerEl.clientHeight || 520;
-  cCamera = new THREE.PerspectiveCamera(35, w / h, 0.1, 100);
-  cCamera.position.set(6, 8, 8);
-  cCamera.lookAt(0, 0, 0);
-
-  cRenderer = new THREE.WebGLRenderer({ antialias: true });
-  cRenderer.setSize(w, h);
-  cRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  cRenderer.shadowMap.enabled = true;
-  cRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  containerEl.appendChild(cRenderer.domElement);
-
-  var amb = new THREE.AmbientLight(0x404060, 0.6);
-  cScene.add(amb);
-  var dir = new THREE.DirectionalLight(0xffffff, 1.2);
-  dir.position.set(5, 12, 8);
-  dir.castShadow = true;
-  dir.shadow.mapSize.width = 1024;
-  dir.shadow.mapSize.height = 1024;
-  dir.shadow.camera.near = 0.1;
-  dir.shadow.camera.far = 25;
-  dir.shadow.camera.left = -8;
-  dir.shadow.camera.right = 8;
-  dir.shadow.camera.top = 8;
-  dir.shadow.camera.bottom = -8;
-  cScene.add(dir);
-  var fill = new THREE.DirectionalLight(0x8888ff, 0.3);
-  fill.position.set(-3, 5, -5);
-  cScene.add(fill);
-
-  createBoard();
-  animate();
+function priceRow(label, data) {
+  if (!data) return '<div class="price-row"><span class="price-name">' + label + '</span><span style="color:rgba(255,255,255,0.3);">N/A</span></div>';
+  var cls = data.change >= 0 ? "up" : "down";
+  var arrow = data.change >= 0 ? "▲" : "▼";
+  var price = (data.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return '<div class="price-row"><div><div class="price-name">' + label + '</div><div class="price-change ' + cls + '">' + arrow + ' ' + Math.abs(data.change).toFixed(2) + ' (' + data.changePercent + '%)</div></div><div style="text-align:right;"><div class="price-value">' + price + '</div><div style="font-size:10px;color:rgba(255,255,255,0.3);">' + (data.currency || 'USD') + '</div></div></div>';
 }
 
-function animate() {
-  requestAnimationFrame(animate);
-  if (cRenderer && cScene && cCamera) cRenderer.render(cScene, cCamera);
-}
-
-function sqToPos(sq) {
-  var f = sq.charCodeAt(0) - 97;
-  var r = parseInt(sq.charAt(1)) - 1;
-  return { x: f - 3.5, z: r - 3.5 };
-}
-
-function posToSq(x, z) {
-  var f = Math.round(x + 3.5);
-  var r = Math.round(z + 3.5);
-  if (f < 0 || f > 7 || r < 0 || r > 7) return null;
-  return String.fromCharCode(97 + f) + (r + 1);
-}
-
-function createBoard() {
-  // Frame
-  var frameGeo = new THREE.BoxGeometry(9.2, 0.3, 9.2);
-  var frameMat = new THREE.MeshStandardMaterial({ color: COLORS.boardFrame, roughness: 0.7 });
-  var frame = new THREE.Mesh(frameGeo, frameMat);
-  frame.position.y = -0.15;
-  frame.receiveShadow = true;
-  cScene.add(frame);
-
-  // Squares
-  for (var r = 0; r < 8; r++) {
-    for (var f = 0; f < 8; f++) {
-      var sq = String.fromCharCode(97 + f) + (r + 1);
-      var light = (r + f) % 2 === 0;
-      var geo = new THREE.BoxGeometry(1, 0.12, 1);
-      var mat = new THREE.MeshStandardMaterial({
-        color: light ? COLORS.lightSq : COLORS.darkSq,
-        roughness: 0.6, metalness: 0.1
-      });
-      var mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(f - 3.5, 0.06, r - 3.5);
-      mesh.receiveShadow = true;
-      mesh.userData.square = sq;
-      cScene.add(mesh);
-      boardMeshes[sq] = mesh;
+function fetchPrices(type, labels, container, timeEl) {
+  if (!container) return;
+  container.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.4);padding:20px;">Loading...</div>';
+  var url = (window.SERVER_URL || "") + "/api/market-prices?type=" + type;
+  fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+    if (data.error) { container.innerHTML = '<div style="text-align:center;color:#e74c3c;padding:20px;">' + data.error + '</div>'; return; }
+    var html = "";
+    for (var key in labels) {
+      html += priceRow(labels[key], data[key]);
     }
-  }
-}
-
-function makePiece(type, color, square) {
-  var group = new THREE.Group();
-  var isWhite = color === "w";
-  var matOpts = { roughness: 0.4, metalness: 0.2 };
-  var pieceColor = isWhite ? COLORS.lightPiece : COLORS.darkPiece;
-  var pieceColorDark = isWhite ? COLORS.lightPieceDark : COLORS.darkPieceDark;
-  var mat = new THREE.MeshStandardMaterial({ color: pieceColor, ...matOpts });
-  var matDark = new THREE.MeshStandardMaterial({ color: pieceColorDark, ...matOpts });
-
-  function addCyl(radTop, radBot, h, yOff, matUse) {
-    var g = new THREE.CylinderGeometry(radTop, radBot, h, 16);
-    var m = new THREE.Mesh(g, matUse || mat);
-    m.position.y = yOff;
-    m.castShadow = true;
-    group.add(m);
-    return m;
-  }
-
-  function addSphere(rad, yOff, matUse) {
-    var g = new THREE.SphereGeometry(rad, 12, 10);
-    var m = new THREE.Mesh(g, matUse || mat);
-    m.position.y = yOff;
-    m.castShadow = true;
-    group.add(m);
-    return m;
-  }
-
-  function addBox(w, h, d, yOff, matUse) {
-    var g = new THREE.BoxGeometry(w, h, d);
-    var m = new THREE.Mesh(g, matUse || mat);
-    m.position.y = yOff;
-    m.castShadow = true;
-    group.add(m);
-    return m;
-  }
-
-  function addCone(rad, h, yOff, matUse) {
-    var g = new THREE.ConeGeometry(rad, h, 16);
-    var m = new THREE.Mesh(g, matUse || mat);
-    m.position.y = yOff;
-    m.castShadow = true;
-    group.add(m);
-    return m;
-  }
-
-  var baseH = 0.1;
-  switch (type) {
-    case "p": // Pawn
-      addCyl(0.35, 0.4, 0.35, 0.06 + baseH);
-      addSphere(0.2, 0.35 + baseH);
-      break;
-    case "r": // Rook
-      addCyl(0.35, 0.4, 0.5, 0.25 + baseH);
-      addBox(0.45, 0.1, 0.45, 0.55 + baseH);
-      // Battlements
-      for (var i = -1; i <= 1; i += 2) {
-        for (var j = -1; j <= 1; j += 2) {
-          addBox(0.1, 0.12, 0.1, 0.66 + baseH, matDark)
-            .position.set(i * 0.16, 0, j * 0.16);
-        }
-      }
-      break;
-    case "n": // Knight (simplified)
-      addCyl(0.3, 0.38, 0.5, 0.25 + baseH);
-      var coneMat = new THREE.MeshStandardMaterial({ color: pieceColor, ...matOpts });
-      addCone(0.25, 0.35, 0.6 + baseH, coneMat);
-      break;
-    case "b": // Bishop
-      addCyl(0.25, 0.35, 0.25, 0.12 + baseH);
-      addCone(0.3, 0.45, 0.42 + baseH);
-      addSphere(0.15, 0.7 + baseH);
-      break;
-    case "q": // Queen
-      addCyl(0.3, 0.38, 0.4, 0.2 + baseH);
-      addSphere(0.25, 0.5 + baseH);
-      addCone(0.2, 0.25, 0.7 + baseH);
-      addSphere(0.1, 0.88 + baseH);
-      break;
-    case "k": // King
-      addCyl(0.3, 0.38, 0.5, 0.25 + baseH);
-      addCyl(0.15, 0.15, 0.2, 0.6 + baseH);
-      addBox(0.08, 0.25, 0.08, 0.8 + baseH, matDark);
-      addBox(0.22, 0.08, 0.08, 0.8 + baseH, matDark);
-      addBox(0.08, 0.25, 0.08, 0.8 + baseH, matDark);
-      addBox(0.08, 0.08, 0.22, 0.8 + baseH, matDark);
-      break;
-  }
-
-  var pos = sqToPos(square);
-  group.position.set(pos.x, 0, pos.z);
-  group.userData.square = square;
-  group.userData.pieceType = type;
-  group.userData.pieceColor = color;
-  cScene.add(group);
-  return group;
-}
-
-function renderPosition(fen) {
-  // Remove old pieces and markers
-  for (var k in pieceMeshes) { if (pieceMeshes[k]) { cScene.remove(pieceMeshes[k]); }}
-  pieceMeshes = {};
-  clearMarkers();
-  if (selectedHighlight) { cScene.remove(selectedHighlight); selectedHighlight = null; }
-
-  if (!fen) fen = new Chess().fen();
-  var rows = fen.split(" ")[0].split("/");
-  for (var r = 0; r < 8; r++) {
-    var c = 0;
-    for (var i = 0; i < rows[r].length; i++) {
-      var ch = rows[r].charAt(i);
-      if (ch >= "1" && ch <= "8") { c += parseInt(ch); continue; }
-      var square = String.fromCharCode(97 + c) + (8 - r);
-      var isWhite = ch === ch.toUpperCase();
-      var type = ch.toLowerCase();
-      var piece = makePiece(type, isWhite ? "w" : "b", square);
-      pieceMeshes[square] = piece;
-      c++;
-    }
-  }
-
-  // Last move highlight
-  if (lastMove) {
-    highlightSquare(lastMove.from, COLORS.lastMove);
-    highlightSquare(lastMove.to, COLORS.lastMove);
-  }
-  // Selected highlight
-  if (selectedSquare && boardMeshes[selectedSquare]) {
-    highlightSquare(selectedSquare, COLORS.selected);
-  }
-  // Possible moves
-  possibleSquares.forEach(function(sq) {
-    addPossibleMarker(sq);
+    container.innerHTML = html;
+    if (timeEl) timeEl.textContent = "Updated: " + new Date().toLocaleTimeString();
+  }).catch(function() {
+    container.innerHTML = '<div style="text-align:center;color:#e74c3c;padding:20px;">Failed to load prices</div>';
   });
 }
 
-function highlightSquare(sq, color) {
-  if (!boardMeshes[sq]) return;
-  var orig = boardMeshes[sq].material.color.getHex();
-  boardMeshes[sq].material.color.setHex(color || orig);
-}
-
-function clearBoardHighlights() {
-  for (var sq in boardMeshes) {
-    var light = (sq.charCodeAt(0) - 97 + parseInt(sq.charAt(1)) - 1) % 2 === 0;
-    boardMeshes[sq].material.color.setHex(light ? COLORS.lightSq : COLORS.darkSq);
-  }
-  clearMarkers();
-}
-
-function addPossibleMarker(sq) {
-  var pos = sqToPos(sq);
-  var geo = new THREE.SphereGeometry(0.12, 8, 8);
-  var mat = new THREE.MeshStandardMaterial({
-    color: COLORS.possible, transparent: true, opacity: 0.5
+function makeDraggable(header, modal) {
+  if (!header || !modal) return;
+  var isDown = false, offX = 0, offY = 0;
+  header.addEventListener("pointerdown", function(e) {
+    isDown = true;
+    offX = e.clientX - modal.offsetLeft;
+    offY = e.clientY - modal.offsetTop;
+    header.setPointerCapture(e.pointerId);
   });
-  var mesh = new THREE.Mesh(geo, mat);
-  mesh.position.set(pos.x, 0.1, pos.z);
-  cScene.add(mesh);
-  possibleMarkers.push(mesh);
-  // Also a ring
-  var ring = new THREE.RingGeometry(0.15, 0.2, 16);
-  var rMat = new THREE.MeshStandardMaterial({
-    color: COLORS.possible, transparent: true, opacity: 0.6,
-    side: THREE.DoubleSide
+  header.addEventListener("pointermove", function(e) {
+    if (!isDown) return;
+    modal.style.left = (e.clientX - offX) + "px";
+    modal.style.top = (e.clientY - offY) + "px";
+    modal.style.right = "auto";
   });
-  var rMesh = new THREE.Mesh(ring, rMat);
-  rMesh.rotation.x = -Math.PI / 2;
-  rMesh.position.set(pos.x, 0.02, pos.z);
-  cScene.add(rMesh);
-  possibleMarkers.push(rMesh);
+  header.addEventListener("pointerup", function() { isDown = false; });
 }
 
-function clearMarkers() {
-  possibleMarkers.forEach(function(m) { cScene.remove(m); });
-  possibleMarkers = [];
-}
+makeDraggable(metalsHeader, metalsModal);
+makeDraggable(stocksHeader, stocksModal);
 
-function resizeRenderer() {
-  if (!cRenderer || !containerEl) return;
-  var w = containerEl.clientWidth || 520;
-  var h = containerEl.clientHeight || 520;
-  cCamera.aspect = w / h;
-  cCamera.updateProjectionMatrix();
-  cRenderer.setSize(w, h);
-}
+var metalsVisible = false;
+var stocksVisible = false;
+var metalsTimer = null;
+var stocksTimer = null;
 
-// Click / drag handling
-var pointerDown = false;
-var pointerX = 0, pointerY = 0;
-
-containerEl.addEventListener("pointerdown", function(e) {
-  pointerDown = true;
-  pointerX = e.clientX;
-  pointerY = e.clientY;
-  isDragging = false;
-});
-
-containerEl.addEventListener("pointermove", function(e) {
-  if (!pointerDown) return;
-  var dx = e.clientX - pointerX;
-  var dy = e.clientY - pointerY;
-  if (Math.abs(dx) > 4 || Math.abs(dy) > 4) isDragging = true;
-});
-
-containerEl.addEventListener("pointerup", function(e) {
-  if (!pointerDown) return;
-  pointerDown = false;
-  if (isDragging) return; // Was a drag, not a click
-  handleClick(e);
-});
-
-containerEl.addEventListener("wheel", function(e) {
-  if (!cCamera) return;
-  var d = cCamera.position.length();
-  var newD = d + e.deltaY * 0.01;
-  if (newD < 3) newD = 3;
-  if (newD > 20) newD = 20;
-  var dir = cCamera.position.clone().normalize();
-  cCamera.position.copy(dir.multiplyScalar(newD));
-  cCamera.lookAt(0, 0, 0);
-});
-
-// Orbit on drag
-containerEl.addEventListener("pointermove", function(e) {
-  if (!pointerDown || !isDragging || !cCamera) return;
-  var dx = e.movementX || 0;
-  var dy = e.movementY || 0;
-  var theta = dx * 0.01;
-  var phi = dy * 0.01;
-  var pos = cCamera.position.clone();
-  var r = pos.length();
-  var currentTheta = Math.atan2(pos.x, pos.z);
-  var currentPhi = Math.asin(pos.y / r);
-  currentTheta += theta;
-  currentPhi -= phi;
-  if (currentPhi > 1.4) currentPhi = 1.4;
-  if (currentPhi < 0.1) currentPhi = 0.1;
-  cCamera.position.x = r * Math.cos(currentPhi) * Math.sin(currentTheta);
-  cCamera.position.z = r * Math.cos(currentPhi) * Math.cos(currentTheta);
-  cCamera.position.y = r * Math.sin(currentPhi);
-  cCamera.lookAt(0, 0, 0);
-});
-
-function handleClick(e) {
-  if (!cCamera || !cScene || !containerEl) return;
-  var rect = containerEl.getBoundingClientRect();
-  mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-  mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-  raycaster.setFromCamera(mouse, cCamera);
-  var intersects = raycaster.intersectObjects(cScene.children, false);
-
-  var clickedSq = null;
-  for (var i = 0; i < intersects.length; i++) {
-    var obj = intersects[i].object;
-    if (obj.userData && obj.userData.square) { clickedSq = obj.userData.square; break; }
-    // Check parent group
-    if (obj.parent && obj.parent.userData && obj.parent.userData.square) {
-      clickedSq = obj.parent.userData.square; break;
-    }
-  }
-
-  if (!clickedSq) return;
-  if (!gameActive) return;
-
-  // Check if it's my piece or an empty square
-  if (myColor && clientChess.turn() === myColor) {
-    var piece = clientChess.get(clickedSq);
-    if (piece && piece.color === myColor) {
-      // Select this piece
-      selectedSquare = clickedSq;
-      possibleSquares = clientChess.moves({ square: clickedSq, verbose: true }).map(function(m) { return m.to; });
-      renderPosition(clientChess.fen());
-      return;
-    }
-
-    // Try to move to clicked square
-    if (selectedSquare) {
-      var moveStr = selectedSquare + clickedSq;
-      // Auto-queen promotion
-      if (clientChess.get(selectedSquare) && clientChess.get(selectedSquare).type === 'p') {
-        if (clickedSq.charAt(1) === '8' && clientChess.turn() === 'w') moveStr += 'q';
-        if (clickedSq.charAt(1) === '1' && clientChess.turn() === 'b') moveStr += 'q';
-      }
-      var move = clientChess.move(moveStr);
-      if (move) {
-        socket.emit("chess-move", { room: currentRoom, move: moveStr });
-        selectedSquare = null;
-        possibleSquares = [];
-        lastMove = { from: move.from, to: move.to };
-        renderPosition(clientChess.fen());
-      } else {
-        selectedSquare = null;
-        possibleSquares = [];
-        renderPosition(clientChess.fen());
-        showNotification("Invalid move", "error");
-      }
-    }
-  }
-}
-
-// Panel close
-function closeChess() {
-  isChessOpen = false;
-  if (chessPanel) chessPanel.style.display = "none";
-  if (chessOverlay) chessOverlay.style.display = "none";
-}
-
-// Enable/Disable Chess
-function setChessEnabled(enabled) {
-  chessEnabled = enabled;
-  if (enableChessBtn) {
-    enableChessBtn.textContent = enabled ? "♟ Disable Chess" : "♟ Enable Chess";
-    enableChessBtn.style.background = enabled ? "linear-gradient(135deg, #c0392b, #e74c3c)" : "linear-gradient(135deg, #2d3436, #636e72)";
-  }
-}
-
-// Socket handlers
-socket.on("chess-enabled", function(data) {
-  setChessEnabled(data.enabled);
-  if (!data.enabled && isChessOpen) closeChess();
-});
-
-socket.on("chess-your-color", function(data) {
-  myColor = data.color;
-  userChessColor = data.color;
-});
-
-socket.on("chess-player-assigned", function(data) {
-  whiteName = "White";
-  blackName = "Black";
-  if (data.color === "w") whiteName = data.username;
-  if (data.color === "b") blackName = data.username;
-  updateTurnDisplay();
-});
-
-socket.on("chess-player-unassigned", function(data) {
-  if (data.color === "w") whiteName = "White";
-  if (data.color === "b") blackName = "Black";
-  updateTurnDisplay();
-});
-
-socket.on("chess-game-start", function(data) {
-  gameActive = true;
-  clientChess.load(data.fen);
-  selectedSquare = null;
-  possibleSquares = [];
-  lastMove = null;
-  whiteName = data.white || "White";
-  blackName = data.black || "Black";
-  renderPosition(data.fen);
-  if (statusEl) { statusEl.textContent = "Playing"; statusEl.style.color = "#00b894"; }
-  updateTurnDisplay();
-  updateChessControls();
-});
-
-socket.on("chess-move-made", function(data) {
-  clientChess.load(data.fen);
-  selectedSquare = null;
-  possibleSquares = [];
-  lastMove = { from: data.from, to: data.to };
-  renderPosition(data.fen);
-  if (data.isGameOver) {
-    gameActive = false;
-    var reason = data.inCheckmate ? "Checkmate!" : data.inStalemate ? "Stalemate!" : data.inDraw ? "Draw!" : "Game Over";
-    if (statusEl) { statusEl.textContent = reason; statusEl.style.color = "#ff7675"; }
-    updateTurnDisplay(reason);
+metalsBtn?.addEventListener("click", function() {
+  metalsVisible = !metalsVisible;
+  metalsModal.style.display = metalsVisible ? "block" : "none";
+  if (metalsVisible) {
+    fetchPrices("metals", METAL_LABELS, metalsPrices, metalsUpdateTime);
+    if (metalsTimer) clearInterval(metalsTimer);
+    metalsTimer = setInterval(function() { fetchPrices("metals", METAL_LABELS, metalsPrices, metalsUpdateTime); }, 30000);
   } else {
-    updateTurnDisplay();
+    if (metalsTimer) { clearInterval(metalsTimer); metalsTimer = null; }
   }
-  updateChessControls();
 });
 
-socket.on("chess-game-over", function(data) {
-  gameActive = false;
-  myColor = null;
-  if (data.fen) { clientChess.load(data.fen); renderPosition(data.fen); }
-  if (statusEl) { statusEl.textContent = data.result || "Game Over"; statusEl.style.color = "#ff7675"; }
-  updateTurnDisplay(data.result || "Game Over");
-  updateChessControls();
+closeMetalsBtn?.addEventListener("click", function() {
+  metalsVisible = false;
+  metalsModal.style.display = "none";
+  if (metalsTimer) { clearInterval(metalsTimer); metalsTimer = null; }
 });
 
-socket.on("chess-spectator", function(data) {
-  gameActive = !data.isGameOver;
-  if (data.fen) { clientChess.load(data.fen); renderPosition(data.fen); }
-  if (statusEl) statusEl.textContent = "Spectating";
-  updateTurnDisplay();
-  updateChessControls();
-});
-
-socket.on("chess-draw-offered", function(data) {
-  var accept = confirm("Opponent offers a draw. Accept?");
-  socket.emit("chess-draw-response", { room: currentRoom, accept: accept });
-});
-
-socket.on("chess-draw-declined", function() {
-  showNotification("Draw declined by opponent", "warning");
-});
-
-socket.on("chess-state", function(data) {
-  if (!data.active || !data.enabled) {
-    gameActive = false;
-    myColor = null;
-    selectedSquare = null;
-    possibleSquares = [];
-    if (chessEnabled) setChessEnabled(true);
-    updateChessControls();
-    return;
-  }
-  chessEnabled = true;
-  gameActive = !data.isGameOver;
-  if (data.fen) { clientChess.load(data.fen); renderPosition(data.fen); }
-  // Restore player names
-  if (data.players) {
-    data.players.forEach(function(p) {
-      if (p.color === "w") whiteName = p.username;
-      if (p.color === "b") blackName = p.username;
-    });
-  }
-  if (data.isGameOver) {
-    if (statusEl) { statusEl.textContent = "Game Over"; statusEl.style.color = "#ff7675"; }
+stocksBtn?.addEventListener("click", function() {
+  stocksVisible = !stocksVisible;
+  stocksModal.style.display = stocksVisible ? "block" : "none";
+  if (stocksVisible) {
+    fetchPrices("indices", STOCK_LABELS, stocksPrices, stocksUpdateTime);
+    if (stocksTimer) clearInterval(stocksTimer);
+    stocksTimer = setInterval(function() { fetchPrices("indices", STOCK_LABELS, stocksPrices, stocksUpdateTime); }, 30000);
   } else {
-    if (statusEl) { statusEl.textContent = "Playing"; statusEl.style.color = "#00b894"; }
-  }
-  updateTurnDisplay();
-  updateChessControls();
-});
-
-socket.on("chess-error", function(data) {
-  showNotification(data.message || "Chess error", "error");
-});
-
-function updateTurnDisplay(msg) {
-  if (!turnIndicatorEl) return;
-  var turn = clientChess ? clientChess.turn() : "w";
-  var text = "⚪ " + whiteName + (turn === "w" ? " ●" : "") + "  |  ⚫ " + blackName + (turn === "b" ? " ●" : "");
-  if (msg) text += " — " + msg;
-  turnIndicatorEl.textContent = text;
-}
-
-function updateChessControls() {
-  if (!controlsEl) return;
-  var html = "";
-  if (gameActive && myColor) {
-    // Player controls
-    if (myColor === clientChess.turn()) html += '<button class="chess-ctrl-btn" id="chess-resign-btn" style="background:#d63031;">Resign</button>';
-    html += '<button class="chess-ctrl-btn" id="chess-draw-btn" style="background:#fdcb6e;color:#000;">Draw</button>';
-  }
-  html += '<button class="chess-ctrl-btn" id="chess-refresh-btn" style="background:#636e72;">Refresh View</button>';
-  controlsEl.innerHTML = html;
-  document.getElementById("chess-resign-btn")?.addEventListener("click", function() {
-    if (confirm("Resign the game?")) socket.emit("chess-resign", { room: currentRoom });
-  });
-  document.getElementById("chess-draw-btn")?.addEventListener("click", function() {
-    socket.emit("chess-offer-draw", { room: currentRoom });
-    showNotification("Draw offered to opponent", "info");
-  });
-  document.getElementById("chess-refresh-btn")?.addEventListener("click", function() {
-    socket.emit("chess-get-state", { room: currentRoom });
-  });
-}
-
-// Button handlers
-enableChessBtn?.addEventListener("click", function() {
-  if (!chessEnabled) {
-    socket.emit("chess-enable", { room: currentRoom });
-  } else {
-    if (confirm("Disable chess? This will end any active game.")) {
-      socket.emit("chess-disable", { room: currentRoom });
-    }
+    if (stocksTimer) { clearInterval(stocksTimer); stocksTimer = null; }
   }
 });
 
-chessBtn?.addEventListener("click", function() {
-  if (!chessPanel || !chessOverlay) return;
-  if (!cdnReady) { showNotification("Chess requires Three.js & chess.js — check internet", "error"); return; }
-  if (!containerEl) { showNotification("Chess panel element missing", "error"); return; }
-  isChessOpen = !isChessOpen;
-  chessPanel.style.display = isChessOpen ? "block" : "none";
-  chessOverlay.style.display = isChessOpen ? "block" : "none";
-  if (isChessOpen) {
-    initScene();
-    setTimeout(resizeRenderer, 50);
-    socket.emit("chess-get-state", { room: currentRoom });
-  }
+closeStocksBtn?.addEventListener("click", function() {
+  stocksVisible = false;
+  stocksModal.style.display = "none";
+  if (stocksTimer) { clearInterval(stocksTimer); stocksTimer = null; }
 });
-
-closeChessBtn?.addEventListener("click", closeChess);
-chessOverlay?.addEventListener("click", closeChess);
-
-// Update host visibility when chess state changes
-// Called from outside when host assignment changes
-window._setChessHostState = function(host) {
-  isHost = host;
-  if (enableChessBtn) enableChessBtn.style.display = host ? "inline-block" : "none";
-  if (chessBtn) chessBtn.style.display = "inline-block";
-};
-
-// Participant assign in existing renderParticipantsList
-// Patch renderParticipantsList to add chess assign buttons
-var origRenderParticipants = window.renderParticipantsList;
-window.renderParticipantsList = function(users) {
-  if (origRenderParticipants) origRenderParticipants(users);
-  if (!chessEnabled || !isHost) return;
-  var list = document.getElementById("participants-list");
-  if (!list) return;
-  var items = list.querySelectorAll("div[style*='flex']");
-  if (!users) return;
-  users.forEach(function(u, idx) {
-    if (idx < items.length && items[idx]) {
-      var existingAssign = items[idx].querySelector(".chess-assign-btn");
-      if (existingAssign) return;
-      var btnDiv = document.createElement("div");
-      btnDiv.style.cssText = "display:flex;gap:4px;margin-left:auto;flex-shrink:0;";
-      var wBtn = document.createElement("button");
-      wBtn.className = "chess-assign-btn";
-      wBtn.textContent = "♟W";
-      wBtn.title = "Assign as White";
-      wBtn.style.cssText = "background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:4px;padding:2px 6px;font-size:11px;cursor:pointer;";
-      wBtn.addEventListener("click", function(e) { e.stopPropagation(); socket.emit("chess-assign-player", { room: currentRoom, targetUid: u.uid, color: "w" }); });
-      var bBtn = document.createElement("button");
-      bBtn.className = "chess-assign-btn";
-      bBtn.textContent = "♟B";
-      bBtn.title = "Assign as Black";
-      bBtn.style.cssText = "background:rgba(0,0,0,0.3);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:4px;padding:2px 6px;font-size:11px;cursor:pointer;";
-      bBtn.addEventListener("click", function(e) { e.stopPropagation(); socket.emit("chess-assign-player", { room: currentRoom, targetUid: u.uid, color: "b" }); });
-      var uBtn = document.createElement("button");
-      uBtn.textContent = "✕";
-      uBtn.title = "Unassign";
-      uBtn.style.cssText = "background:rgba(231,76,60,0.3);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:4px;padding:2px 5px;font-size:10px;cursor:pointer;";
-      uBtn.addEventListener("click", function(e) { e.stopPropagation(); socket.emit("chess-unassign-player", { room: currentRoom, targetUid: u.uid }); });
-      btnDiv.appendChild(wBtn);
-      btnDiv.appendChild(bBtn);
-      btnDiv.appendChild(uBtn);
-      items[idx].appendChild(btnDiv);
-    }
-  });
-};
-
-// Sync chess host state from room-history
-socket.on("room-history", function(data) {
-  if (data && data.isHost !== undefined) {
-    if (window._setChessHostState) window._setChessHostState(data.isHost);
-  }
-});
-
 })();
 
 

@@ -261,10 +261,11 @@ body.no-scroll { overflow: hidden !important; }
     }
 }
 
-/* Chess 3D */
-#chess-3d-container canvas { display: block; width: 100% !important; height: 100% !important; }
-#chess-3d-container { border-radius: 0 0 14px 14px; background: #1a1a2e; }
-@media(max-width:600px) {
-    #chess-3d-container { width: 95vw !important; height: 95vw !important; }
-    #chess-panel { width: 98vw; }
-}
+/* Market Price Styles */
+.price-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.price-row:last-child { border-bottom: none; }
+.price-name { font-weight: 500; }
+.price-value { font-weight: 600; }
+.price-change { font-size: 12px; }
+.price-change.up { color: #2ecc71; }
+.price-change.down { color: #e74c3c; }

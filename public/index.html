@@ -130,8 +130,8 @@
           <button id="downloadSummaryBtn" class="host-only-btn" title="Download Meeting Summary (PDF)" style="background: linear-gradient(135deg, #8e44ad, #9b59b6); color: white; display: none;">📄 Summary</button>
           <button id="participantsBtn" title="View Participants" style="background: linear-gradient(135deg, #3498db, #2980b9); color: white;">👥 Participants</button>
           <button id="vydexDownloadsBtn" class="host-only-btn" title="VYDEX Downloads" style="background: linear-gradient(135deg, #8e44ad, #9b59b6); color: white; display: none;">📁 VYDEX</button>
-          <button id="enableChessBtn" class="host-only-btn" title="Enable Chess for this room" style="background: linear-gradient(135deg, #2d3436, #636e72); color: white; display: none;">♟ Enable Chess</button>
-          <button id="chessBtn" title="Chess Game" style="background: linear-gradient(135deg, #2d3436, #636e72); color: white;">♟ Chess</button>
+          <button id="toggleMetalsBtn" title="Gold & Oil Prices" style="background: linear-gradient(135deg, #f1c40f, #f39c12); color: white;">🥇 Gold & Oil</button>
+          <button id="toggleStocksBtn" title="Stock Indices" style="background: linear-gradient(135deg, #2ecc71, #27ae60); color: white;">📈 Stocks</button>
         </div>
 
         <div id="hostAudioContainer" style="display: none; width: 100%; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
@@ -629,20 +629,28 @@
   </div>
   <div id="vydex-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 999998;"></div>
 
-  <!-- CHESS MODAL -->
-  <div id="chess-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 999998;"></div>
-  <div id="chess-panel" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 999999; background: rgba(20,30,48,0.98); border: 2px solid #636e72; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.9); padding: 0;">
-    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); background: rgba(20,30,48,0.98); border-radius: 14px 14px 0 0;">
-      <h3 style="margin: 0; color: #dfe6e9; font-size: 1rem;">♟ Chess</h3>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span id="chess-status" style="font-size:12px;color:rgba(255,255,255,0.5);">Not started</span>
-        <span id="closeChessBtn" style="cursor:pointer;color:var(--danger);font-size:20px;padding:0 5px;line-height:1;flex-shrink:0;" title="Close">✖</span>
-      </div>
+  <!-- METALS PRICES MODAL -->
+  <div id="metals-modal" class="card" style="display: none; position: fixed; top: 15%; right: 5%; z-index: 99999; width: 320px; background: rgba(20,30,48,0.98); border: 2px solid #f1c40f; box-shadow: 0 20px 50px rgba(0,0,0,0.8); padding: 15px;">
+    <h4 id="metals-header" style="margin: 0 0 10px 0; color: #f1c40f; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; cursor: move; user-select: none; display: flex; justify-content: space-between; align-items: center;">
+      <span>🥇 Precious Metals & Oil</span>
+      <span id="closeMetalsBtn" style="cursor:pointer; color:var(--danger); font-size:18px; padding:0 5px;" title="Close">✖</span>
+    </h4>
+    <div id="metals-prices" style="font-size:14px; color:#dfe6e9;">
+      <div style="text-align:center; color:rgba(255,255,255,0.4); padding:20px;">Loading...</div>
     </div>
-    <div id="chess-3d-container" style="width:520px;height:520px;cursor:pointer;position:relative;overflow:hidden;">
-      <div id="chess-turn-indicator" style="position:absolute;bottom:8px;left:8px;right:8px;text-align:center;font-size:13px;color:rgba(255,255,255,0.8);background:rgba(0,0,0,0.5);padding:4px 10px;border-radius:6px;pointer-events:none;z-index:2;"></div>
+    <div style="text-align:right; font-size:10px; color:rgba(255,255,255,0.3); margin-top:8px;" id="metals-update-time"></div>
+  </div>
+
+  <!-- STOCK INDICES MODAL -->
+  <div id="stocks-modal" class="card" style="display: none; position: fixed; top: 15%; right: 5%; z-index: 99999; width: 320px; background: rgba(20,30,48,0.98); border: 2px solid #2ecc71; box-shadow: 0 20px 50px rgba(0,0,0,0.8); padding: 15px;">
+    <h4 id="stocks-header" style="margin: 0 0 10px 0; color: #2ecc71; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; cursor: move; user-select: none; display: flex; justify-content: space-between; align-items: center;">
+      <span>📈 Stock Indices</span>
+      <span id="closeStocksBtn" style="cursor:pointer; color:var(--danger); font-size:18px; padding:0 5px;" title="Close">✖</span>
+    </h4>
+    <div id="stocks-prices" style="font-size:14px; color:#dfe6e9;">
+      <div style="text-align:center; color:rgba(255,255,255,0.4); padding:20px;">Loading...</div>
     </div>
-    <div id="chess-controls" style="display:flex;gap:6px;justify-content:center;padding:8px 12px;border-top:1px solid rgba(255,255,255,0.1);flex-wrap:wrap;"></div>
+    <div style="text-align:right; font-size:10px; color:rgba(255,255,255,0.3); margin-top:8px;" id="stocks-update-time"></div>
   </div>
 
   <!-- ANNOUNCEMENT MODAL -->
@@ -656,8 +664,6 @@
   <div id="announcement-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 999998;"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chess.js@1.0.0-beta.8/dist/chess.min.js"></script>
   <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

@@ -187,7 +187,6 @@ const roomOfficeState = new Map();
 const roomChartData = new Map(); 
 const roomAgenda = new Map(); 
 const roomLocked = new Map();
-const chessGames = new Map(); // room -> { game: Chess, players: Map<color, socketId>, spectators: Set<socketId>, challenges: [] }
 const pendingJoins = new Map();
 const pendingApprovals = new Set();
 const roomCleanupTimers = new Map();
@@ -573,27 +572,6 @@ io.on("connection", socket => {
         console.log(`Room ${user.room} empty, cleanup scheduled in 24h`);
       }
 
-      // Clean up chess game if this user was a player
-      const chessState = chessGames.get(user.room);
-      if (chessState) {
-        for (const [color, info] of chessState.players) {
-          if (info.socketId === socketId) {
-            chessState.players.delete(color);
-            io.to(user.room).emit("chess-player-left", { color, username: info.username });
-            if (chessState.players.size < 2) {
-              io.to(user.room).emit("chess-game-over", {
-                result: "Game ended — a player disconnected",
-                winner: null,
-                fen: chessState.game.fen()
-              });
-              chessGames.delete(user.room);
-            }
-            break;
-          }
-        }
-        chessState.spectators.delete(socketId);
-      }
-
       socketUsers.delete(socketId);
       uidToSocket.delete(user.uid.toString());
       io.to(user.room).emit("room-update", { size: Math.max(0, (io.sockets.adapter.rooms.get(user.room)?.size || 1) - 1) });
@@ -602,193 +580,64 @@ io.on("connection", socket => {
 });
 
 // ==========================================
-// CHESS GAME HANDLERS
+// MARKET PRICE API (proxy to Yahoo Finance)
 // ==========================================
-io.on("connection", (socket) => {
+const PRICE_CACHE = { metals: null, indices: null, metalsTime: 0, indicesTime: 0 };
+const CACHE_TTL = 30000; // 30 seconds
 
-socket.on("chess-enable", (data) => {
-  const room = data.room;
-  const hostSockId = roomHosts.get(room);
-  if (hostSockId !== socket.id) return socket.emit("chess-error", { message: "Only host can enable chess" });
-  let gameState = chessGames.get(room);
-  if (!gameState) {
-    gameState = { game: new Chess(), players: new Map(), spectators: new Set(), enabled: true };
-    chessGames.set(room, gameState);
-  } else {
-    gameState.enabled = true;
-  }
-  io.to(room).emit("chess-enabled", { enabled: true });
-});
-
-socket.on("chess-disable", (data) => {
-  const room = data.room;
-  const hostSockId = roomHosts.get(room);
-  if (hostSockId !== socket.id) return;
-  chessGames.delete(room);
-  io.to(room).emit("chess-enabled", { enabled: false });
-});
-
-socket.on("chess-assign-player", (data) => {
-  const room = data.room;
-  const hostSockId = roomHosts.get(room);
-  if (hostSockId !== socket.id) return socket.emit("chess-error", { message: "Only host can assign players" });
-  const targetUid = data.targetUid;
-  const color = data.color;
-  if (color !== "w" && color !== "b") return;
-  const targetSocketId = uidToSocket.get(targetUid);
-  if (!targetSocketId) return socket.emit("chess-error", { message: "User not found" });
-  const targetUser = socketUsers.get(targetSocketId);
-  if (!targetUser) return socket.emit("chess-error", { message: "User not in room" });
-  let gameState = chessGames.get(room);
-  if (!gameState) {
-    gameState = { game: new Chess(), players: new Map(), spectators: new Set(), enabled: true };
-    chessGames.set(room, gameState);
-  }
-  // Remove this user from any existing assignment
-  for (const [c, info] of gameState.players) {
-    if (info.uid === targetUid) { gameState.players.delete(c); io.to(room).emit("chess-player-unassigned", { color: c, username: info.username }); break; }
-  }
-  // If color already taken, unassign that player
-  if (gameState.players.has(color)) {
-    const oldInfo = gameState.players.get(color);
-    io.to(room).emit("chess-player-unassigned", { color, username: oldInfo.username });
-    gameState.players.delete(color);
-  }
-  gameState.players.set(color, { socketId: targetSocketId, username: targetUser.name, uid: targetUid });
-  io.to(room).emit("chess-player-assigned", { color, username: targetUser.name, uid: targetUid, playerCount: gameState.players.size });
-  io.to(targetSocketId).emit("chess-your-color", { color });
-  if (gameState.players.size === 2) {
-    gameState.game = new Chess();
-    io.to(room).emit("chess-game-start", {
-      fen: gameState.game.fen(), turn: gameState.game.turn(),
-      white: gameState.players.get("w").username, black: gameState.players.get("b").username
-    });
-  }
-});
-
-socket.on("chess-unassign-player", (data) => {
-  const room = data.room;
-  const hostSockId = roomHosts.get(room);
-  if (hostSockId !== socket.id) return;
-  const targetUid = data.targetUid;
-  const gameState = chessGames.get(room);
-  if (!gameState) return;
-  for (const [color, info] of gameState.players) {
-    if (info.uid === targetUid) {
-      gameState.players.delete(color);
-      io.to(room).emit("chess-player-unassigned", { color, username: info.username });
-      if (gameState.game && !gameState.game.isGameOver()) {
-        io.to(room).emit("chess-game-over", { result: "Game ended — player unassigned", winner: null, fen: gameState.game.fen() });
-      }
-      gameState.game = new Chess();
-      break;
-    }
-  }
-});
-
-socket.on("chess-move", (data) => {
-  const room = data.room;
-  const gameState = chessGames.get(room);
-  if (!gameState) return socket.emit("chess-error", { message: "No chess game in this room" });
-  let playerColor = null;
-  for (const [color, info] of gameState.players) {
-    if (info.socketId === socket.id) { playerColor = color; break; }
-  }
-  if (!playerColor) return socket.emit("chess-error", { message: "You are not a player in this game" });
-  if (playerColor !== gameState.game.turn()) return socket.emit("chess-error", { message: "Not your turn" });
-  try {
-    const move = gameState.game.move(data.move);
-    if (!move) return socket.emit("chess-error", { message: "Invalid move" });
-    io.to(room).emit("chess-move-made", {
-      fen: gameState.game.fen(), san: move.san, from: move.from, to: move.to,
-      turn: gameState.game.turn(), inCheck: gameState.game.isCheck(),
-      inCheckmate: gameState.game.isCheckmate(), inStalemate: gameState.game.isStalemate(),
-      inDraw: gameState.game.isDraw(), isGameOver: gameState.game.isGameOver()
-    });
-    if (gameState.game.isGameOver()) {
-      setTimeout(() => { chessGames.delete(room); }, 60000);
-    }
-  } catch (e) {
-    socket.emit("chess-error", { message: "Invalid move: " + e.message });
-  }
-});
-
-socket.on("chess-resign", (data) => {
-  const room = data.room;
-  const gameState = chessGames.get(room);
-  if (!gameState) return;
-  let playerColor = null;
-  let username = "";
-  for (const [color, info] of gameState.players) {
-    if (info.socketId === socket.id) { playerColor = color; username = info.username; break; }
-  }
-  if (!playerColor) return;
-  io.to(room).emit("chess-game-over", {
-    result: (playerColor === "w" ? "Black" : "White") + " wins by resignation",
-    winner: playerColor === "w" ? "b" : "w", fen: gameState.game.fen(), resignedBy: username
+function fetchYahooPrice(symbol) {
+  return new Promise((resolve, reject) => {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1d&interval=1m`;
+    https.get(url, { headers: { "User-Agent": "Mozilla/5.0" } }, (res) => {
+      let data = "";
+      res.on("data", (chunk) => data += chunk);
+      res.on("end", () => {
+        try {
+          const json = JSON.parse(data);
+          const result = json.chart?.result?.[0];
+          if (!result) return resolve(null);
+          const meta = result.meta;
+          const q = result.indicators?.quote?.[0];
+          resolve({
+            price: meta.regularMarketPrice,
+            prevClose: meta.chartPreviousClose,
+            change: meta.regularMarketPrice - meta.chartPreviousClose,
+            changePercent: ((meta.regularMarketPrice - meta.chartPreviousClose) / meta.chartPreviousClose * 100).toFixed(2),
+            time: meta.regularMarketTime,
+            currency: meta.currency || "USD"
+          });
+        } catch (e) { reject(e); }
+      });
+    }).on("error", reject);
   });
-  setTimeout(() => chessGames.delete(room), 60000);
-});
+}
 
-socket.on("chess-offer-draw", (data) => {
-  const room = data.room;
-  const gameState = chessGames.get(room);
-  if (!gameState) return;
-  let playerColor = null;
-  for (const [color, info] of gameState.players) {
-    if (info.socketId === socket.id) { playerColor = color; break; }
+app.get("/api/market-prices", async (req, res) => {
+  const type = req.query.type; // "metals" or "indices"
+  if (type !== "metals" && type !== "indices") return res.json({ error: "Invalid type" });
+
+  const now = Date.now();
+  if (type === "metals" && now - PRICE_CACHE.metalsTime < CACHE_TTL && PRICE_CACHE.metals) {
+    return res.json(PRICE_CACHE.metals);
   }
-  if (!playerColor) return;
-  for (const [color, info] of gameState.players) {
-    if (info.socketId !== socket.id) { io.to(info.socketId).emit("chess-draw-offered", { byColor: playerColor }); }
+  if (type === "indices" && now - PRICE_CACHE.indicesTime < CACHE_TTL && PRICE_CACHE.indices) {
+    return res.json(PRICE_CACHE.indices);
   }
-});
 
-socket.on("chess-draw-response", (data) => {
-  const room = data.room; const gs = chessGames.get(room);
-  if (!gs) return;
-  if (data.accept) {
-    io.to(room).emit("chess-game-over", { result: "Draw by agreement", winner: null, fen: gs.game.fen() });
-    setTimeout(() => chessGames.delete(room), 60000);
-  } else {
-    for (const [c, info] of gs.players) { if (info.socketId !== socket.id) { io.to(info.socketId).emit("chess-draw-declined", {}); } }
+  const symbols = type === "metals"
+    ? { gold: "GC=F", silver: "SI=F", platinum: "PL=F", palladium: "PA=F", crudeOil: "CL=F" }
+    : { nifty50: "^NSEI", sensex: "^BSESN", bankNifty: "^NSEBANK" };
+
+  const results = {};
+  for (const [key, sym] of Object.entries(symbols)) {
+    try { results[key] = await fetchYahooPrice(sym); } catch (e) { results[key] = null; }
   }
-});
 
-socket.on("chess-spectate", (data) => {
-  const room = data.room;
-  const gameState = chessGames.get(room);
-  if (!gameState) return socket.emit("chess-error", { message: "No chess game in this room" });
-  gameState.spectators.add(socket.id);
-  socket.emit("chess-spectator", { fen: gameState.game.fen(), turn: gameState.game.turn(), white: gameState.players.get("w")?.username || "White", black: gameState.players.get("b")?.username || "Black", isGameOver: gameState.game.isGameOver() });
-});
+  if (type === "metals") { PRICE_CACHE.metals = results; PRICE_CACHE.metalsTime = now; }
+  else { PRICE_CACHE.indices = results; PRICE_CACHE.indicesTime = now; }
 
-socket.on("chess-get-state", (data) => {
-  const room = data.room;
-  const gameState = chessGames.get(room);
-  if (!gameState) return socket.emit("chess-state", { active: false, enabled: false });
-  const pArr = [];
-  for (const [color, info] of gameState.players) { pArr.push({ color, username: info.username, uid: info.uid }); }
-  socket.emit("chess-state", { active: true, enabled: gameState.enabled || false, fen: gameState.game.fen(), turn: gameState.game.turn(), players: pArr, spectatorCount: gameState.spectators.size, isGameOver: gameState.game.isGameOver(), inCheck: gameState.game.isCheck(), inCheckmate: gameState.game.isCheckmate(), inDraw: gameState.game.isDraw() });
+  res.json(results);
 });
-
-socket.on("chess-leave", (data) => {
-  const room = data.room;
-  const gameState = chessGames.get(room);
-  if (!gameState) return;
-  gameState.spectators.delete(socket.id);
-  for (const [color, info] of gameState.players) {
-    if (info.socketId === socket.id) {
-      gameState.players.delete(color);
-      io.to(room).emit("chess-player-left", { color, username: info.username });
-      if (gameState.players.size < 2) {
-        io.to(room).emit("chess-game-over", { result: "Game ended — a player left", winner: null, fen: gameState.game.fen() });
-      }
-      return;
-    }
-  }
-});
-}); // end chess connection callback
 
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
