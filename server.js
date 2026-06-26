@@ -7,6 +7,7 @@ const { Server } = require("socket.io");
 const fs = require("fs");
 const Database = require("better-sqlite3");
 const crypto = require("crypto");
+const { Chess } = require("chess.js");
 
 const app = express();
 // CORS for Express HTTP routes (needed by Capacitor WebView cross-origin fetch)
@@ -186,6 +187,7 @@ const roomOfficeState = new Map();
 const roomChartData = new Map(); 
 const roomAgenda = new Map(); 
 const roomLocked = new Map();
+const chessGames = new Map(); // room -> { game: Chess, players: Map<color, socketId>, spectators: Set<socketId>, challenges: [] }
 const pendingJoins = new Map();
 const pendingApprovals = new Set();
 const roomCleanupTimers = new Map();
@@ -571,12 +573,265 @@ io.on("connection", socket => {
         console.log(`Room ${user.room} empty, cleanup scheduled in 24h`);
       }
 
+      // Clean up chess game if this user was a player
+      const chessState = chessGames.get(user.room);
+      if (chessState) {
+        for (const [color, info] of chessState.players) {
+          if (info.socketId === socketId) {
+            chessState.players.delete(color);
+            io.to(user.room).emit("chess-player-left", { color, username: info.username });
+            if (chessState.players.size < 2) {
+              io.to(user.room).emit("chess-game-over", {
+                result: "Game ended — a player disconnected",
+                winner: null,
+                fen: chessState.game.fen()
+              });
+              chessGames.delete(user.room);
+            }
+            break;
+          }
+        }
+        chessState.spectators.delete(socketId);
+      }
+
       socketUsers.delete(socketId);
       uidToSocket.delete(user.uid.toString());
       io.to(user.room).emit("room-update", { size: Math.max(0, (io.sockets.adapter.rooms.get(user.room)?.size || 1) - 1) });
     }
   }
 });
+
+// ==========================================
+// CHESS GAME HANDLERS
+// ==========================================
+io.on("connection", (socket) => {
+socket.on("chess-start", (data) => {
+  const room = data.room;
+  const username = data.username;
+  const playerSocketId = socket.id;
+
+  let gameState = chessGames.get(room);
+  if (!gameState) {
+    gameState = { game: new Chess(), players: new Map(), spectators: new Set(), challenges: [] };
+    chessGames.set(room, gameState);
+  }
+
+  // If a game is already in progress, reject
+  if (gameState.players.size >= 2) {
+    return socket.emit("chess-error", { message: "A game is already in progress" });
+  }
+
+  // Join as white if no players, black if one player
+  let color = null;
+  if (!gameState.players.has("w")) {
+    color = "w";
+  } else if (!gameState.players.has("b")) {
+    color = "b";
+  } else {
+    // Both spots taken, auto-spectate
+    gameState.spectators.add(playerSocketId);
+    return socket.emit("chess-spectator", { fen: gameState.game.fen(), turn: gameState.game.turn() });
+  }
+
+  gameState.players.set(color, { socketId: playerSocketId, username: username || "Player" });
+
+  // Tell this player their color
+  socket.emit("chess-your-color", { color: color });
+
+  // Notify everyone in the room about the chess join
+  io.to(room).emit("chess-player-joined", {
+    color: color,
+    username: username || "Player",
+    playerCount: gameState.players.size,
+    fen: gameState.game.fen(),
+    turn: gameState.game.turn()
+  });
+
+  if (gameState.players.size === 2) {
+    // Game starts
+    io.to(room).emit("chess-game-start", {
+      fen: gameState.game.fen(),
+      turn: gameState.game.turn(),
+      white: gameState.players.get("w").username,
+      black: gameState.players.get("b").username
+    });
+  }
+});
+
+socket.on("chess-move", (data) => {
+  const room = data.room;
+  const gameState = chessGames.get(room);
+  if (!gameState) return socket.emit("chess-error", { message: "No chess game in this room" });
+
+  // Verify this socket is one of the players
+  let playerColor = null;
+  for (const [color, info] of gameState.players) {
+    if (info.socketId === socket.id) { playerColor = color; break; }
+  }
+  if (!playerColor) return socket.emit("chess-error", { message: "You are not a player in this game" });
+
+  // Verify it's their turn (w="w", b="b")
+  const turnMap = { w: "w", b: "b" };
+  if (turnMap[playerColor] !== gameState.game.turn()) {
+    return socket.emit("chess-error", { message: "Not your turn" });
+  }
+
+  try {
+    const move = gameState.game.move(data.move);
+    if (!move) return socket.emit("chess-error", { message: "Invalid move" });
+
+    // Broadcast the move to everyone in the room
+    io.to(room).emit("chess-move-made", {
+      fen: gameState.game.fen(),
+      san: move.san,
+      from: move.from,
+      to: move.to,
+      turn: gameState.game.turn(),
+      inCheck: gameState.game.isCheck(),
+      inCheckmate: gameState.game.isCheckmate(),
+      inStalemate: gameState.game.isStalemate(),
+      inDraw: gameState.game.isDraw(),
+      isGameOver: gameState.game.isGameOver()
+    });
+
+    // If game over, clean up after a delay
+    if (gameState.game.isGameOver()) {
+      setTimeout(() => {
+        chessGames.delete(room);
+      }, 60000); // Keep for 1 minute for spectators to see
+    }
+  } catch (e) {
+    socket.emit("chess-error", { message: "Invalid move: " + e.message });
+  }
+});
+
+socket.on("chess-resign", (data) => {
+  const room = data.room;
+  const gameState = chessGames.get(room);
+  if (!gameState) return;
+
+  let playerColor = null;
+  let username = "";
+  for (const [color, info] of gameState.players) {
+    if (info.socketId === socket.id) { playerColor = color; username = info.username; break; }
+  }
+  if (!playerColor) return;
+
+  io.to(room).emit("chess-game-over", {
+    result: (playerColor === "w" ? "Black" : "White") + " wins by resignation",
+    winner: playerColor === "w" ? "b" : "w",
+    fen: gameState.game.fen(),
+    resignedBy: username
+  });
+  setTimeout(() => chessGames.delete(room), 60000);
+});
+
+socket.on("chess-offer-draw", (data) => {
+  const room = data.room;
+  const gameState = chessGames.get(room);
+  if (!gameState) return;
+
+  let playerColor = null;
+  for (const [color, info] of gameState.players) {
+    if (info.socketId === socket.id) { playerColor = color; break; }
+  }
+  if (!playerColor) return;
+
+  // Notify the other player
+  for (const [color, info] of gameState.players) {
+    if (info.socketId !== socket.id) {
+      io.to(info.socketId).emit("chess-draw-offered", { byColor: playerColor });
+    }
+  }
+});
+
+socket.on("chess-draw-response", (data) => {
+  const room = data.room;
+  const gameState = chessGames.get(room);
+  if (!gameState) return;
+
+  if (data.accept) {
+    io.to(room).emit("chess-game-over", {
+      result: "Draw by agreement",
+      winner: null,
+      fen: gameState.game.fen()
+    });
+    setTimeout(() => chessGames.delete(room), 60000);
+  } else {
+    // Notify the offering player that draw was declined
+    for (const [color, info] of gameState.players) {
+      if (info.socketId !== socket.id) {
+        io.to(info.socketId).emit("chess-draw-declined", {});
+      }
+    }
+  }
+});
+
+socket.on("chess-spectate", (data) => {
+  const room = data.room;
+  const gameState = chessGames.get(room);
+  if (!gameState) return socket.emit("chess-error", { message: "No chess game in this room" });
+
+  gameState.spectators.add(socket.id);
+  socket.emit("chess-spectator", {
+    fen: gameState.game.fen(),
+    turn: gameState.game.turn(),
+    white: gameState.players.get("w")?.username || "White",
+    black: gameState.players.get("b")?.username || "Black",
+    isGameOver: gameState.game.isGameOver()
+  });
+});
+
+socket.on("chess-get-state", (data) => {
+  const room = data.room;
+  const gameState = chessGames.get(room);
+  if (!gameState) return socket.emit("chess-state", { active: false });
+
+  const pArr = [];
+  for (const [color, info] of gameState.players) {
+    pArr.push({ color, username: info.username });
+  }
+
+  socket.emit("chess-state", {
+    active: true,
+    fen: gameState.game.fen(),
+    turn: gameState.game.turn(),
+    players: pArr,
+    spectatorCount: gameState.spectators.size,
+    isGameOver: gameState.game.isGameOver(),
+    inCheck: gameState.game.isCheck(),
+    inCheckmate: gameState.game.isCheckmate(),
+    inDraw: gameState.game.isDraw()
+  });
+});
+
+socket.on("chess-leave", (data) => {
+  const room = data.room;
+  const gameState = chessGames.get(room);
+  if (!gameState) return;
+
+  // Remove from spectators
+  gameState.spectators.delete(socket.id);
+
+  // Remove from players - if a player leaves, the game ends
+  for (const [color, info] of gameState.players) {
+    if (info.socketId === socket.id) {
+      gameState.players.delete(color);
+      io.to(room).emit("chess-player-left", { color, username: info.username });
+
+      if (gameState.players.size < 2) {
+        io.to(room).emit("chess-game-over", {
+          result: "Game ended — a player left",
+          winner: null,
+          fen: gameState.game.fen()
+        });
+        chessGames.delete(room);
+      }
+      return;
+    }
+  }
+});
+}); // end chess connection callback
 
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

@@ -130,6 +130,7 @@
           <button id="downloadSummaryBtn" class="host-only-btn" title="Download Meeting Summary (PDF)" style="background: linear-gradient(135deg, #8e44ad, #9b59b6); color: white; display: none;">📄 Summary</button>
           <button id="participantsBtn" title="View Participants" style="background: linear-gradient(135deg, #3498db, #2980b9); color: white;">👥 Participants</button>
           <button id="vydexDownloadsBtn" class="host-only-btn" title="VYDEX Downloads" style="background: linear-gradient(135deg, #8e44ad, #9b59b6); color: white; display: none;">📁 VYDEX</button>
+          <button id="chessBtn" title="Chess Game" style="background: linear-gradient(135deg, #2d3436, #636e72); color: white;">♟ Chess</button>
         </div>
 
         <div id="hostAudioContainer" style="display: none; width: 100%; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
@@ -627,6 +628,23 @@
   </div>
   <div id="vydex-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 999998;"></div>
 
+  <!-- CHESS MODAL -->
+  <div id="chess-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 999998;"></div>
+  <div id="chess-panel" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 999999; width: 480px; max-width: 95vw; max-height: 90vh; overflow-y: auto; background: rgba(20,30,48,0.98); border: 2px solid #636e72; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.9); padding: 0;">
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-bottom: 1px solid rgba(255,255,255,0.1); position: sticky; top: 0; background: rgba(20,30,48,0.98); z-index: 1; border-radius: 14px 14px 0 0;">
+      <h3 style="margin: 0; color: #dfe6e9; font-size: 1rem;">♟ Chess</h3>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span id="chess-status" style="font-size:12px;color:rgba(255,255,255,0.5);">Not started</span>
+        <span id="closeChessBtn" style="cursor:pointer;color:var(--danger);font-size:20px;padding:0 5px;line-height:1;flex-shrink:0;" title="Close">✖</span>
+      </div>
+    </div>
+    <div style="padding:12px 18px;">
+      <div id="chess-board" style="width:100%;max-width:400px;margin:0 auto;position:relative;"></div>
+      <div id="chess-info" style="text-align:center;margin-top:10px;min-height:30px;font-size:13px;color:rgba(255,255,255,0.7);"></div>
+      <div id="chess-controls" style="display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap;"></div>
+    </div>
+  </div>
+
   <!-- ANNOUNCEMENT MODAL -->
   <div id="announcement-modal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 999999; width: 420px; max-width: 90vw; max-height: 70vh; overflow-y: auto; background: rgba(20,30,48,0.98); border: 2px solid #f39c12; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.9); padding: 0;">
     <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-bottom: 1px solid rgba(255,255,255,0.1); position: sticky; top: 0; background: rgba(20,30,48,0.98); z-index: 1; border-radius: 14px 14px 0 0;">
@@ -638,6 +656,7 @@
   <div id="announcement-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 999998;"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/1.0.0-beta.8/chess.min.js"></script>
   <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

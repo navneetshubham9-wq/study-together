@@ -15,6 +15,7 @@
     "@capacitor/filesystem": "^8.0.0",
     "@capacitor/share": "^8.0.0",
     "better-sqlite3": "^12.10.0",
+    "chess.js": "^1.4.0",
     "express": "^4.22.2",
     "multer": "^1.4.4",
     "socket.io": "^4.8.3"
