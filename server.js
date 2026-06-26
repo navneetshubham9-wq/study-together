@@ -653,6 +653,72 @@ async function fetchMCXPrice(symbol) {
   }
 }
 
+// Fetch real city-wise gold prices from SilverJi (IBJA-based retail rates)
+async function fetchSilverJiPrices() {
+  try {
+    const html = await new Promise((resolve, reject) => {
+      https.get("https://www.silverji.in/gold-rate-today-india", {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        },
+        timeout: 12000
+      }, (res) => {
+        let data = "";
+        res.on("data", (chunk) => data += chunk);
+        res.on("end", () => resolve(data));
+      }).on("error", reject).on("timeout", function() { this.destroy(); reject(new Error("timeout")); });
+    });
+    var CITY_MAP = {
+      mumbai: "Maharashtra (Mumbai)", delhi: "Delhi", ahmedabad: "Gujarat (Ahmedabad)",
+      raipur: "Chhattisgarh (Bilaspur)", jaipur: "Rajasthan (Jaipur)",
+      lucknow: "Uttar Pradesh (Lucknow)", chandigarh: "Punjab (Chandigarh)",
+      kolkata: "West Bengal (Kolkata)", patna: "Bihar (Patna)",
+      guwahati: "Assam (Guwahati)", bhopal: "Madhya Pradesh (Bhopal)",
+      bhubaneswar: "Odisha", thiruvananthapuram: "Kerala",
+      chennai: "Tamil Nadu (Chennai)", bangalore: "Karnataka (Bengaluru)",
+      visakhapatnam: "Andhra Pradesh", hyderabad: "Telangana (Hyderabad)"
+    };
+    var result = [];
+    // Extract avg MCX base for mcxBase field
+    var avgMatch = html.match(/Avg 24K \/ 10g[\s\S]*?₹([\d,]+)\.\d+/);
+    var avgPrice = avgMatch ? parseInt(avgMatch[1].replace(/,/g, "")) : 0;
+    // Split into rows by <tr> and process each
+    var rows = html.split("</tr>");
+    for (var ri = 0; ri < rows.length; ri++) {
+      var row = rows[ri];
+      var slugMatch = row.match(/href="\/gold-rate-in-([\w-]+)"/);
+      if (!slugMatch) continue;
+      var slug = slugMatch[1];
+      var displayName = CITY_MAP[slug];
+      if (!displayName) continue;
+      var priceMatch = row.match(/₹([\d,]+)\.\d+<\/td>/);
+      if (!priceMatch) continue;
+      var price = parseInt(priceMatch[1].replace(/,/g, ""));
+      var changePct = 0;
+      var changeSign = row.match(/badge[^>]*>\s*([▲▼])/);
+      if (changeSign) {
+        var pctMatch = row.match(/[▲▼]([\d.]+)%/);
+        if (pctMatch) changePct = parseFloat(pctMatch[1]) * (changeSign[1] === "▼" ? -1 : 1);
+      }
+      result.push({
+        state: displayName,
+        price: price,
+        change: Math.round(price * changePct / 100),
+        mcxBase: avgPrice || price,
+        source: "SilverJi"
+      });
+    }
+    // Add Haryana from Chandigarh data (same price region)
+    var chandigarhEntry = result.find(function(e) { return e.state === "Punjab (Chandigarh)"; });
+    if (chandigarhEntry) {
+      result.push({ state: "Haryana", price: chandigarhEntry.price, change: chandigarhEntry.change, mcxBase: chandigarhEntry.mcxBase, source: "SilverJi" });
+    }
+    return result.length > 0 ? result : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 app.get("/api/market-prices", async (req, res) => {
   const type = req.query.type;
   if (type !== "metals" && type !== "indices") return res.json({ error: "Invalid type" });
@@ -692,53 +758,33 @@ app.get("/api/market-prices", async (req, res) => {
       if (fx && fx.price) usdInr = fx.price;
     } catch (e) { /* ignore */ }
 
-    // State-wise gold price breakdown (24K per 10g)
-    // MCX price already includes import duty — only add dealer premium + GST
-    const gstRate = 0.03;
-    const goldBasePrice = results.gold?.inrPrice10g || null;
-    const goldPrevClose = results.gold?.prevClose || null;
-    if (goldBasePrice) {
-      var GOLD_STATES = {
-        "Maharashtra (Mumbai)": { premium: 2000 },
-        "Delhi": { premium: 2200 },
-        "Gujarat (Ahmedabad)": { premium: 1500 },
-        "Chhattisgarh (Bilaspur)": { premium: 1800 },
-        "Rajasthan (Jaipur)": { premium: 2500 },
-        "Uttar Pradesh (Lucknow)": { premium: 2800 },
-        "Punjab (Chandigarh)": { premium: 2600 },
-        "Haryana": { premium: 2500 },
-        "West Bengal (Kolkata)": { premium: 3000 },
-        "Bihar (Patna)": { premium: 3500 },
-        "Assam (Guwahati)": { premium: 4000 },
-        "Madhya Pradesh (Bhopal)": { premium: 2800 },
-        "Odisha": { premium: 3200 },
-        "Kerala": { premium: 3500 },
-        "Tamil Nadu (Chennai)": { premium: 4000 },
-        "Karnataka (Bengaluru)": { premium: 2800 },
-        "Andhra Pradesh": { premium: 3500 },
-        "Telangana (Hyderabad)": { premium: 2800 }
-      };
-      var statesArr = [];
-      for (var s in GOLD_STATES) {
-        var statePrem = GOLD_STATES[s].premium;
-        var beforeGst = goldBasePrice + statePrem;
-        var finalPrice = Math.round(beforeGst * (1 + gstRate));
-        var prevBeforeGst = (goldPrevClose || goldBasePrice) + statePrem;
-        var prevFinal = Math.round(prevBeforeGst * (1 + gstRate));
-        var gstAmt = Math.round(beforeGst * gstRate);
-        statesArr.push({
-          state: s,
-          price: finalPrice,
-          change: finalPrice - prevFinal,
-          mcxBase: Math.round(goldBasePrice),
-          statePremium: statePrem,
-          gst: gstAmt,
-          cgst: Math.round(gstAmt / 2),
-          sgst: Math.round(gstAmt / 2),
-          source: "MCX"
-        });
+    // State-wise gold prices — scraped from SilverJi (IBJA-based retail rates)
+    const cityPrices = await fetchSilverJiPrices();
+    if (cityPrices && Object.keys(cityPrices).length > 0) {
+      results.gold.indiaStates = cityPrices;
+    } else {
+      // Fallback: MCX base price across all cities
+      const goldBasePrice = results.gold?.inrPrice10g || null;
+      const goldPrevClose = results.gold?.prevClose || null;
+      if (goldBasePrice) {
+        var FALLBACK_CITIES = [
+          "Maharashtra (Mumbai)", "Delhi", "Gujarat (Ahmedabad)", "Chhattisgarh (Bilaspur)",
+          "Rajasthan (Jaipur)", "Uttar Pradesh (Lucknow)", "Punjab (Chandigarh)", "Haryana",
+          "West Bengal (Kolkata)", "Bihar (Patna)", "Assam (Guwahati)", "Madhya Pradesh (Bhopal)",
+          "Odisha", "Kerala", "Tamil Nadu (Chennai)", "Karnataka (Bengaluru)",
+          "Andhra Pradesh", "Telangana (Hyderabad)"
+        ];
+        var fallbackArr = [];
+        for (var fi = 0; fi < FALLBACK_CITIES.length; fi++) {
+          fallbackArr.push({
+            state: FALLBACK_CITIES[fi],
+            price: Math.round(goldBasePrice),
+            change: Math.round(goldBasePrice - (goldPrevClose || goldBasePrice)),
+            mcxBase: Math.round(goldBasePrice)
+          });
+        }
+        results.gold.indiaStates = fallbackArr;
       }
-      results.gold.indiaStates = statesArr;
     }
 
     // Also provide international comparison data

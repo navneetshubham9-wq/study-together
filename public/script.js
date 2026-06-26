@@ -3811,18 +3811,23 @@ var lastGoldStateData = null;
 function renderStatePrices(states) {
   if (!statePricesDiv || !states) return;
   var first = states[0];
-  var taxInfo = '<div style="font-size:11px;background:rgba(255,255,255,0.03);padding:6px 8px;border-radius:4px;margin-bottom:6px;color:#bdc3c7;line-height:1.6;">';
-  taxInfo += '<b style="color:#f1c40f;">MCX Base</b> ₹' + first.mcxBase.toLocaleString() + '/10g <span style="color:#2ecc71;">(Source: MCX Futures)</span><br>';
-  taxInfo += '<b style="color:#f1c40f;">Taxes:</b> CGST 1.5% + SGST 1.5% (₹' + first.gst.toLocaleString() + ') on (MCX Base + Dealer Premium)</div>';
+  var sourceLabel = first.source === "SilverJi" ? 'SilverJi (IBJA)' : 'MCX Futures';
+  var info = '<div style="font-size:11px;background:rgba(255,255,255,0.03);padding:6px 8px;border-radius:4px;margin-bottom:6px;color:#bdc3c7;line-height:1.6;">';
+  info += '<b style="color:#f1c40f;">Source:</b> <span style="color:#2ecc71;">' + sourceLabel + '</span>';
+  info += ' — Retail rates including all taxes</div>';
   var h = '<table style="width:100%;border-collapse:collapse;">';
-  h += '<tr style="border-bottom:1px solid rgba(255,255,255,0.1);"><th style="text-align:left;padding:3px 5px;color:#f1c40f;font-size:11px;">State</th><th style="text-align:right;padding:3px 5px;color:#f1c40f;font-size:11px;">₹/10g</th><th style="text-align:right;padding:3px 5px;color:#f1c40f;font-size:11px;">Change</th></tr>';
+  h += '<tr style="border-bottom:1px solid rgba(255,255,255,0.1);"><th style="text-align:left;padding:2px 4px;color:#f1c40f;font-size:10px;">City</th><th style="text-align:right;padding:2px 4px;color:#f1c40f;font-size:10px;">24K ₹/10g</th><th style="text-align:right;padding:2px 4px;color:#f1c40f;font-size:10px;">Change</th></tr>';
   for (var i = 0; i < states.length; i++) {
     var s = states[i];
     var arrow = s.change >= 0 ? "▲" : "▼";
-    h += '<tr style="border-bottom:1px solid rgba(255,255,255,0.05);"><td style="padding:2px 5px;font-size:11px;">' + s.state + '</td><td style="text-align:right;padding:2px 5px;font-size:11px;">₹' + s.price.toLocaleString() + '</td><td style="text-align:right;padding:2px 5px;font-size:11px;color:' + (s.change >= 0 ? '#2ecc71' : '#e74c3c') + ';">' + arrow + ' ' + Math.abs(s.change).toLocaleString() + '</td></tr>';
+    h += '<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">';
+    h += '<td style="padding:2px 4px;font-size:10px;">' + s.state + '</td>';
+    h += '<td style="text-align:right;padding:2px 4px;font-size:10px;font-weight:bold;">₹' + s.price.toLocaleString() + '</td>';
+    h += '<td style="text-align:right;padding:2px 4px;font-size:10px;color:' + (s.change >= 0 ? '#2ecc71' : '#e74c3c') + ';">' + arrow + ' ' + Math.abs(s.change).toLocaleString() + '</td>';
+    h += '</tr>';
   }
-  h += '</table><div style="margin-top:4px;font-size:10px;color:rgba(255,255,255,0.3);text-align:center;">* MCX nearest futures contract price + dealer premium + 3% GST (CGST+SGST)</div>';
-  statePricesDiv.innerHTML = taxInfo + h;
+  h += '</table>';
+  statePricesDiv.innerHTML = info + h;
 }
 
 function fetchPrices(type, labels, container, timeEl) {
