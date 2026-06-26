@@ -584,7 +584,7 @@ io.on("connection", socket => {
 // ==========================================
 const PRICE_CACHE = { metals: null, indices: null, metalsTime: 0, indicesTime: 0 };
 const CACHE_TTL = 30000; // 30 seconds
-const INDIA_GOLD_PREMIUM = 1.16; // Multiplier for import duties (12.5% customs + 2.5% AIDC + 3% GST ≈ 18%)
+
 
 function fetchYahooPrice(symbol) {
   return new Promise((resolve, reject) => {
@@ -643,12 +643,12 @@ app.get("/api/market-prices", async (req, res) => {
         const TROY_OZ_TO_GRAM = 31.1035;
         // Convert gold to INR per 10g (with import duty premium for Indian market)
         if (results.gold && results.gold.price) {
-          results.gold.inrPrice10g = (results.gold.price / TROY_OZ_TO_GRAM) * 10 * rate * INDIA_GOLD_PREMIUM;
+          results.gold.inrPrice10g = (results.gold.price / TROY_OZ_TO_GRAM) * 10 * rate;
           results.gold.currency = "INR";
         }
         // Convert silver to INR per 10g (with import duty premium)
         if (results.silver && results.silver.price) {
-          results.silver.inrPrice10g = (results.silver.price / TROY_OZ_TO_GRAM) * 10 * rate * INDIA_GOLD_PREMIUM;
+          results.silver.inrPrice10g = (results.silver.price / TROY_OZ_TO_GRAM) * 10 * rate;
           results.silver.currency = "INR";
         }
       }
