@@ -587,7 +587,7 @@ io.on("connection", socket => {
 });
 
 // ==========================================
-// MARKET PRICE API (proxy to Yahoo Finance)
+// MARKET PRICE API (proxy to Yahoo Finance + MCX)
 // ==========================================
 const PRICE_CACHE = { metals: null, indices: null, metalsTime: 0, indicesTime: 0 };
 const CACHE_TTL = 30000; // 30 seconds
@@ -605,7 +605,6 @@ function fetchYahooPrice(symbol) {
           const result = json.chart?.result?.[0];
           if (!result) return resolve(null);
           const meta = result.meta;
-          const q = result.indicators?.quote?.[0];
           resolve({
             price: meta.regularMarketPrice,
             prevClose: meta.chartPreviousClose,
@@ -620,8 +619,42 @@ function fetchYahooPrice(symbol) {
   });
 }
 
+// Fetch MCX commodity price from Economic Times (India's real market)
+async function fetchMCXPrice(symbol) {
+  try {
+    const url = `https://economictimes.indiatimes.com/commoditysummary/symbol-${symbol}.cms`;
+    const html = await new Promise((resolve, reject) => {
+      https.get(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        },
+        timeout: 10000
+      }, (res) => {
+        let data = "";
+        res.on("data", (chunk) => data += chunk);
+        res.on("end", () => resolve(data));
+      }).on("error", reject).on("timeout", function() { this.destroy(); reject(new Error("timeout")); });
+    });
+    const priceMatch = html.match(/<span class="commodityPrice">([\d.]+)<\/span>/);
+    if (!priceMatch) return null;
+    const price = parseFloat(priceMatch[1]);
+    const prevCloseMatch = html.match(/<span class="data previousClosePrice">([\d.]+)<\/span>/);
+    const prevClose = prevCloseMatch ? parseFloat(prevCloseMatch[1]) : price;
+    return {
+      price: price,
+      prevClose: prevClose,
+      change: price - prevClose,
+      changePercent: ((price - prevClose) / prevClose * 100).toFixed(2),
+      currency: "INR",
+      source: "MCX"
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
 app.get("/api/market-prices", async (req, res) => {
-  const type = req.query.type; // "metals" or "indices"
+  const type = req.query.type;
   if (type !== "metals" && type !== "indices") return res.json({ error: "Invalid type" });
 
   const now = Date.now();
@@ -632,86 +665,101 @@ app.get("/api/market-prices", async (req, res) => {
     return res.json(PRICE_CACHE.indices);
   }
 
-  const symbols = type === "metals"
-    ? { gold: "GC=F", silver: "SI=F", platinum: "PL=F", palladium: "PA=F", crudeOil: "CL=F" }
-    : { nifty50: "^NSEI", sensex: "^BSESN", bankNifty: "^NSEBANK" };
-
   const results = {};
-  for (const [key, sym] of Object.entries(symbols)) {
-    try { results[key] = await fetchYahooPrice(sym); } catch (e) { results[key] = null; }
-  }
 
-  // Fetch USD/INR rate for metals conversion
   if (type === "metals") {
+    // Primary source: MCX (real Indian futures market)
+    const mcxGold = await fetchMCXPrice("GOLD");
+    const mcxSilver = await fetchMCXPrice("SILVER");
+    if (mcxGold) {
+      results.gold = mcxGold;
+      results.gold.inrPrice10g = mcxGold.price;
+      results.gold.pricePerGram = mcxGold.price / 10;
+    }
+    if (mcxSilver) {
+      results.silver = mcxSilver;
+      results.silver.inrPrice10g = mcxSilver.price;
+    }
+    // Fetch COMEX + international metals as supplementary data
+    const intlSymbols = { gold: "GC=F", silver: "SI=F", platinum: "PL=F", palladium: "PA=F", crudeOil: "CL=F" };
+    for (const [key, sym] of Object.entries(intlSymbols)) {
+      try { results["intl_" + key] = await fetchYahooPrice(sym); } catch (e) { results["intl_" + key] = null; }
+    }
+    // Fetch USD/INR rate for international comparison
+    let usdInr = null;
     try {
       const fx = await fetchYahooPrice("USDINR=X");
-      if (fx && fx.price) {
-        const rate = fx.price;
-        const TROY_OZ_TO_GRAM = 31.1035;
-        // Convert gold to INR per 10g
-        if (results.gold && results.gold.price) {
-          results.gold.inrPrice10g = (results.gold.price / TROY_OZ_TO_GRAM) * 10 * rate;
-          results.gold.currency = "INR";
-        }
-        // Convert silver to INR per 10g
-        if (results.silver && results.silver.price) {
-          results.silver.inrPrice10g = (results.silver.price / TROY_OZ_TO_GRAM) * 10 * rate;
-          results.silver.currency = "INR";
-        }
-        // State-wise gold price breakdown (24K per 10g)
-        // Central: 15% import duty (10% BCD + 5% AIDC) | State: 3% GST (1.5% CGST + 1.5% SGST) + local premium
-        if (results.gold && results.gold.inrPrice10g) {
-          var baseInr = results.gold.inrPrice10g;
-          var dutyRate = 0.15;
-          var gstRate = 0.03;
-          var landedCost = baseInr * (1 + dutyRate);
-          var prevBaseInr = results.gold.prevClose ? (results.gold.prevClose / TROY_OZ_TO_GRAM) * 10 * rate : baseInr;
-          var prevLanded = prevBaseInr * (1 + dutyRate);
-          var GOLD_STATES = {
-            "Maharashtra (Mumbai)": { premium: 3500 },
-            "Delhi": { premium: 3800 },
-            "Gujarat (Ahmedabad)": { premium: 3000 },
-            "Rajasthan (Jaipur)": { premium: 4000 },
-            "Uttar Pradesh (Lucknow)": { premium: 4500 },
-            "Punjab (Chandigarh)": { premium: 4200 },
-            "Haryana": { premium: 4000 },
-            "West Bengal (Kolkata)": { premium: 4800 },
-            "Bihar (Patna)": { premium: 5500 },
-            "Assam (Guwahati)": { premium: 6000 },
-            "Madhya Pradesh (Bhopal)": { premium: 4500 },
-            "Odisha": { premium: 5200 },
-            "Kerala": { premium: 6500 },
-            "Tamil Nadu (Chennai)": { premium: 7000 },
-            "Karnataka (Bengaluru)": { premium: 5000 },
-            "Andhra Pradesh": { premium: 5800 },
-            "Telangana (Hyderabad)": { premium: 4800 }
-          };
-          var statesArr = [];
-          for (var s in GOLD_STATES) {
-            var statePrem = GOLD_STATES[s].premium;
-            var beforeGst = landedCost + statePrem;
-            var finalPrice = Math.round(beforeGst * (1 + gstRate));
-            var prevBeforeGst = prevLanded + statePrem;
-            var prevFinal = Math.round(prevBeforeGst * (1 + gstRate));
-            var dutyAmt = Math.round(baseInr * dutyRate);
-            var gstAmt = Math.round(beforeGst * gstRate);
-            statesArr.push({
-              state: s,
-              price: finalPrice,
-              change: finalPrice - prevFinal,
-              baseIntl: Math.round(baseInr),
-              importDuty: dutyAmt,
-              landedCost: Math.round(landedCost),
-              statePremium: statePrem,
-              gst: gstAmt,
-              cgst: Math.round(gstAmt / 2),
-              sgst: Math.round(gstAmt / 2)
-            });
-          }
-          results.gold.indiaStates = statesArr;
-        }
+      if (fx && fx.price) usdInr = fx.price;
+    } catch (e) { /* ignore */ }
+
+    // State-wise gold price breakdown (24K per 10g)
+    // MCX price already includes import duty — only add dealer premium + GST
+    const gstRate = 0.03;
+    const goldBasePrice = results.gold?.inrPrice10g || null;
+    const goldPrevClose = results.gold?.prevClose || null;
+    if (goldBasePrice) {
+      var GOLD_STATES = {
+        "Maharashtra (Mumbai)": { premium: 2000 },
+        "Delhi": { premium: 2200 },
+        "Gujarat (Ahmedabad)": { premium: 1500 },
+        "Chhattisgarh (Bilaspur)": { premium: 1800 },
+        "Rajasthan (Jaipur)": { premium: 2500 },
+        "Uttar Pradesh (Lucknow)": { premium: 2800 },
+        "Punjab (Chandigarh)": { premium: 2600 },
+        "Haryana": { premium: 2500 },
+        "West Bengal (Kolkata)": { premium: 3000 },
+        "Bihar (Patna)": { premium: 3500 },
+        "Assam (Guwahati)": { premium: 4000 },
+        "Madhya Pradesh (Bhopal)": { premium: 2800 },
+        "Odisha": { premium: 3200 },
+        "Kerala": { premium: 3500 },
+        "Tamil Nadu (Chennai)": { premium: 4000 },
+        "Karnataka (Bengaluru)": { premium: 2800 },
+        "Andhra Pradesh": { premium: 3500 },
+        "Telangana (Hyderabad)": { premium: 2800 }
+      };
+      var statesArr = [];
+      for (var s in GOLD_STATES) {
+        var statePrem = GOLD_STATES[s].premium;
+        var beforeGst = goldBasePrice + statePrem;
+        var finalPrice = Math.round(beforeGst * (1 + gstRate));
+        var prevBeforeGst = (goldPrevClose || goldBasePrice) + statePrem;
+        var prevFinal = Math.round(prevBeforeGst * (1 + gstRate));
+        var gstAmt = Math.round(beforeGst * gstRate);
+        statesArr.push({
+          state: s,
+          price: finalPrice,
+          change: finalPrice - prevFinal,
+          mcxBase: Math.round(goldBasePrice),
+          statePremium: statePrem,
+          gst: gstAmt,
+          cgst: Math.round(gstAmt / 2),
+          sgst: Math.round(gstAmt / 2),
+          source: "MCX"
+        });
       }
-    } catch (e) { /* FX rate unavailable, prices stay in USD */ }
+      results.gold.indiaStates = statesArr;
+    }
+
+    // Also provide international comparison data
+    if (results.intl_gold && usdInr) {
+      const TROY_OZ_TO_GRAM = 31.1035;
+      results.gold.intlUsd = results.intl_gold.price;
+      results.gold.intlInr10g = Math.round((results.intl_gold.price / TROY_OZ_TO_GRAM) * 10 * usdInr);
+      results.gold.usdInr = usdInr;
+    }
+    if (results.intl_silver && usdInr) {
+      const TROY_OZ_TO_GRAM = 31.1035;
+      results.silver.intlUsd = results.intl_silver.price;
+      results.silver.intlInr10g = Math.round((results.intl_silver.price / TROY_OZ_TO_GRAM) * 10 * usdInr);
+      results.silver.usdInr = usdInr;
+    }
+  } else {
+    // Indices — fetch from Yahoo Finance
+    const symbols = { nifty50: "^NSEI", sensex: "^BSESN", bankNifty: "^NSEBANK" };
+    for (const [key, sym] of Object.entries(symbols)) {
+      try { results[key] = await fetchYahooPrice(sym); } catch (e) { results[key] = null; }
+    }
   }
 
   if (type === "metals") { PRICE_CACHE.metals = results; PRICE_CACHE.metalsTime = now; }

@@ -3788,7 +3788,7 @@ var stocksBtn = document.getElementById("toggleStocksBtn");
 var stocksHeader = document.getElementById("stocks-header");
 
 // Metals labels
-var METAL_LABELS = { gold: "Gold (₹/10g)", silver: "Silver (₹/10g)", platinum: "Platinum (XPT/USD)", palladium: "Palladium (XPD/USD)", crudeOil: "Crude Oil (CL/F)" };
+var METAL_LABELS = { gold: "Gold MCX (₹/10g)", silver: "Silver MCX (₹/10g)", intl_platinum: "Platinum (XPT/USD)", intl_palladium: "Palladium (XPD/USD)", intl_crudeOil: "Crude Oil (CL/F)" };
 var STOCK_LABELS = { nifty50: "Nifty 50", sensex: "SENSEX", bankNifty: "Bank Nifty" };
 
 function priceRow(label, data) {
@@ -3796,9 +3796,12 @@ function priceRow(label, data) {
   var cls = data.change >= 0 ? "up" : "down";
   var arrow = data.change >= 0 ? "▲" : "▼";
   var displayPrice = data.inrPrice10g || data.price || 0;
-  var price = displayPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  var price = data.inrPrice10g ? '₹' + Math.round(data.inrPrice10g).toLocaleString() : '$' + (data.price < 100 ? data.price.toFixed(2) : Math.round(data.price).toLocaleString());
   var unit = data.inrPrice10g ? '/10g' : '';
-  return '<div class="price-row"><div><div class="price-name">' + label + '</div><div class="price-change ' + cls + '">' + arrow + ' ' + Math.abs(data.change).toFixed(2) + ' (' + data.changePercent + '%)</div></div><div style="text-align:right;"><div class="price-value">' + price + '</div><div style="font-size:10px;color:rgba(255,255,255,0.3);">' + (data.currency || 'USD') + unit + '</div></div></div>';
+  var sourceTag = data.source ? '<span style="color:#2ecc71;font-size:9px;margin-left:4px;">' + data.source + '</span>' : '';
+  var intlInfo = data.intlInr10g ? '<div style="font-size:9px;color:rgba(255,255,255,0.25);">Intl: ₹' + data.intlInr10g.toLocaleString() + '/10g</div>' : '';
+  if (data.intlUsd) intlInfo += '<div style="font-size:9px;color:rgba(255,255,255,0.25);">COMEX: $' + data.intlUsd.toFixed(2) + '/oz</div>';
+  return '<div class="price-row"><div><div class="price-name">' + label + sourceTag + '</div><div class="price-change ' + cls + '">' + arrow + ' ' + Math.abs(data.change).toFixed(2) + ' (' + data.changePercent + '%)</div></div><div style="text-align:right;"><div class="price-value">' + price + '</div>' + intlInfo + '<div style="font-size:10px;color:rgba(255,255,255,0.3);">' + (data.currency || 'USD') + unit + '</div></div></div>';
 }
 
 var toggleStatesBtn = document.getElementById("toggleStatesBtn");
@@ -3809,8 +3812,8 @@ function renderStatePrices(states) {
   if (!statePricesDiv || !states) return;
   var first = states[0];
   var taxInfo = '<div style="font-size:11px;background:rgba(255,255,255,0.03);padding:6px 8px;border-radius:4px;margin-bottom:6px;color:#bdc3c7;line-height:1.6;">';
-  taxInfo += '<b style="color:#f1c40f;">Central Taxes:</b> Base ₹' + first.baseIntl.toLocaleString() + ' + Import Duty 15% ₹' + first.importDuty.toLocaleString() + ' = Landed ₹' + first.landedCost.toLocaleString() + '<br>';
-  taxInfo += '<b style="color:#f1c40f;">State Taxes:</b> CGST 1.5% + SGST 1.5% (₹' + first.gst.toLocaleString() + ') on (Landed + Dealer Premium)</div>';
+  taxInfo += '<b style="color:#f1c40f;">MCX Base</b> ₹' + first.mcxBase.toLocaleString() + '/10g <span style="color:#2ecc71;">(Source: MCX Futures)</span><br>';
+  taxInfo += '<b style="color:#f1c40f;">Taxes:</b> CGST 1.5% + SGST 1.5% (₹' + first.gst.toLocaleString() + ') on (MCX Base + Dealer Premium)</div>';
   var h = '<table style="width:100%;border-collapse:collapse;">';
   h += '<tr style="border-bottom:1px solid rgba(255,255,255,0.1);"><th style="text-align:left;padding:3px 5px;color:#f1c40f;font-size:11px;">State</th><th style="text-align:right;padding:3px 5px;color:#f1c40f;font-size:11px;">₹/10g</th><th style="text-align:right;padding:3px 5px;color:#f1c40f;font-size:11px;">Change</th></tr>';
   for (var i = 0; i < states.length; i++) {
@@ -3818,7 +3821,7 @@ function renderStatePrices(states) {
     var arrow = s.change >= 0 ? "▲" : "▼";
     h += '<tr style="border-bottom:1px solid rgba(255,255,255,0.05);"><td style="padding:2px 5px;font-size:11px;">' + s.state + '</td><td style="text-align:right;padding:2px 5px;font-size:11px;">₹' + s.price.toLocaleString() + '</td><td style="text-align:right;padding:2px 5px;font-size:11px;color:' + (s.change >= 0 ? '#2ecc71' : '#e74c3c') + ';">' + arrow + ' ' + Math.abs(s.change).toLocaleString() + '</td></tr>';
   }
-  h += '</table><div style="margin-top:4px;font-size:10px;color:rgba(255,255,255,0.3);text-align:center;">* All taxes (Import Duty 15% + CGST 1.5% + SGST 1.5%) + dealer premium included</div>';
+  h += '</table><div style="margin-top:4px;font-size:10px;color:rgba(255,255,255,0.3);text-align:center;">* MCX nearest futures contract price + dealer premium + 3% GST (CGST+SGST)</div>';
   statePricesDiv.innerHTML = taxInfo + h;
 }
 
