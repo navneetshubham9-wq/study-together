@@ -3735,6 +3735,7 @@ socket.on("room-summary", (data) => {
 (function() {
 var THREE = window.THREE;
 var Chess = window.Chess;
+var cdnReady = !!(THREE && Chess);
 
 var containerEl = document.getElementById("chess-3d-container");
 var turnIndicatorEl = document.getElementById("chess-turn-indicator");
@@ -3746,7 +3747,9 @@ var closeChessBtn = document.getElementById("closeChessBtn");
 var chessBtn = document.getElementById("chessBtn");
 var enableChessBtn = document.getElementById("enableChessBtn");
 
-if (!containerEl || !THREE || !Chess) { if (chessBtn) chessBtn.title = "Chess unavailable"; return; }
+// Always make buttons visible/functional regardless of CDN state
+if (enableChessBtn) enableChessBtn.style.display = "none";
+if (chessBtn) chessBtn.style.display = "inline-block";
 
 // State
 var isChessOpen = false;
@@ -4181,7 +4184,6 @@ function setChessEnabled(enabled) {
     enableChessBtn.textContent = enabled ? "♟ Disable Chess" : "♟ Enable Chess";
     enableChessBtn.style.background = enabled ? "linear-gradient(135deg, #c0392b, #e74c3c)" : "linear-gradient(135deg, #2d3436, #636e72)";
   }
-  if (chessBtn) chessBtn.style.display = isHost || enabled ? "inline-block" : "none";
 }
 
 // Socket handlers
@@ -4342,6 +4344,8 @@ enableChessBtn?.addEventListener("click", function() {
 
 chessBtn?.addEventListener("click", function() {
   if (!chessPanel || !chessOverlay) return;
+  if (!cdnReady) { showNotification("Chess requires Three.js & chess.js — check internet", "error"); return; }
+  if (!containerEl) { showNotification("Chess panel element missing", "error"); return; }
   isChessOpen = !isChessOpen;
   chessPanel.style.display = isChessOpen ? "block" : "none";
   chessOverlay.style.display = isChessOpen ? "block" : "none";
@@ -4360,7 +4364,7 @@ chessOverlay?.addEventListener("click", closeChess);
 window._setChessHostState = function(host) {
   isHost = host;
   if (enableChessBtn) enableChessBtn.style.display = host ? "inline-block" : "none";
-  if (chessBtn) chessBtn.style.display = (isHost || chessEnabled) ? "inline-block" : "none";
+  if (chessBtn) chessBtn.style.display = "inline-block";
 };
 
 // Participant assign in existing renderParticipantsList
