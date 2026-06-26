@@ -3814,6 +3814,7 @@ metalsBtn?.addEventListener("click", function() {
   }
 });
 
+closeMetalsBtn?.addEventListener("pointerdown", function(e) { e.stopPropagation(); });
 closeMetalsBtn?.addEventListener("click", function() {
   metalsVisible = false;
   metalsModal.style.display = "none";
@@ -3832,6 +3833,7 @@ stocksBtn?.addEventListener("click", function() {
   }
 });
 
+closeStocksBtn?.addEventListener("pointerdown", function(e) { e.stopPropagation(); });
 closeStocksBtn?.addEventListener("click", function() {
   stocksVisible = false;
   stocksModal.style.display = "none";
