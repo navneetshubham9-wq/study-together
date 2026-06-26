@@ -633,6 +633,27 @@ app.get("/api/market-prices", async (req, res) => {
     try { results[key] = await fetchYahooPrice(sym); } catch (e) { results[key] = null; }
   }
 
+  // Fetch USD/INR rate for metals conversion
+  if (type === "metals") {
+    try {
+      const fx = await fetchYahooPrice("USDINR=X");
+      if (fx && fx.price) {
+        const rate = fx.price;
+        const TROY_OZ_TO_GRAM = 31.1035;
+        // Convert gold to INR per 10g
+        if (results.gold && results.gold.price) {
+          results.gold.inrPrice10g = (results.gold.price / TROY_OZ_TO_GRAM) * 10 * rate;
+          results.gold.currency = "INR";
+        }
+        // Convert silver to INR per 10g
+        if (results.silver && results.silver.price) {
+          results.silver.inrPrice10g = (results.silver.price / TROY_OZ_TO_GRAM) * 10 * rate;
+          results.silver.currency = "INR";
+        }
+      }
+    } catch (e) { /* FX rate unavailable, prices stay in USD */ }
+  }
+
   if (type === "metals") { PRICE_CACHE.metals = results; PRICE_CACHE.metalsTime = now; }
   else { PRICE_CACHE.indices = results; PRICE_CACHE.indicesTime = now; }
 

@@ -544,7 +544,7 @@ document.getElementById("toggleOfficeBtn")?.addEventListener("click", function()
 socket.on("pres-toggle", (data) => {
     if(data.show) { 
         hideAllBigPanels(); 
-        if(presentationBox) presentationBox.style.display = "block"; 
+        if(presentationBox) { presentationBox.style.display = "block"; setTimeout(function() { presentationBox.scrollIntoView({ behavior: "smooth", block: "start" }); }, 100); }
         if(isHost){ const btn = document.getElementById("togglePresBtn"); if(btn){btn.dataset.show="true"; btn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
     } else { 
         if(presentationBox) presentationBox.style.display = "none"; 
@@ -555,7 +555,7 @@ socket.on("pres-toggle", (data) => {
 socket.on("wb-toggle", (data) => {
     if(data.show) { 
         hideAllBigPanels(); 
-        if(whiteboardBox) whiteboardBox.style.display = "block"; 
+        if(whiteboardBox) { whiteboardBox.style.display = "block"; setTimeout(function() { whiteboardBox.scrollIntoView({ behavior: "smooth", block: "start" }); }, 100); }
         if(isHost){ const btn = document.getElementById("toggleWbBtn"); if(btn){btn.dataset.show="true"; btn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
     } else { 
         if(whiteboardBox) whiteboardBox.style.display = "none"; 
@@ -568,7 +568,7 @@ socket.on("wb-toggle", (data) => {
 socket.on("map-toggle", (data) => {
     if(data.show) { 
         hideAllBigPanels(); 
-        if(mapBox) mapBox.style.display = "block"; 
+        if(mapBox) { mapBox.style.display = "block"; setTimeout(function() { mapBox.scrollIntoView({ behavior: "smooth", block: "start" }); }, 100); }
         setTimeout(() => { if(typeof geoMap !== 'undefined') geoMap.invalidateSize(); }, 100); 
         if(isHost){ const btn = document.getElementById("toggleMapBtn"); if(btn){btn.dataset.show="true"; btn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
     } else { 
@@ -580,7 +580,7 @@ socket.on("map-toggle", (data) => {
 socket.on("office-toggle", (data) => {
     if(data.show) { 
         hideAllBigPanels(); 
-        if(officeBox) officeBox.style.display = "block"; 
+        if(officeBox) { officeBox.style.display = "block"; setTimeout(function() { officeBox.scrollIntoView({ behavior: "smooth", block: "start" }); }, 100); }
         if(isHost){ const btn = document.getElementById("toggleOfficeBtn"); if(btn){btn.dataset.show="true"; btn.style.background="linear-gradient(135deg, #e74c3c, #c0392b)";} } 
     } else { 
         if(officeBox) officeBox.style.display = "none"; 
@@ -3748,15 +3748,17 @@ var stocksBtn = document.getElementById("toggleStocksBtn");
 var stocksHeader = document.getElementById("stocks-header");
 
 // Metals labels
-var METAL_LABELS = { gold: "Gold (XAU/USD)", silver: "Silver (XAG/USD)", platinum: "Platinum (XPT/USD)", palladium: "Palladium (XPD/USD)", crudeOil: "Crude Oil (CL/F)" };
+var METAL_LABELS = { gold: "Gold (₹/10g)", silver: "Silver (₹/10g)", platinum: "Platinum (XPT/USD)", palladium: "Palladium (XPD/USD)", crudeOil: "Crude Oil (CL/F)" };
 var STOCK_LABELS = { nifty50: "Nifty 50", sensex: "SENSEX", bankNifty: "Bank Nifty" };
 
 function priceRow(label, data) {
   if (!data) return '<div class="price-row"><span class="price-name">' + label + '</span><span style="color:rgba(255,255,255,0.3);">N/A</span></div>';
   var cls = data.change >= 0 ? "up" : "down";
   var arrow = data.change >= 0 ? "▲" : "▼";
-  var price = (data.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return '<div class="price-row"><div><div class="price-name">' + label + '</div><div class="price-change ' + cls + '">' + arrow + ' ' + Math.abs(data.change).toFixed(2) + ' (' + data.changePercent + '%)</div></div><div style="text-align:right;"><div class="price-value">' + price + '</div><div style="font-size:10px;color:rgba(255,255,255,0.3);">' + (data.currency || 'USD') + '</div></div></div>';
+  var displayPrice = data.inrPrice10g || data.price || 0;
+  var price = displayPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  var unit = data.inrPrice10g ? '/10g' : '';
+  return '<div class="price-row"><div><div class="price-name">' + label + '</div><div class="price-change ' + cls + '">' + arrow + ' ' + Math.abs(data.change).toFixed(2) + ' (' + data.changePercent + '%)</div></div><div style="text-align:right;"><div class="price-value">' + price + '</div><div style="font-size:10px;color:rgba(255,255,255,0.3);">' + (data.currency || 'USD') + unit + '</div></div></div>';
 }
 
 function fetchPrices(type, labels, container, timeEl) {
